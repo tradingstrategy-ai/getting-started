@@ -32,5 +32,5 @@ RUN echo $GIT_VERSION_HASH > GIT_VERSION_HASH.txt
 COPY . .
 
 RUN poetry config virtualenvs.create false
-RUN poetry install --no-dev --no-interaction --no-ansi
+RUN poetry install --only main --no-interaction --no-ansi
 
