@@ -31,8 +31,8 @@ You can either run and edit these examples
 
 You can find these example strategies
 
-- An example RSI breakout strategy for Bitcoin on Binance data
-- An example EMA strategy for ETH on Uniswap v3 on Arbitrum
+- [A RSI and Bollinger bands breakout strategy for MATIC using Binance CEX data](./notebooks/single-backtest/matic-breakout.ipynb)
+- An EMA strategy for ETH on Uniswap v3 on Arbitrum (TODO)
 
 # How to run on Github Codespaces
 
@@ -79,10 +79,15 @@ You can find them by scrolling down to the different sections
 
 - Equity curve
 - Performance metrics
+- otheres
 
 ![img.png](./screenshots/performance-metrics.png)
 
+And now you are done with our first backtest! Continue below to learn more how you can get started with your own strategies.
+
 # How to run: local Visual Studio Code
+
+This is an alternative for Github Codespaces that runs on your local computer (fast).
 
 - Check out [this Github repository](https://github.com/tradingstrategy-ai/getting-started) to your local computer
 - Open the checked out folder in your Visual Studio Code
