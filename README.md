@@ -1,14 +1,13 @@
  # Getting started
  
 - This is an example repository for [Trading Strategy framework](https://tradingstrategy.ai) to 
-  get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to decentralised finance
-- This allows you to develop and backtest your trading strategies against DeFi and [Binance CEX](https://tradingstrategy.ai/glossary/cex) data
+  get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to DEXes and DeFi markets
 - This repository contains multiple example backtesting  [notebooks](https://tradingstrategy.ai/glossary/jupyter-notebook) to get started 
+- The examples should get you up to the speed how to backtest your strategies on both DEX and [Binance CEX](https://tradingstrategy.ai/glossary/cex) data
 
 # Prerequisites
 
 - Github user account 
-  - The Docker container image running the development environment is hosted on [Github Container Registry](https://github.com/features/packages)
 - Basic Python and data science knowledge
   - Python scripting
   - Pandas
@@ -146,23 +145,34 @@ Any function will give it's Python documentation as a tooltip on mouse hover.
 
 # How to
 
+Some questions on how to get things done.
+
 ## Develop a trading strategy
  
 - Have a trading idea
 - Create the first prototype with data sources and indicators using centralised exchange data like Binance
   - Decentralised market have often too little history to make any kind of analysis
-- Validate your backtest robustness by testing shifting timeframes around
+  - You can use streamlined tools like TradingView for the first iterations
+  - Then convert your strategy skeleton to Python code
+- Check the robustness of the strategy
+   - After you are happy with the initial strategy version you can perform some robustness tests
+   - Validate your backtest robustness by testing shifting timeframes around
 - After happy with the strategy, Change the backtesting to real decentralised data
-- Convert the backtest notebook to a Trading Strategy Python module
-- Launch the live trading strategy
-
+  - Convert the backtest notebook to a Trading Strategy Python module
+- Launch the live trading strategy using Trading Strategy oracle on DEXes
+- Add a vault like Enzyme so that others can deposit into your strategy
 
 ## Add indicators
 
+TODO
+
 ## Visualise indicators
+
+TODO
 
 # Learning resources
 
+- [Learn algorithmic trading](https://tradingstrategy.ai/docs/learn/index.html#learning)
 - [Trading Strategy documentation](https://tradingstrategy.ai/docs/)
 - [About Github Codespaces](https://github.com/features/codespaces)
 - [About Visual Studio Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)
