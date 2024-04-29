@@ -49,6 +49,9 @@ You should see now notebook running, indicated by the progress indicator and run
 
 ![img.png](screenshots/running.png)
 
+**Note**: If you see a text `"Error rendering output item using 'jupyter-ipywidget-renderer` it means Visual Studio Code/Github Codespaces has encountered an internal bug.
+In this case press **Interrupt** on a toolbar, close the notebook, open it again and press **Run all** again. It happens only on the first run.
+
 After the notebook is running successfully, you should be able to press **Go to** on the toolbar and see the backtesting progress bar going on. 
 
 ![img.png](screenshots/progres-bar.png)
