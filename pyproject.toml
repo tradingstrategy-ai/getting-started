@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "trading-strategy-getting-started"
+version = "0.2.0"
+description = "Trading Strategy Getting Started kit"
+authors = ["Mikko Ohtamaa <mikko@opensourcehacker.com>"]
+license = "MIT"
+readme = "README.md"
+keywords = ["algorithmic trading", "ethereum", "cryptocurrency", "tradingview", "quantitative finance", "binance", "coinbase", "uniswap"]
+homepage = "https://tradingstrategy.ai"
+repository = "https://github.com/tradingstrategy-ai/getting-started"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+pytest = "^7.3.0"
+trade-executor = {git = "https://github.com/tradingstrategy-ai/trade-executor.git", extras = ["web-server", "execution", "data"], rev = "master" }
+ipython = "^8.12.0"
+ipdb = "^0.13.13"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

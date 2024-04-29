@@ -1,0 +1,38 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
+// The original blog post this is based at: https://marioscalas.medium.com/using-python-and-poetry-inside-a-dev-container-33c80bc5a22c
+{
+  "name": "Trading Strategy getting started",
+
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": {
+      // Update 'VARIANT' to pick a Python version: 3, 3.10, 3.9, 3.8, 3.7, 3.6
+      // Append -bullseye or -buster to pin to an OS version.
+      // Use -bullseye variants on local on arm64/Apple Silicon.
+      "VARIANT": "3.10-bullseye"
+    }
+  },
+
+  // Features to add to the dev container. More info: https://containers.dev/features.
+  // "features": {},
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  // "forwardPorts": [],
+
+  // Use 'postCreateCommand' to run commands after the container is created.
+  // "postCreateCommand": "pip3 install --user -r requirements.txt",
+
+  // Configure tool-specific properties.
+  "extensions": [
+	"ms-python.python",
+	"ms-python.vscode-pylance",
+	"ms-toolsai.jupyter",
+	"ms-toolsai.jupyter-keymap",
+	"ms-toolsai.jupyter-renderers",
+	"vscode-icons-team.vscode-icons",
+	"lextudio.restructuredtext-pack",
+	"trond-snekvik.simple-rst"
+]
+}
