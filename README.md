@@ -27,11 +27,30 @@ Click to open in your personal Github Codespaces:
 
 # How to run
 
-- After opening the notebook click Run
+- Open a notebook: 
+- After opening the notebook click Run button Jupyter toolbar
+  - Sometimes the toolbar does not appear, as Visual Studio Code fails to install extensions on the first run: in this case you need to restart your Visual Studio Code and it should work
+
+![](./screenshots/jupyter-toolbar.png)
+
+**Note to Mac users**: The current Docker image is built for Intel platform. If you run Dev Container
+on your Mac computer with Visual Studio Code, the backtesting speed is slower than you would get otherwise. 
+
+# How to add indicators
+
+# How to visualise indicators
+
+# H
 
 # How do I develop a trading strategy
+- 
 - Have a trading idea
-- Create the first prototype with data sources and indicators
+- Create the first prototype with data sources and indicators using centralised exchange data like Binance
+  - Decentralised market have often too little history to make any kind of analysis
+- Validate your backtest robustness by testing shifting timeframes around
+- After happy with the strategy, Change the backtesting to real decentralised data
+- Convert the backtest notebook to a Trading Strategy Python module
+- Launch the live trading strategy
 
 # Learning resources
 
@@ -44,3 +63,11 @@ Click to open in your personal Github Codespaces:
 - [Rebuilding Dev Containers for Github codespaces](https://docs.github.com/en/codespaces/developing-in-a-codespace/rebuilding-the-container-in-a-codespace)
 - [Dev Container CLI](https://code.visualstudio.com/docs/devcontainers/devcontainer-cli)
 - [Microsoft default Dev Container image for Python](https://github.com/devcontainers/images/tree/main/src/python)
+- [Dev Container Github Action](https://github.com/devcontainers/ci/blob/main/docs/github-action.md)
+- [Dev Container JSON reference](https://code.visualstudio.com/docs/devcontainers/create-dev-container)
+
+Testing the Dev Container build:
+
+```shell
+devcontainer up --workspace-folder . 
+```

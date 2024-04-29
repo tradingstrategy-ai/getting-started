@@ -4,16 +4,7 @@
 {
   "name": "Trading Strategy getting started",
 
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": "..",
-    "args": {
-      // Update 'VARIANT' to pick a Python version: 3, 3.10, 3.9, 3.8, 3.7, 3.6
-      // Append -bullseye or -buster to pin to an OS version.
-      // Use -bullseye variants on local on arm64/Apple Silicon.
-      "VARIANT": "3.10-bullseye"
-    }
-  },
+  "image": "ghcr.io/tradingstrategy-ai/devcontainer:latest",
 
   // Features to add to the dev container. More info: https://containers.dev/features.
   // "features": {},
@@ -26,13 +17,13 @@
 
   // Configure tool-specific properties.
   "extensions": [
-	"ms-python.python",
-	"ms-python.vscode-pylance",
-	"ms-toolsai.jupyter",
-	"ms-toolsai.jupyter-keymap",
-	"ms-toolsai.jupyter-renderers",
-	"vscode-icons-team.vscode-icons",
-	"lextudio.restructuredtext-pack",
-	"trond-snekvik.simple-rst"
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-toolsai.jupyter",
+    "ms-toolsai.jupyter-keymap",
+    "ms-toolsai.jupyter-renderers",
+    "vscode-icons-team.vscode-icons",
+    "lextudio.restructuredtext-pack",
+    "trond-snekvik.simple-rst"
   ]
 }
