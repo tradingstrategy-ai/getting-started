@@ -6,8 +6,8 @@
 
 # Prerequisites
 
-- Github user account (online Github Codespaces development)
-  - ... or Visual Studio Code installed on your computers (offline local development)
+- Github user account 
+  - The Docker container image running the development environment is hosted on [Github Container Registry](https://github.com/features/packages)
 - Basic Python and data science knowledge
   - Python scripting
   - Pandas
