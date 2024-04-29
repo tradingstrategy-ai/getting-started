@@ -79,14 +79,15 @@ You can find them by scrolling down to the different sections
 
 # How to run: local Visual Studio Code
 
-- Check out [this Github repository]() on your local computer
+- Check out [this Github repository](https://github.com/tradingstrategy-ai/getting-started) to your local computer
+- Open the checked out folder in your Visual Studio Code
 - Visual Studio code should prompt you "Do you wish to run this in Dev Container"
 - Choose yes
 - Follow the same steps as in *How to run on Github Codespaces* above 
 
-**Note**: If you run on a local Sometimes the toolbar does not appear, as Visual Studio Code fails to install extensions on the first run: in this case you need to restart your Visual Studio Code and it should work
+**Note**: If you run on a local sometimes the Jupyter Notebook toolbar does not appear with **Run all** etc. buttons. Often Visual Studio Code fails to automatically install its extensions on the first run: in this case you need to restart your Visual Studio Code and reopen the notebook.
 
-# Strategy skeleton
+# Strategy backtest notebook structure
 
 Each strategy backtest notebook will consist of following phases. 
 
