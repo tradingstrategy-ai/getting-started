@@ -36,6 +36,9 @@ You can find these example strategies
 
 # How to run on Github Codespaces
 
+In this tutorial, we open a single backtes in Github Codespaces and run it. You can do all in your 
+web browser using your Github account, no software is needed.
+
 Press **Create codespaces** on [Github repository page](https://github.com/tradingstrategy-ai/getting-started).
 
 ![](./screenshots/codespaces-button.png)
@@ -48,7 +51,7 @@ After a while your Github Codespaces cloud environment is set up. The first laun
 
 ![](./screenshots/codespaces-open.png)
 
-Open a notebook: **notebooks/single-backtest/matic-breakout.ipynb**. 
+In the file explorer on the left, open a notebook: `notebooks/single-backtest/matic-breakout.ipynb`. 
 
 After opening the notebook click **Clear all Outputs** and then **Run all** button Jupyter toolbar.
 
@@ -76,6 +79,8 @@ You can find them by scrolling down to the different sections
 
 - Equity curve
 - Performance metrics
+
+![img.png](./screenshots/performance-metrics.png)
 
 # How to run: local Visual Studio Code
 
