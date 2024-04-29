@@ -36,7 +36,11 @@ You can find these example strategies
 
 # How to run on Github Codespaces
 
-Press **Create codespaces** on [Github repository]().
+Press **Create codespaces** on [Github repository page](https://github.com/tradingstrategy-ai/getting-started).
+
+![](./screenshots/codespaces-button.png)
+
+This will give you a page showing your codespace is being launched.
 
 ![](./screenshots/launching-codespaces.png)
 
@@ -52,23 +56,26 @@ After opening the notebook click **Clear all Outputs** and then **Run all** butt
 
 When you are asked to *Select kernel*. Choose *Python Environments..* and then `/usr/local/bin/python`.
 
-![img.png](screenshots/choose-kernel.png)
+![img.png](./screenshots/choose-kernel.png)
 
 You should see now notebook running, indicated by the progress indicator and run time count down in each notebook cell.
 
-![img.png](screenshots/running.png)
+![img.png](./screenshots/running.png)
 
 After the notebook is running successfully, you should be able to press **Go to** on the toolbar and see the backtesting progress bar going on. 
 You will see a separate progress bar for 1) downloading data (done only once) 2) calculating technical indicators 3) running the backtest.
 
-![img.png](screenshots/progres-bar.png)
+![img.png](./screenshots/progress-bar.png)
 
 **Note**: If you see a text `"Error rendering output item using 'jupyter-ipywidget-renderer. this is undefined.` it means Visual Studio Code/Github Codespaces has encountered an internal bug.
 In this case press **Interrupt** on a toolbar, close the notebook, open it again and press **Run all** again. It happens only on the first run.
 
 Shortly after this backtests results are available.
 
+You can find them by scrolling down to the different sections
 
+- Equity curve
+- Performance metrics
 
 # How to run: local Visual Studio Code
 
@@ -99,6 +106,9 @@ Each strategy backtest notebook will consist of following phases.
   which contains all the information about the backtest execution we can then analyse.
 - **Output**: You can have various visualisation and tables about the strategy performance. These include e.g. **Equity curve**,
   **Performance metrics** (max drawdown, Sharpe, etc) and **Trading statistics**.
+
+This is a rough skeleton. You mix and match can easily add your own trading signals and output charts using with all tools available in Pandas and Jupyter notebook ecosystem.
+There aren't any limitations on what you can do.
 
 # Grid search skeleton
 
