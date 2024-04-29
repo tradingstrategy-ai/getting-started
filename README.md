@@ -25,16 +25,47 @@ Click to open in your personal Github Codespaces:
 - An example RSI breakout strategy for Bitcoin on Binance data
 - An example EMA strategy for ETH on Uniswap v3 on Arbitrum
 
-# How to run
+# How to run on Github Codespaces
 
-- Open a notebook: 
-- After opening the notebook click Run button Jupyter toolbar
-  - Sometimes the toolbar does not appear, as Visual Studio Code fails to install extensions on the first run: in this case you need to restart your Visual Studio Code and it should work
+Press **Create codespaces** on [Github repository]().
+
+![](./screenshots/launching-codespaces.png)
+
+After a while your Github Codespaces cloud environment is set up. The first launch is going to take a minute or two.
+
+![](./screenshots/codespaces-open.png)
+
+Open a notebook: **notebooks/single-backtest/matic-breakout.ipynb**. 
+
+After opening the notebook click **Clear all Outputs** and then **Run all** button Jupyter toolbar.
 
 ![](./screenshots/jupyter-toolbar.png)
 
-**Note to Mac users**: The current Docker image is built for Intel platform. If you run Dev Container
-on your Mac computer with Visual Studio Code, the backtesting speed is slower than you would get otherwise. 
+When you are asked to *Select kernel*. Choose *Python Environments..* and then `/usr/local/bin/python`.
+
+![img.png](screenshots/choose-kernel.png)
+
+You should see now notebook running, indicated by the progress indicator and run time count down in each notebook cell.
+
+![img.png](screenshots/running.png)
+
+After the notebook is running successfully, you should be able to press **Go to** on the toolbar and see the backtesting progress bar going on. 
+
+![img.png](screenshots/progres-bar.png)
+
+Shortly after this backtests results are available.
+
+
+
+
+# How to run: local Visual Studio Code
+
+- Check out [this Github repository]() on your local computer
+- Visual Studio code should prompt you "Do you wish to run this in Dev Container"
+- Choose yes
+- Follow the same steps as in *How to run on Github Codespaces* above 
+
+**Note**: If you run on a local Sometimes the toolbar does not appear, as Visual Studio Code fails to install extensions on the first run: in this case you need to restart your Visual Studio Code and it should work
 
 # How to add indicators
 
@@ -60,6 +91,9 @@ on your Mac computer with Visual Studio Code, the backtesting speed is slower th
 
 # Troubleshooting
 
+**Note to Mac users**: The current Docker image is built for Intel platform. If you run Dev Container
+on your Mac computer with Visual Studio Code, the backtesting speed is slower than you would get otherwise. 
+
 - [Rebuilding Dev Containers for Github codespaces](https://docs.github.com/en/codespaces/developing-in-a-codespace/rebuilding-the-container-in-a-codespace)
 - [Dev Container CLI](https://code.visualstudio.com/docs/devcontainers/devcontainer-cli)
 - [Microsoft default Dev Container image for Python](https://github.com/devcontainers/images/tree/main/src/python)
@@ -70,4 +104,10 @@ Testing the Dev Container build:
 
 ```shell
 devcontainer up --workspace-folder . 
+```
+
+Checking installed packages wihtin Codespaces terminal:
+
+```shell
+pip list
 ```
