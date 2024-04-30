@@ -11,7 +11,7 @@ repository = "https://github.com/tradingstrategy-ai/getting-started"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-trade-executor = {git = "https://github.com/tradingstrategy-ai/trade-executor.git", extras = ["web-server", "execution", "data"], rev = "master" }
+trade-executor = {path = "deps/trade-executor", develop = true, extras=["execution", "quantstats"]}
 ipython = "^8.12.0"
 ipdb = "^0.13.13"
 

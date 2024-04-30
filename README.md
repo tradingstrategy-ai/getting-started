@@ -112,6 +112,16 @@ This is an alternative for Github Codespaces that runs on your local computer (f
 
 **Note**: If you run on a local sometimes the Jupyter Notebook toolbar does not appear with **Run all** etc. buttons. Often Visual Studio Code fails to automatically install its extensions on the first run: in this case you need to restart your Visual Studio Code and reopen the notebook.
 
+# How to run: Your own Python environment
+
+For seniors, with full source code checkout:
+
+```shell
+make trade-executor-clone  # Git clone with submodules
+poetry shell
+poetry install
+```
+
 # Strategy backtest notebook structure
 
 Each strategy backtest notebook will consist of following phases. 
