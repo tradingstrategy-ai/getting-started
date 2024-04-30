@@ -1,11 +1,29 @@
- # Getting started
+ # Getting started with algorithmic trading with TradingStrategy.ai
  
 - This is an example repository for [Trading Strategy framework](https://tradingstrategy.ai) to 
   get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to DEXes and DeFi markets
 - This repository contains multiple example backtesting  [notebooks](https://tradingstrategy.ai/glossary/jupyter-notebook) to get started 
 - The examples should get you up to the speed how to backtest your strategies on both DEX and [Binance CEX](https://tradingstrategy.ai/glossary/cex) data
 
+- [Prerequisites](#prerequisites)
+- [Development environment options](#development-environment-options)
+- [Example strategies](#example-strategies)
+- [How to run on Github Codespaces](#how-to-run-on-github-codespaces)
+- [How to run: local Visual Studio Code](#how-to-run--local-visual-studio-code)
+- [Strategy backtest notebook structure](#strategy-backtest-notebook-structure)
+- [Grid search skeleton](#grid-search-skeleton)
+- [Editing notebook](#editing-notebook)
+  * [Tooltips](#tooltips)
+- [How to](#how-to)
+  * [Develop a trading strategy](#develop-a-trading-strategy)
+  * [Add indicators](#add-indicators)
+  * [Visualise indicators](#visualise-indicators)
+- [Learning resources](#learning-resources)
+- [Troubleshooting](#troubleshooting)
+
 # Prerequisites
+
+In order to get started you need
 
 - Github user account 
 - Basic Python and data science knowledge
@@ -16,9 +34,7 @@
   - Understanding price chart and price action
   - Technical indicators
 
-For complex strategies that process a lot of data we recommend running a local development environment with minimum of 16 GB RAM.
-
-# Options to develop trading strategies
+# Development environment options
 
 You can either run and edit these examples 
 
