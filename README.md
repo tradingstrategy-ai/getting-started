@@ -44,17 +44,25 @@ You can either run and edit these examples
 
 # Example strategies
 
-You can find these example strategies.
+You can find these example strategy backtests.
+
+Strategies are backtested 2022-2024/H2 as this gives nice bear market drawdown and then walk back up.
 
 Individual backtests:
 
-- [An RSI and Bollinger bands breakout strategy for MATIC using Binance CEX data](./notebooks/single-backtest/matic-breakout.ipynb)
+- [MATIC: An RSI and Bollinger bands breakout strategy for MATIC using Binance CEX data](./notebooks/single-backtest/matic-breakout.ipynb)
   - Easy complexity
   - 1h timeframe  
-- [An ATR-based breakout strategy for BTC using Binance CEX data](./notebooks/single-backtest/bitcoin-atr-breakout.ipynb)
+- [BTC: An ATR-based breakout strategy for BTC using Binance CEX data](./notebooks/single-backtest/bitcoin-atr-breakout.ipynb)
   - Average complexity
   - 15m timeframe
   - Adds a [market regime filter](https://tradingstrategy.ai/glossary/market-regime) based on daily ADX indicator 
+- [Multipair 15m: An ATR-based multipair breakout strategy using Binance CEX data](./notebooks/single-backtest/multipair-atr-breakout.ipynb)
+  - Same as above
+  - Trades all BTC, ETH and MATIC all in a single strategy
+- [Multipair 1h: An ATR-based multipair breakout strategy using Binance CEX data](./notebooks/single-backtest/multipair-atr-breakout-slow.ipynb)
+  - Same as above
+  - Instead of trading 15 minutes timeframe, trade 1h timeframe with 24h point of interest window
 
 Grid searches:
 
