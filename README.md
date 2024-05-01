@@ -44,10 +44,21 @@ You can either run and edit these examples
 
 # Example strategies
 
-You can find these example strategies
+You can find these example strategies.
 
-- [A RSI and Bollinger bands breakout strategy for MATIC using Binance CEX data](./notebooks/single-backtest/matic-breakout.ipynb)
-- An EMA strategy for ETH on Uniswap v3 on Arbitrum (TODO)
+Individual backtests:
+
+- [An RSI and Bollinger bands breakout strategy for MATIC using Binance CEX data](./notebooks/single-backtest/matic-breakout.ipynb)
+  - Easy complexity
+  - 1h timeframe  
+- [An ATR-based breakout strategy for BTC using Binance CEX data](./notebooks/single-backtest/bitcoin-atr-breakout.ipynb)
+  - Average complexity
+  - 15m timeframe
+  - Adds a [market regime filter](https://tradingstrategy.ai/glossary/market-regime) based on daily ADX indicator 
+
+Grid searches:
+
+- TODO
 
 # How to run on Github Codespaces
 
@@ -111,6 +122,16 @@ This is an alternative for Github Codespaces that runs on your local computer (f
 - Follow the same steps as in *How to run on Github Codespaces* above 
 
 **Note**: If you run on a local sometimes the Jupyter Notebook toolbar does not appear with **Run all** etc. buttons. Often Visual Studio Code fails to automatically install its extensions on the first run: in this case you need to restart your Visual Studio Code and reopen the notebook.
+
+# How to run: Your own Python environment
+
+For seniors, with full source code checkout:
+
+```shell
+make trade-executor-clone  # Git clone with submodules
+poetry shell
+poetry install
+```
 
 # Strategy backtest notebook structure
 
@@ -214,4 +235,10 @@ Checking installed packages wihtin Codespaces terminal:
 
 ```shell
 pip list
+```
+
+Running the example notebooks using command line `ipython` (useful for debugging)
+
+```shell
+ipython notebooks/single-backtest/bitcoin-breakout-atr.ipynb
 ```
