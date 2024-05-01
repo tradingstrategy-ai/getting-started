@@ -9,6 +9,7 @@ keywords = ["algorithmic trading", "ethereum", "cryptocurrency", "tradingview", 
 homepage = "https://tradingstrategy.ai"
 repository = "https://github.com/tradingstrategy-ai/getting-started"
 
+
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
 trade-executor = {path = "deps/trade-executor", develop = true, extras=["execution", "quantstats"]}
@@ -18,3 +19,6 @@ ipdb = "^0.13.13"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+packages = [
+    { include = "getting_started" },
+]
