@@ -33,6 +33,8 @@ In order to get started you need
 - Basic algorithmic trading knowledge 
   - Understanding price chart and price action
   - Technical indicators
+ 
+ If you use Github Codespaces, no additional software is needed, you can do the first tests in your web browser.
 
 # Development environment options
 
