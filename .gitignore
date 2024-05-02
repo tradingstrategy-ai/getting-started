@@ -1,2 +1,5 @@
 # Dependencies checkout
 deps
+
+# macOS
+.DS_Store
