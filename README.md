@@ -75,7 +75,8 @@ Grid searches:
 In this tutorial, we open a single backtes in Github Codespaces and run it. You can do all in your 
 web browser using your Github account, no software is needed.
 
-Press **Create codespaces** on [Github repository page](https://github.com/tradingstrategy-ai/getting-started).
+Press **Create codespace master** on [Github repository page](https://github.com/tradingstrategy-ai/getting-started)
+(master refers to the primary development branch of Git version control system).
 
 ![](./screenshots/codespaces-button.png)
 
