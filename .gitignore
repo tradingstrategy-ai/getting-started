@@ -3,3 +3,7 @@ deps
 
 # macOS
 .DS_Store
+
+# Binance proxy URLs
+.env
+
