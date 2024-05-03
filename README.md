@@ -21,6 +21,17 @@
 - [Learning resources](#learning-resources)
 - [Troubleshooting](#troubleshooting)
 
+# Support and social media
+
+Got any questions? Pop into our Discord.
+
+- [Trading Strategy community Discord server](https://tradingstrategy.ai/community#discord)
+- [Trading Strategy website](https://tradingstrategy.ai)
+- [Blog](https://tradingstrategy.ai/blog)
+- [Twitter](https://twitter.com/TradingProtocol)
+- [Telegram channel](https://t.me/trading_protocol)
+- [Newsletter](https://tradingstrategy.ai/newsletter)
+
 # Prerequisites
 
 In order to get started you need
