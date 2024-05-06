@@ -79,6 +79,11 @@ Individual backtests:
 - [Multipair 1h: An ATR-based multipair breakout strategy using Binance CEX data](./notebooks/single-backtest/multipair-atr-breakout-slow.ipynb)
   - Same as above
   - Instead of trading 15-minutes timeframe, trades 1h timeframe with 24h point of interest window
+- [Portfolio construction](./notebooks/single-backtest/portfolio-construction.ipynb)
+  - A portfolio construction strategy example
+  - Trades anything on Polygon DEXes
+  - Takes a list of ERC-20 addresses as input, and created a trading universe based on these
+  - Constructs spot market portfolio with daily rebalances
 
 Grid searches:
 
