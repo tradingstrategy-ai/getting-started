@@ -70,12 +70,15 @@ Individual backtests:
   - Average complexity
   - 15m timeframe
   - Adds a [market regime filter](https://tradingstrategy.ai/glossary/market-regime) based on daily ADX indicator 
+- [BTC: An ATR-based breakout strategy for WBTC on Uniswap v3 and Arbitrum](./notebooks/single-backtest/bitcoin-atr-breakout.ipynb)
+  - Same backtest as above, but using Uniswap price feed instead of a centralised exchange
+  - Highlights some of the difference in data quality between DEX and CEX
 - [Multipair 15m: An ATR-based multipair breakout strategy using Binance CEX data](./notebooks/single-backtest/multipair-atr-breakout.ipynb)
   - Same as above
-  - Trades all BTC, ETH and MATIC all in a single strategy
+  - Trades all BTC, ETH and MATIC in a single strategy
 - [Multipair 1h: An ATR-based multipair breakout strategy using Binance CEX data](./notebooks/single-backtest/multipair-atr-breakout-slow.ipynb)
   - Same as above
-  - Instead of trading 15 minutes timeframe, trade 1h timeframe with 24h point of interest window
+  - Instead of trading 15-minutes timeframe, trades 1h timeframe with 24h point of interest window
 
 Grid searches:
 
@@ -127,7 +130,7 @@ You can find them by scrolling down to the different sections
 
 - Equity curve
 - Performance metrics
-- otheres
+- otehrs
 
 ![img.png](./screenshots/performance-metrics.png)
 
