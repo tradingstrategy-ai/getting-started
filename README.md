@@ -70,7 +70,7 @@ Individual backtests:
   - Average complexity
   - 15m timeframe
   - Adds a [market regime filter](https://tradingstrategy.ai/glossary/market-regime) based on daily ADX indicator 
-- [BTC: An ATR-based breakout strategy for WBTC on Uniswap v3 and Arbitrum](./notebooks/single-backtest/bitcoin-atr-breakout.ipynb)
+- [BTC: An ATR-based breakout strategy for WBTC on Uniswap v3 and Arbitrum](./notebooks/single-backtest/bitcoin-atr-dex.ipynb)
   - Same backtest as above, but using Uniswap price feed instead of a centralised exchange
   - Highlights some of the difference in data quality between DEX and CEX
 - [Multipair 15m: An ATR-based multipair breakout strategy using Binance CEX data](./notebooks/single-backtest/multipair-atr-breakout.ipynb)
