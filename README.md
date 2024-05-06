@@ -81,9 +81,9 @@ Individual backtests:
   - Instead of trading 15-minutes timeframe, trades 1h timeframe with 24h point of interest window
 - [Portfolio construction](./notebooks/single-backtest/portfolio-construction.ipynb)
   - A portfolio construction strategy example
-  - Trades anything on Polygon DEXes
+  - Trades anything on Polygon DEXes and contains examples how to filter out for bad trading pair data
   - Takes a list of ERC-20 addresses as input, and created a trading universe based on these
-  - Constructs spot market portfolio with daily rebalances
+  - Constructs a spot market portfolio with daily rebalances
 
 Grid searches:
 
