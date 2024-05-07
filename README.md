@@ -86,6 +86,12 @@ Individual backtests:
   - Trades anything on Polygon DEXes and contains examples of how to filter out for bad trading pair data
   - Takes a list of ERC-20 addresses as input, and creates a trading universe based on these
   - Constructs a spot market portfolio with daily rebalances
+  - Average complexity
+- [Alternative data](./notebooks/single-backtest/alternative-data.ipynb)
+  - Reads a custom signal data from CSV file and incorporates it part of the strategy
+  - Otherwise same as above
+  - Average complexity
+
 
 # Example grid searches
 
