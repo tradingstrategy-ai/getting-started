@@ -88,7 +88,7 @@ Individual backtests:
   - Constructs a spot market portfolio with daily rebalances
   - Average complexity
 - [Alternative data](./notebooks/single-backtest/alternative-data.ipynb)
-  - Reads a custom signal data from CSV file and incorporates it part of the strategy
+  - Reads custom signal data (sentiment data) from CSV file and incorporates it as the part of the trading strategy
   - Otherwise same as above
   - Average complexity
 
