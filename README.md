@@ -55,7 +55,7 @@ You can either run and edit these examples
 - Locally using Visual Studio Code (faster, but more expertise required)
 - Any Python editor you wish (super fast, tailored to your flavour, but senior Python expertise required)
 
-# Example strategies
+# Example strategy backtests
 
 You can find these example strategy backtests.
 
@@ -78,20 +78,26 @@ Individual backtests:
   - Trades all BTC, ETH and MATIC in a single strategy
 - [Multipair 1h: An ATR-based multipair breakout strategy using Binance CEX data](./notebooks/single-backtest/multipair-atr-breakout-slow.ipynb)
   - Same as above
-  - Instead of trading 15-minutes timeframe, trades 1h timeframe with 24h point of interest window
+  - Instead of trading a 15-minute timeframe, this backtest trades 1h timeframe with a 24-hour point of interest window
 - [Portfolio construction](./notebooks/single-backtest/portfolio-construction.ipynb)
   - A portfolio construction strategy example
-  - Trades anything on Polygon DEXes and contains examples how to filter out for bad trading pair data
-  - Takes a list of ERC-20 addresses as input, and created a trading universe based on these
+  - Trades anything on Polygon DEXes and contains examples of how to filter out for bad trading pair data
+  - Takes a list of ERC-20 addresses as input, and creates a trading universe based on these
   - Constructs a spot market portfolio with daily rebalances
 
-Grid searches:
+# Example grid searches
 
-- TODO
+Grid searches run several backtests over multiple strategy parameter combinations.
+This allows you to "brute force search" better strategies and explore the behavior of a strategy with different parameters.
+
+- [Multipair 1h: grid search](./notebooks/grid-search/multipair-atr-breakout-slow.ipynb)
+  - Same as `Multipair 1h: An ATR-based multipair breakout strategy using Binance CEX data` above
+  - We have converted `Parameters` to individual parameter values to searchable option lists 
+  - Grid search over parameters and see if it improves the performance
 
 # How to run on Github Codespaces
 
-In this tutorial, we open a single backtes in Github Codespaces and run it. You can do all in your 
+In this tutorial, we open a single backtest in Github Codespaces and run it. You can do all in your 
 web browser using your Github account, no software is needed.
 
 Press **Create codespace master** on [Github repository page](https://github.com/tradingstrategy-ai/getting-started)
