@@ -3398,6 +3398,21 @@ files = [
 ]
 
 [[package]]
+name = "parquet-cli"
+version = "1.3"
+description = "Command line (CLI) tool to inspect Apache Parquet files on the go"
+optional = false
+python-versions = "*"
+files = [
+    {file = "parquet-cli-1.3.macosx-10.13-x86_64.tar.gz", hash = "sha256:73dbb86f82f0baac3858c198c2d74cc2979e5622bad312a3d5d8ca59a3851d7d"},
+    {file = "parquet_cli-1.3-py2.py3-none-any.whl", hash = "sha256:bbcbc05981834afc3ba757796f3e614225676b10553d43ec41b6d18bc5394da2"},
+]
+
+[package.dependencies]
+pandas = ">=0.22.0"
+pyarrow = ">=0.9.0.post1"
+
+[[package]]
 name = "parsimonious"
 version = "0.10.0"
 description = "(Soon to be) the fastest pure-Python PEG parser I could muster"
@@ -5687,4 +5702,4 @@ repair = ["scipy (>=1.6.3)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "40ef0393fd3d7f8face1d5d3b7c5949bd49f89411300242ad695378fa18916a9"
+content-hash = "ec1f94fbd3a11701e7bb4ae3ea30e907fe9c31fd2e0bbd15ed0c5cb1a8818a9a"
