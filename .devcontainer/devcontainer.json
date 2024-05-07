@@ -4,6 +4,7 @@
 {
   "name": "Trading Strategy getting started",
 
+  // See https://github.com/tradingstrategy-ai/trade-executor/blob/master/.github/workflows/devcontainer.yml
   "image": "ghcr.io/tradingstrategy-ai/devcontainer:latest",
 
   // Features to add to the dev container. More info: https://containers.dev/features.
