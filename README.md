@@ -59,10 +59,12 @@ You can either run and edit these examples
 
 You can find these example strategy backtests.
 
-Strategies are backtested 2022-2024/H2 as this gives nice bear market drawdown and then walk back up.
-
 Individual backtests:
 
+- [ETH: fast exponential moving average and slow exponential moving average example strategy](./notebooks/single-backtest/moving-average.ipynb)
+  - Easy complexity
+  - 1h timeframe  
+  - One of the simplest technical indicator-based trading strategues there is
 - [MATIC: An RSI and Bollinger bands breakout strategy for MATIC using Binance CEX data](./notebooks/single-backtest/matic-breakout.ipynb)
   - Easy complexity
   - 1h timeframe  
