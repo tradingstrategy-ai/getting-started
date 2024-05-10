@@ -91,6 +91,12 @@ Individual backtests:
   - Reads custom signal data (sentiment data) from CSV file and incorporates it as the part of the trading strategy
   - Otherwise same as above
   - Average complexity
+- [Liquidity risk analysis](./notebooks/single-backtest/liquidity-risk.ipynb)
+  - Same as above
+  - Includes liquidity risk analysis in the strategy by trading only pairs with minimum liquidity
+  - Expands dataset to include all Polygon pairs and their liquidity data
+  - Needs a separate script to prepare the dataset for the backtests
+  - High complexity  
 
 
 # Example grid searches
