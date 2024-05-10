@@ -2,7 +2,8 @@
 
 - As the amount of data is large, do this only once to speed up the backtesting in liquidity-risk-analysis
 
-- Large amount of RAM needed
+- Large amount of RAM needed to read the files and perform filtering
+
 """
 from pathlib import Path
 
