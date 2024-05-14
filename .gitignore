@@ -7,3 +7,5 @@ deps
 # Binance proxy URLs
 .env
 
+# Drop bug isolation notebooks hwere
+bug-hunting/
