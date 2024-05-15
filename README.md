@@ -97,7 +97,11 @@ Individual backtests:
   - Expands dataset to include all Polygon pairs and their liquidity data
   - Needs a separate script to prepare the dataset for the backtests
   - High complexity  
-
+- [Volume-based indicators](./notebooks/single-backtest/eth-mfi.ipynb)
+  - An example of using a volume-based indicator, in this case [Money Flow Index](https://tradingstrategy.ai/glossary/money-flow-index-mfi),
+    to open and close positions
+  - Uses ETH daily price from Binance
+  - Low complexity
 
 # Example grid searches
 
