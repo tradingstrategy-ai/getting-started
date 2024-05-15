@@ -100,7 +100,7 @@ Individual backtests:
 - [Volume-based indicators](./notebooks/single-backtest/eth-mfi.ipynb)
   - An example of using a volume-based indicator, in this case [Money Flow Index](https://tradingstrategy.ai/glossary/money-flow-index-mfi),
     to open and close positions
-  - Uses ETH daily price from Binance
+  - Uses ETH daily price from Uniswap v3 on Ethereum
   - Low complexity
 
 # Example grid searches
