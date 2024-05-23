@@ -9,3 +9,6 @@ deps
 
 # Drop bug isolation notebooks hwere
 bug-hunting/
+
+# Dropped by some notebook environments when they cannot find ~/.cache
+cache/
