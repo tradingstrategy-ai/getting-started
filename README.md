@@ -220,52 +220,16 @@ The grid search is the same invididual backtest with very minimal changes
 - **Backtest** runs `perform_grid_search` instead of `run_backtest_inline`
 - **Output** shows summaries backtest results and heatmaps
 
-Grid search are taxing on a computer, so we recommend running grid searches only on local powerful computers.
-
-# Editing notebook
-
-You can edit the backtest notebook
-
-- Edit any changes
-- Press **Clear output**
-- Press **Run all** to rerun everything
-
-## Tooltips
-
-Any function will give it's Python documentation as a tooltip on mouse hover.
-
-![img.png](screenshots/tooltip.png)
-
-# How to
-
-Some questions on how to get things done.
-
-## Develop a trading strategy
- 
-- Have a trading idea
-- Create the first prototype with data sources and indicators using centralised exchange data like Binance
-  - Decentralised market have often too little history to make any kind of analysis
-  - You can use streamlined tools like TradingView for the first iterations
-  - Then convert your strategy skeleton to Python code
-- Check the robustness of the strategy
-   - After you are happy with the initial strategy version you can perform some robustness tests
-   - Validate your backtest robustness by testing shifting timeframes around
-- After happy with the strategy, Change the backtesting to real decentralised data
-  - Convert the backtest notebook to a Trading Strategy Python module
-- Launch the live trading strategy using Trading Strategy oracle on DEXes
-- Add a vault like Enzyme so that others can deposit into your strategy
-
-## Add indicators
-
-TODO
-
-## Visualise indicators
-
-TODO
+Grid search are computer resource constrained (number of CPU cores), so we recommend running grid searches only on local powerful computers.
 
 # Learning resources
 
 - [Learn algorithmic trading](https://tradingstrategy.ai/docs/learn/index.html#learning)
+  - [Algorithmic trading courses](https://tradingstrategy.ai/docs/learn/courses.html)
+  - [Algorithmic trading tutorials](https://tradingstrategy.ai/docs/learn/tutorials.html)
+  - [Algorithmic trading videos](https://tradingstrategy.ai/docs/learn/conference-presentations.html)
+  - [Algorithmic trading books](https://tradingstrategy.ai/docs/learn/index.html#learning)
+  - [Research papers about algorithmic trading](https://tradingstrategy.ai/docs/learn/papers.html)
 - [Trading Strategy documentation](https://tradingstrategy.ai/docs/)
 - [About Github Codespaces](https://github.com/features/codespaces)
 - [About Visual Studio Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)
