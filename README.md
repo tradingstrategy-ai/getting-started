@@ -52,8 +52,10 @@ In order to get started you need
 You can either run and edit these examples 
 
 - In cloud, in your web browser, using Github Codespaces (very simple, but slower)
-- Locally using Visual Studio Code (faster, but more expertise required)
-- Any Python editor you wish (super fast, tailored to your flavour, but senior Python expertise required)
+- [Locally using Visual Studio Code Dev containers](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/dev-container/visual-studio-code-docker-dev-container-for-jupyter-notebooks.html) (a bit faster)
+- [Locally using Visual Studio Code](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/index.html) (much faster, but more expertise required)
+- [Locally using PyCharm](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/pycharm/index.html) (much faster, but more expertise required)
+- [Locally using any Python editor you wish](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/index.html) (super fast, tailored to your flavour, but senior Python expertise required)
 
 # Example strategy backtests
 
