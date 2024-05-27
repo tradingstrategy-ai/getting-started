@@ -1,9 +1,9 @@
  # Getting started with algorithmic trading with TradingStrategy.ai
  
-- This is an example repository for [Trading Strategy framework](https://tradingstrategy.ai) to 
+- This is an example repository for [the Trading Strategy framework](https://tradingstrategy.ai) to 
   get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to DEXes and DeFi markets
-- This repository contains multiple example backtesting  [notebooks](https://tradingstrategy.ai/glossary/jupyter-notebook) to get started 
-- The examples should get you up to the speed how to backtest your strategies on both DEX and [Binance CEX](https://tradingstrategy.ai/glossary/cex) data
+- This repository contains multiple examples of backtesting  [notebooks](https://tradingstrategy.ai/glossary/jupyter-notebook) to get started 
+- The examples show how to develop and backtest your strategies on both decentralised exchanges and [Binance centralised exchange](https://tradingstrategy.ai/glossary/cex) data
 
 - [Prerequisites](#prerequisites)
 - [Development environment options](#development-environment-options)
@@ -51,8 +51,8 @@ In order to get started you need
 
 You can either run and edit these examples 
 
-- In cloud, in your web browser, using Github Codespaces (very simple, but slower)
-- [Locally using Visual Studio Code Dev containers](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/dev-container/visual-studio-code-docker-dev-container-for-jupyter-notebooks.html) (a bit faster)
+- [In your web browser, using Github Codespaces](https://github.com/tradingstrategy-ai/getting-started?tab=readme-ov-file#how-to-run-on-github-codespaces) (very easy, suitable for learning, but slow speed)
+- [Locally using Visual Studio Code Dev containers](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/dev-container/visual-studio-code-docker-dev-container-for-jupyter-notebooks.html) (easy to set up, a bit faster)
 - [Locally using Visual Studio Code](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/index.html) (much faster, but more expertise required)
 - [Locally using PyCharm](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/pycharm/index.html) (much faster, but more expertise required)
 - [Locally using any Python editor you wish](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/index.html) (super fast, tailored to your flavour, but senior Python expertise required)
