@@ -47,7 +47,7 @@ In order to get started you need
  
  If you use Github Codespaces, no additional software is needed, you can do the first tests in your web browser.
 
- To get a quick primer about the Trading Strategy framework and protocol, check the [Trading Strategy workshop video recording](https://www.youtube.com/watch?v=Pwst54BGCEM).
+ To get a quick primer on the [Trading Strategy framework](https://tradingstrategy.ai/glossary/trading-strategy-framework), check the [Trading Strategy workshop video recording](https://www.youtube.com/watch?v=Pwst54BGCEM).
 
 # Development environment options
 
