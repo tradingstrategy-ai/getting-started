@@ -121,7 +121,6 @@ This allows you to "brute force search" better strategies and explore the behavi
 
 - [ADX regime filter research](./notebooks/research/regime-filter-playground.ipynb)
   - This is an indicator visualisation -only notebook for testing different ADX [market regime filter](https://tradingstrategy.ai/glossary/regime-filter) values
-  - The notebook does not contain backtest and only visualises indicators for a strategy
   - The notebook will render the regime detection (bull market, bear market, crab market) of various cryptocurrencies
   - The notebook shows how indicators can use data from other indicators using [indicator dependency resolution](https://tradingstrategy.ai/docs/api/execution/help/tradeexecutor.strategy.pandas_trader.indicator.IndicatorDependencyResolver.html#tradeexecutor.strategy.pandas_trader.indicator.IndicatorDependencyResolver)
   - Medium complexity
