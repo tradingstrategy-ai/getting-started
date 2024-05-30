@@ -53,7 +53,7 @@ In order to get started you need
 
 You can either run and edit these examples 
 
-- [In your web browser, using Github Codespaces](https://github.com/tradingstrategy-ai/getting-started?tab=readme-ov-file#how-to-run-on-github-codespaces) (very easy, suitable for learning, but slow speed)
+- [In your web browser, using Github Codespaces](https://github.com/tradingstrategy-ai/getting-started?tab=readme-ov-file#how-to-run-on-github-codespaces) - see below (very easy, suitable for learning, but slow speed)
 - [Locally using Visual Studio Code Dev containers](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/dev-container/visual-studio-code-docker-dev-container-for-jupyter-notebooks.html) (easy to set up, a bit faster)
 - [Locally using Visual Studio Code](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/index.html) (much faster, but more expertise required)
 - [Locally using PyCharm](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/pycharm/index.html) (much faster, but more expertise required)
@@ -117,6 +117,15 @@ This allows you to "brute force search" better strategies and explore the behavi
   - We have converted `Parameters` to individual parameter values to searchable option lists 
   - Grid search over parameters and see if it improves the performance
 
+# Example research only notebooks
+
+- [ADX regime filter research](./notebooks/research/regime-filter-playbook.ipynb)
+  - This is an indicator visualisation -only notebook for testing different ADX [market regime filter](https://tradingstrategy.ai/glossary/regime-filter) values
+  - The notebook will render the regime detection (bull market, bear market, crab market) of various cryptocurrencies
+  - The notebook shows how indicators can use data from other indicators using [indicator dependency resolution](https://tradingstrategy.ai/docs/api/execution/help/tradeexecutor.strategy.pandas_trader.indicator.IndicatorDependencyResolver.html#tradeexecutor.strategy.pandas_trader.indicator.IndicatorDependencyResolver)
+  - Medium complexity
+
+
 # How to run on Github Codespaces
 
 In this tutorial, we open a single backtest in Github Codespaces and run it. You can do all in your 
@@ -168,28 +177,6 @@ You can find them by scrolling down to the different sections
 ![img.png](./screenshots/performance-metrics.png)
 
 And now you are done with our first backtest! Continue below to learn more how you can get started with your own strategies.
-
-# How to run: local Visual Studio Code
-
-This is an alternative for Github Codespaces that runs on your local computer (fast).
-
-- Check out [this Github repository](https://github.com/tradingstrategy-ai/getting-started) to your local computer
-- Open the checked out folder in your Visual Studio Code
-- Visual Studio code should prompt you "Do you wish to run this in Dev Container"
-- Choose yes
-- Follow the same steps as in *How to run on Github Codespaces* above 
-
-**Note**: If you run on a local sometimes the Jupyter Notebook toolbar does not appear with **Run all** etc. buttons. Often Visual Studio Code fails to automatically install its extensions on the first run: in this case you need to restart your Visual Studio Code and reopen the notebook.
-
-# How to run: Your own Python environment
-
-For seniors, with full source code checkout:
-
-```shell
-make trade-executor-clone  # Git clone with submodules
-poetry shell
-poetry install
-```
 
 # Strategy backtest notebook structure
 
