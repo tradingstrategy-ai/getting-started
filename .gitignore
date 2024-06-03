@@ -7,3 +7,4 @@ deps
 # Binance proxy URLs
 .env
 
+.ipynb_checkpoints
