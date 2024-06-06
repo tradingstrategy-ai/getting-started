@@ -7,4 +7,11 @@ deps
 # Binance proxy URLs
 .env
 
+# ignore Jupyter checkpoints
 .ipynb_checkpoints
+
+# Drop bug isolation notebooks hwere
+bug-hunting/
+
+# Dropped by some notebook environments when they cannot find ~/.cache
+cache/

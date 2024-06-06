@@ -1,9 +1,9 @@
  # Getting started with algorithmic trading with TradingStrategy.ai
  
-- This is an example repository for [Trading Strategy framework](https://tradingstrategy.ai) to 
+- This is an example repository for [the Trading Strategy framework](https://tradingstrategy.ai) to 
   get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to DEXes and DeFi markets
-- This repository contains multiple example backtesting  [notebooks](https://tradingstrategy.ai/glossary/jupyter-notebook) to get started 
-- The examples should get you up to the speed how to backtest your strategies on both DEX and [Binance CEX](https://tradingstrategy.ai/glossary/cex) data
+- This repository contains multiple examples of backtesting  [notebooks](https://tradingstrategy.ai/glossary/jupyter-notebook) to get started 
+- The examples show how to develop and backtest your strategies on both decentralised exchanges and [Binance centralised exchange](https://tradingstrategy.ai/glossary/cex) data
 
 - [Prerequisites](#prerequisites)
 - [Development environment options](#development-environment-options)
@@ -47,13 +47,17 @@ In order to get started you need
  
  If you use Github Codespaces, no additional software is needed, you can do the first tests in your web browser.
 
+ To get a quick primer on the [Trading Strategy framework](https://tradingstrategy.ai/glossary/trading-strategy-framework), check the [Trading Strategy workshop video recording](https://www.youtube.com/watch?v=Pwst54BGCEM).
+
 # Development environment options
 
 You can either run and edit these examples 
 
-- In cloud, in your web browser, using Github Codespaces (very simple, but slower)
-- Locally using Visual Studio Code (faster, but more expertise required)
-- Any Python editor you wish (super fast, tailored to your flavour, but senior Python expertise required)
+- [In your web browser, using Github Codespaces](https://github.com/tradingstrategy-ai/getting-started?tab=readme-ov-file#how-to-run-on-github-codespaces) - see below (very easy, suitable for learning, but slow speed)
+- [Locally using Visual Studio Code Dev containers](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/dev-container/visual-studio-code-docker-dev-container-for-jupyter-notebooks.html) (easy to set up, a bit faster)
+- [Locally using Visual Studio Code](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/index.html) (much faster, but more expertise required)
+- [Locally using PyCharm](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/pycharm/index.html) (much faster, but more expertise required)
+- [Locally using any Python editor you wish](https://tradingstrategy.ai/docs/programming/setting-up-development-environment/index.html) (super fast, tailored to your flavour, but senior Python expertise required)
 
 # Example strategy backtests
 
@@ -86,6 +90,22 @@ Individual backtests:
   - Trades anything on Polygon DEXes and contains examples of how to filter out for bad trading pair data
   - Takes a list of ERC-20 addresses as input, and creates a trading universe based on these
   - Constructs a spot market portfolio with daily rebalances
+  - Average complexity
+- [Alternative data](./notebooks/single-backtest/alternative-data.ipynb)
+  - Reads custom signal data (sentiment data) from CSV file and incorporates it as the part of the trading strategy
+  - Otherwise same as above
+  - Average complexity
+- [Liquidity risk analysis](./notebooks/single-backtest/liquidity-risk.ipynb)
+  - Same as above
+  - Includes liquidity risk analysis in the strategy by trading only pairs with minimum liquidity
+  - Expands dataset to include all Polygon pairs and their liquidity data
+  - Needs a separate script to prepare the dataset for the backtests
+  - High complexity  
+- [Volume-based indicators](./notebooks/single-backtest/eth-mfi.ipynb)
+  - An example of using a volume-based indicator, in this case [Money Flow Index](https://tradingstrategy.ai/glossary/money-flow-index-mfi),
+    to open and close positions
+  - Uses ETH daily price from Uniswap v3 on Ethereum
+  - Low complexity
 
 # Example grid searches
 
@@ -96,6 +116,15 @@ This allows you to "brute force search" better strategies and explore the behavi
   - Same as `Multipair 1h: An ATR-based multipair breakout strategy using Binance CEX data` above
   - We have converted `Parameters` to individual parameter values to searchable option lists 
   - Grid search over parameters and see if it improves the performance
+
+# Example research only notebooks
+
+- [ADX regime filter research](./notebooks/research/regime-filter-playground.ipynb)
+  - This is an indicator visualisation -only notebook for testing different ADX [market regime filter](https://tradingstrategy.ai/glossary/regime-filter) values
+  - The notebook will render the regime detection (bull market, bear market, crab market) of various cryptocurrencies
+  - The notebook shows how indicators can use data from other indicators using [indicator dependency resolution](https://tradingstrategy.ai/docs/api/execution/help/tradeexecutor.strategy.pandas_trader.indicator.IndicatorDependencyResolver.html#tradeexecutor.strategy.pandas_trader.indicator.IndicatorDependencyResolver)
+  - Medium complexity
+
 
 # How to run on Github Codespaces
 
@@ -149,28 +178,6 @@ You can find them by scrolling down to the different sections
 
 And now you are done with our first backtest! Continue below to learn more how you can get started with your own strategies.
 
-# How to run: local Visual Studio Code
-
-This is an alternative for Github Codespaces that runs on your local computer (fast).
-
-- Check out [this Github repository](https://github.com/tradingstrategy-ai/getting-started) to your local computer
-- Open the checked out folder in your Visual Studio Code
-- Visual Studio code should prompt you "Do you wish to run this in Dev Container"
-- Choose yes
-- Follow the same steps as in *How to run on Github Codespaces* above 
-
-**Note**: If you run on a local sometimes the Jupyter Notebook toolbar does not appear with **Run all** etc. buttons. Often Visual Studio Code fails to automatically install its extensions on the first run: in this case you need to restart your Visual Studio Code and reopen the notebook.
-
-# How to run: Your own Python environment
-
-For seniors, with full source code checkout:
-
-```shell
-make trade-executor-clone  # Git clone with submodules
-poetry shell
-poetry install
-```
-
 # Strategy backtest notebook structure
 
 Each strategy backtest notebook will consist of following phases. 
@@ -202,52 +209,16 @@ The grid search is the same invididual backtest with very minimal changes
 - **Backtest** runs `perform_grid_search` instead of `run_backtest_inline`
 - **Output** shows summaries backtest results and heatmaps
 
-Grid search are taxing on a computer, so we recommend running grid searches only on local powerful computers.
-
-# Editing notebook
-
-You can edit the backtest notebook
-
-- Edit any changes
-- Press **Clear output**
-- Press **Run all** to rerun everything
-
-## Tooltips
-
-Any function will give it's Python documentation as a tooltip on mouse hover.
-
-![img.png](screenshots/tooltip.png)
-
-# How to
-
-Some questions on how to get things done.
-
-## Develop a trading strategy
- 
-- Have a trading idea
-- Create the first prototype with data sources and indicators using centralised exchange data like Binance
-  - Decentralised market have often too little history to make any kind of analysis
-  - You can use streamlined tools like TradingView for the first iterations
-  - Then convert your strategy skeleton to Python code
-- Check the robustness of the strategy
-   - After you are happy with the initial strategy version you can perform some robustness tests
-   - Validate your backtest robustness by testing shifting timeframes around
-- After happy with the strategy, Change the backtesting to real decentralised data
-  - Convert the backtest notebook to a Trading Strategy Python module
-- Launch the live trading strategy using Trading Strategy oracle on DEXes
-- Add a vault like Enzyme so that others can deposit into your strategy
-
-## Add indicators
-
-TODO
-
-## Visualise indicators
-
-TODO
+Grid search are computer resource constrained (number of CPU cores), so we recommend running grid searches only on local powerful computers.
 
 # Learning resources
 
 - [Learn algorithmic trading](https://tradingstrategy.ai/docs/learn/index.html#learning)
+  - [Algorithmic trading courses](https://tradingstrategy.ai/docs/learn/courses.html)
+  - [Algorithmic trading tutorials](https://tradingstrategy.ai/docs/learn/tutorials.html)
+  - [Algorithmic trading videos](https://tradingstrategy.ai/docs/learn/conference-presentations.html)
+  - [Algorithmic trading books](https://tradingstrategy.ai/docs/learn/index.html#learning)
+  - [Research papers about algorithmic trading](https://tradingstrategy.ai/docs/learn/papers.html)
 - [Trading Strategy documentation](https://tradingstrategy.ai/docs/)
 - [About Github Codespaces](https://github.com/features/codespaces)
 - [About Visual Studio Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)
