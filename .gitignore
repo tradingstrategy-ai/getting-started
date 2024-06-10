@@ -7,6 +7,9 @@ deps
 # Binance proxy URLs
 .env
 
+# ignore Jupyter checkpoints
+.ipynb_checkpoints
+
 # Drop bug isolation notebooks hwere
 bug-hunting/
 
