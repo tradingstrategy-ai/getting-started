@@ -124,7 +124,13 @@ This allows you to "brute force search" better strategies and explore the behavi
   - The notebook will render the regime detection (bull market, bear market, crab market) of various cryptocurrencies
   - The notebook shows how indicators can use data from other indicators using [indicator dependency resolution](https://tradingstrategy.ai/docs/api/execution/help/tradeexecutor.strategy.pandas_trader.indicator.IndicatorDependencyResolver.html#tradeexecutor.strategy.pandas_trader.indicator.IndicatorDependencyResolver)
   - Medium complexity
-
+- [Regime filter Bayes and Gaussian Proces (GP) optimiser](./notebooks/research/regime-filter-optimise.ipynb)
+  - The same as above
+  - Finds optimal market regime filter parameters for a certain definition of optimal
+  - Uses [scikit-optimize](https://scikit-optimize.github.io/) Python package to find optimal values for a regime filter
+  - Demostrates how to integrate `scikit-optimizer` pipeline into the notebooks
+  - Uses Gaussian Process (GP) instead of a grid search, being much faster, demostrating the benefits of an optimizer  
+  - Advanced complexity  
 
 # How to run on Github Codespaces
 
