@@ -117,8 +117,8 @@ This allows you to "brute force search" better strategies and explore the behavi
   - We have converted `Parameters` to individual parameter values to searchable option lists 
   - Grid search over parameters and see if it improves the performance
 
-- [Bollinger Bands BTC 1h: optimiser](./)
-  - This notebook users Gaussian Process instead of grid search to find the best strategy parameters
+- [Bollinger Bands BTC 1h: Gaussian Process optimiser](./notebooks/grid-search/btc-bb-1h-binance-optimiser.ipynb)
+  - This notebook users Gaussian Process (GP) instead of grid search to find the best strategy parameters
   - Gaussian Process is much faster than brute forcing exhaustive grid search
   - This is using `scikit-optimise` library
   - Setting up optimiser is somewhat more complicate than setting up a grid search
