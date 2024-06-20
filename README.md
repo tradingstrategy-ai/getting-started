@@ -92,13 +92,13 @@ Individual backtests:
   - Constructs a spot market portfolio with daily rebalances
   - Average complexity
 - [Alternative data](./notebooks/single-backtest/alternative-data.ipynb)
-  - Reads custom signal data (sentiment data) from CSV file and incorporates it as the part of the trading strategy
+  - Reads custom signal data (sentiment data) from CSV file and incorporates it as part of the trading strategy
   - Otherwise same as above
   - Average complexity
 - [Liquidity risk analysis](./notebooks/single-backtest/liquidity-risk.ipynb)
   - Same as above
   - Includes liquidity risk analysis in the strategy by trading only pairs with minimum liquidity
-  - Expands dataset to include all Polygon pairs and their liquidity data
+  - Expands the dataset to include all Polygon pairs and their liquidity data
   - Needs a separate script to prepare the dataset for the backtests
   - High complexity  
 - [Volume-based indicators](./notebooks/single-backtest/eth-mfi.ipynb)
