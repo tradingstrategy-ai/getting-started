@@ -125,7 +125,7 @@ This allows you to "brute force search" better strategies and explore the behavi
 
 - [Multipair ATR breakout: custom optimisation target](./notebooks/grid-search/multipair-breakout-4h-optimiser.ipynb)
   - This notebook is using an optimiser with a custom optimisation search function
-  - We weight 75% on Sharpe, 25% on Maximum Drawdown
+  - We weight 75% on Sharpe, 25% on Maximum Drawdow
 
 # Example research only notebooks
 
