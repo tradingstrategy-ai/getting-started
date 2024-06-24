@@ -123,7 +123,7 @@ This allows you to "brute force search" better strategies and explore the behavi
   - This is using `scikit-optimise` library
   - Setting up optimiser is somewhat more complicate than setting up a grid search
 
-- [Multipair ATR breakout: custom optimisation target](./notebooks/grid-search/multipair-breakout-4h-optimiser.ipynb)
+- [Multipair ATR breakout: custom optimisation target](./notebooks/grid-search/multipair-breakout-4h-optimiser-balanced.ipynb)
   - This notebook is using an optimiser with a custom optimisation search function
   - We weight 75% on Sharpe, 25% on Maximum Drawdown
 
