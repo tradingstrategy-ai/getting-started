@@ -107,7 +107,7 @@ Individual backtests:
   - Uses ETH daily price from Uniswap v3 on Ethereum
   - Low complexity
 
-# Example grid searches
+# Example grid and optimisation searches 
 
 Grid searches run several backtests over multiple strategy parameter combinations.
 This allows you to "brute force search" better strategies and explore the behavior of a strategy with different parameters.
@@ -122,6 +122,10 @@ This allows you to "brute force search" better strategies and explore the behavi
   - Gaussian Process is much faster than brute forcing exhaustive grid search
   - This is using `scikit-optimise` library
   - Setting up optimiser is somewhat more complicate than setting up a grid search
+
+- [Multipair ATR breakout: custom optimisation target](./notebooks/grid-search/multipair-breakout-4h-optimiser.ipynb)
+  - This notebook is using an optimiser with a custom optimisation search function
+  - We weight 75% on Sharpe, 25% on Maximum Drawdown
 
 # Example research only notebooks
 
