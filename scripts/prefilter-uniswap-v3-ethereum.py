@@ -8,6 +8,12 @@
   It is recommend you do the processing on a development server off-band and
   then transfer files to your local development laptop.
 
+To transfer the generated files to local computer:
+
+.. code-block:: shell
+
+    rsync -av --inplace --progress "yourserver:/tmp/*ethereum-1h.parquet" ~/.cache/tradingstrategy
+
 """
 from pathlib import Path
 
