@@ -31,8 +31,8 @@ exchange_slug = "uniswap-v3"
 # to keep the dataset smaller
 min_prefilter_liquidity = 10_000
 fname = "uniswap-v3-ethereum-1h"
-liquidity_output_fname = Path(f"/tmp/{fname}.parquet")
-price_output_fname = Path(f"/tmp/{fname}.parquet")
+liquidity_output_fname = Path(f"/tmp/liquidity-{fname}.parquet")
+price_output_fname = Path(f"/tmp/price-{fname}.parquet")
 
 client = Client.create_jupyter_client()
 
