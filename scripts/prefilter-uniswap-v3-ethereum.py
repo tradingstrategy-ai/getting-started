@@ -36,8 +36,9 @@ client = Client.create_jupyter_client()
 print("Downloading/opening exchange dataset")
 exchange_universe = client.fetch_exchange_universe()
 
-# Resolve uniswap_v3_id
-exchange_id = exchange_universe.get_by_chain_and_slug(chain_id, exchange_slug)
+# Resolve uniswap-v3 internal id
+exchange = exchange_universe.get_by_chain_and_slug(chain_id, exchange_slug)
+exchange_id = exchange.exchange_id
 print(f"Exchange {exchange_slug} is id {exchange_id}")
 
 # We need pair metadata to know which pairs belong to Polygon
