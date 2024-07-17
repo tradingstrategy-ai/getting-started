@@ -15,3 +15,5 @@ bug-hunting/
 
 # Dropped by some notebook environments when they cannot find ~/.cache
 cache/
+
+tmp/
