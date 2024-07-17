@@ -40,8 +40,11 @@ fname = "uniswap-v3-ethereum-1h"
 liquidity_output_fname = Path(f"/tmp/liquidity-{fname}.parquet")
 price_output_fname = Path(f"/tmp/price-{fname}.parquet")
 
-client = Client.create_jupyter_client()
+#
+# Download - process - save
+#
 
+client = Client.create_jupyter_client()
 print("Downloading/opening exchange dataset")
 exchange_universe = client.fetch_exchange_universe()
 
