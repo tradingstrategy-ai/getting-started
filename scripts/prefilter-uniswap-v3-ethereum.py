@@ -43,7 +43,7 @@ print(f"Exchange {exchange_slug} is id {exchange_id}")
 # We need pair metadata to know which pairs belong to Polygon
 print("Downloading/opening pairs dataset")
 pairs_df = client.fetch_pair_universe().to_pandas()
-our_chain_pair_ids = pairs_df[pairs_df.chain_id == chain_id.value & pairs_df.exchange_id == exchange_id.value]["pair_id"].unique()
+our_chain_pair_ids = pairs_df[(pairs_df.chain_id == chain_id.value) & (pairs_df.exchange_id == exchange_id.value)]["pair_id"].unique()
 
 print(f"We have data for {len(our_chain_pair_ids)} trading pairs on {fname}")
 
