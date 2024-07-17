@@ -23,6 +23,9 @@ from tradingstrategy.timebucket import TimeBucket
 
 chain_id = ChainId.ethereum
 time_bucket = TimeBucket.h1
+# TVL data for Uniswap v3 is only sampled daily.
+# more fine granular is not needed
+liquidity_time_bucket = TimeBucket.d1
 exchange_slug = "uniswap-v3"
 # If the pair does not have this liquidity USD ever, skip the trading pair
 # to keep the dataset smaller
@@ -50,13 +53,14 @@ print(f"We have data for {len(our_chain_pair_ids)} trading pairs on {fname}")
 
 # Download all liquidity data, extract
 # trading pairs that exceed our prefiltering threshold
-print(f"Downloading/opening TVL/liquidity dataset {time_bucket}")
-liquidity_df = client.fetch_all_liquidity_samples(time_bucket).to_pandas()
+print(f"Downloading/opening TVL/liquidity dataset {liquidity_time_bucket}")
+liquidity_df = client.fetch_all_liquidity_samples(liquidity_time_bucket).to_pandas()
 print(f"Filtering out liquidity for chain {chain_id.name}")
 liquidity_df = liquidity_df.loc[liquidity_df.pair_id.isin(our_chain_pair_ids)]
 liquidity_per_pair = liquidity_df.groupby(liquidity_df.pair_id)
 print(f"Chain {chain_id.name} has liquidity data for {len(liquidity_per_pair.groups)}")
 
+# Check that the highest peak of the pair liquidity filled our threshold
 passed_pair_ids = set()
 liquidity_output_chunks = []
 
