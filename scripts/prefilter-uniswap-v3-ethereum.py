@@ -76,6 +76,8 @@ liquidity_out_df.to_parquet(liquidity_output_fname)
 
 print(f"Wrote {liquidity_output_fname}, {liquidity_output_fname.stat().st_size:,} bytes")
 
+# After we know pair ids that fill the liquidity criteria,
+# we can build OHLCV dataset for these pairs
 print(f"Downloading/opening OHLCV dataset {time_bucket}")
 price_df = client.fetch_all_candles(time_bucket).to_pandas()
 price_df = price_df.loc[price_df.pair_id.isin(passed_pair_ids)]
