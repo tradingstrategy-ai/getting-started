@@ -194,6 +194,25 @@ You can find them by scrolling down to the different sections
 
 And now you are done with our first backtest! Continue below to learn more how you can get started with your own strategies.
 
+# Setting up Python environment from command line
+
+Example how to run notebooks and scripts from the command line.
+
+```shell
+# Get all Python source code we need
+# (A lot of code)
+git clone --recursive https://github.com/tradingstrategy-ai/trade-executor.git deps/trade-executor
+
+# Create virtual environment
+poetry install
+
+# Active Pytohn virtual environment
+poetry shell
+
+# Run script
+python scripts/prefilter-uniswap-v3-ethereum.py
+```
+
 # Strategy backtest notebook structure
 
 Each strategy backtest notebook will consist of following phases. 
@@ -217,15 +236,6 @@ Each strategy backtest notebook will consist of following phases.
 
 This is a rough skeleton. You mix and match can easily add your own trading signals and output charts using with all tools available in Pandas and Jupyter notebook ecosystem.
 There aren't any limitations on what you can do.
-
-# Grid search skeleton
-
-The grid search is the same invididual backtest with very minimal changes
-- **Parameters** class has single parameter values replaced with Python lists to explore all the list combinations in the grid search
-- **Backtest** runs `perform_grid_search` instead of `run_backtest_inline`
-- **Output** shows summaries backtest results and heatmaps
-
-Grid search are computer resource constrained (number of CPU cores), so we recommend running grid searches only on local powerful computers.
 
 # Learning resources
 
