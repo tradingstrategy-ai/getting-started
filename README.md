@@ -91,6 +91,11 @@ Individual backtests:
   - Takes a list of ERC-20 addresses as input, and creates a trading universe based on these
   - Constructs a spot market portfolio with daily rebalances
   - Average complexity
+- [Open-ended momentum basket](./notebooks/single-backtest/momentum-basket.ipynb)
+  - A portfolio construction strategy example
+  - Trades any token on Uniswap v3 on Ethereum
+  - The trading universe is open-ended: trades any token that has been ever listed on Uniswap v3
+  - High complexity  
 - [Alternative data](./notebooks/single-backtest/alternative-data.ipynb)
   - Reads custom signal data (sentiment data) from CSV file and incorporates it as part of the trading strategy
   - Otherwise same as above

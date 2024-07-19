@@ -23,6 +23,10 @@ from tradingstrategy.chain import ChainId
 from tradingstrategy.client import Client
 from tradingstrategy.timebucket import TimeBucket
 
+
+client = Client.create_jupyter_client()
+cache_path = client.transport.cache_path
+
 #
 # Set up filtering and output parameters
 #
@@ -37,8 +41,8 @@ exchange_slug = "uniswap-v3"
 # to keep the dataset smaller
 min_prefilter_liquidity = 10_000
 fname = "uniswap-v3-ethereum-1h"
-liquidity_output_fname = Path(f"/tmp/liquidity-{fname}.parquet")
-price_output_fname = Path(f"/tmp/price-{fname}.parquet")
+liquidity_output_fname = Path(f"{cache_path}/liquidity-{fname}.parquet")
+price_output_fname = Path(f"{cache_path}/price-{fname}.parquet")
 
 #
 # Download - process - save
