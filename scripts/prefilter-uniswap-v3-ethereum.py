@@ -41,8 +41,8 @@ exchange_slug = "uniswap-v3"
 # to keep the dataset smaller
 min_prefilter_liquidity = 10_000
 fname = "uniswap-v3-ethereum-1h"
-liquidity_output_fname = Path(f"{cache_path}/liquidity-{fname}.parquet")
-price_output_fname = Path(f"{cache_path}/price-{fname}.parquet")
+liquidity_output_fname = Path(f"{cache_path}/prefiltered/liquidity-{fname}.parquet")
+price_output_fname = Path(f"{cache_path}/prefiltered/price-{fname}.parquet")
 
 #
 # Download - process - save
