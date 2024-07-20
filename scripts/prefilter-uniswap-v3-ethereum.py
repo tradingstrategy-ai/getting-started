@@ -15,6 +15,7 @@ To transfer the generated files to local computer:
     rsync -av --inplace --progress "yourserver:/tmp/*ethereum-1h.parquet" ~/.cache/tradingstrategy
 
 """
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -41,6 +42,7 @@ exchange_slug = "uniswap-v3"
 # to keep the dataset smaller
 min_prefilter_liquidity = 10_000
 fname = "uniswap-v3-ethereum-1h"
+os.makedirs("{cache_path}/prefiltered/", exist_ok=True)
 liquidity_output_fname = Path(f"{cache_path}/prefiltered/liquidity-{fname}.parquet")
 price_output_fname = Path(f"{cache_path}/prefiltered/price-{fname}.parquet")
 
