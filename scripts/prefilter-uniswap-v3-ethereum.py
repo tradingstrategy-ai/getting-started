@@ -12,7 +12,7 @@ To transfer the generated files to local computer:
 
 .. code-block:: shell
 
-    rsync -av --inplace --progress "yourserver:/tmp/*ethereum-1h.parquet" ~/.cache/tradingstrategy
+    rsync -av --inplace --progress "yourserver:.cache/tradingstrategy/prefiltered/*" ~/.cache/tradingstrategy/prefiltered/
 
 """
 import os
