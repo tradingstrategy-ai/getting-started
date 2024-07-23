@@ -10,12 +10,20 @@ import pyarrow.parquet as pq
 import pandas as pd
 
 TIME_BUCKET = TimeBucket.d1
-CACHE_DIRECTORY = Path(os.path.expanduser(f'~/.cache/trading-strategy/binance-all-spot-candles-{TIME_BUCKET.value}'))
+CACHE_DIRECTORY = f'~/.cache/trading-strategy/binance-all-spot-candles-{TIME_BUCKET.value}'
 
 def fetch_binance_candles_for_all_pairs(
     time_bucket: TimeBucket,
     cache_directory=CACHE_DIRECTORY, 
-):
+) -> None:
+    """Downloads all Binance spot pairs and saves them as parquet separate files.
+    It is highly recommended to use a different cache directory for each time bucket.
+    
+    :param time_bucket: Time bucket for the candles.
+    :param cache_directory: Directory to store the parquet files.
+    :return: None
+    """
+    cache_directory = Path(os.path.expanduser(cache_directory))
     print(f"Downloading all Binance spot pairs with a time bucket of {time_bucket.value}")
     x = BinanceDownloader(cache_directory=cache_directory)
     assert isinstance(time_bucket, TimeBucket)
@@ -37,6 +45,13 @@ def read_all_parquet_files(
     write=False, 
     file_name='all_spot_pairs.parquet'
 ):
+    """Read all parquet files in the cache directory as a single dataframe. 
+    
+    :param cache_directory: Directory where the parquet files are stored.
+    :param time_bucket: Time bucket for the candles.
+    :param write: If true, combine parquet files into a single parquet file.
+    :param file_name: Name of the parquet file to write.
+    """
     print("Loading all parquet files")
     parquet_files = [f for f in os.listdir(cache_directory) if f.endswith('.parquet')]
     dataframes = []
