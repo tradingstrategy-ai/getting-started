@@ -65,10 +65,15 @@ You can find these example strategy backtests.
 
 Individual backtests:
 
+- [BTC: moving average (MA) strategy](./notebooks/single-backtest/bitcoin-ma.ipynb)
+  - Easy complexity
+  - One of the simplest technical indicator-based trading strategies there is
+  - We buy if the Bitcoin daily close price is above its simple moving average (MA), otherwise sell
+
 - [ETH: fast exponential moving average and slow exponential moving average example strategy](./notebooks/single-backtest/moving-average.ipynb)
   - Easy complexity
   - 1h timeframe  
-  - One of the simplest technical indicator-based trading strategues there is
+  - One of the simplest technical indicator-based trading strategies there is
 - [MATIC: An RSI and Bollinger bands breakout strategy for MATIC using Binance CEX data](./notebooks/single-backtest/matic-breakout.ipynb)
   - Easy complexity
   - 1h timeframe  
