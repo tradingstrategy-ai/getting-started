@@ -152,6 +152,11 @@ This allows you to "brute force search" better strategies and explore the behavi
   - Uses Gaussian Process (GP) instead of a grid search, being much faster, demostrating the benefits of an optimizer  
   - Advanced complexity  
 
+# Example live trading
+
+- [Live trade executor](https://github.com/tradingstrategy-ai/dex-live-algorithmic-trading-example) example repo
+  - Set up a Docker instance that runs a strategy for live trading
+
 # How to run on Github Codespaces
 
 In this tutorial, we open a single backtest in Github Codespaces and run it. You can do all in your 
