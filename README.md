@@ -1,7 +1,12 @@
  # Getting started with algorithmic trading with TradingStrategy.ai
  
-- This is an example repository for [the Trading Strategy framework](https://tradingstrategy.ai) to 
-  get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to DEXes and DeFi markets
+- This is an example repository for [the Trading Strategy SDK](https://tradingstrategy.ai) to 
+  get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to DEXes and DeFi markets.
+- Trading Strategy SDK does
+     - DEX and lending protocol market data fees
+     - Backtesting and strategy development
+     - Live trade execution
+     - Asset management for multiple investors using smart contract vaults
 - This repository contains multiple examples of backtesting  [notebooks](https://tradingstrategy.ai/glossary/jupyter-notebook) to get started 
 - The examples show how to develop and backtest your strategies on both decentralised exchanges and [Binance centralised exchange](https://tradingstrategy.ai/glossary/cex) data
 
