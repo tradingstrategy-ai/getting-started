@@ -142,7 +142,7 @@ def main():
           continue
       top_liquid_pairs_filtered[pair_id] = liquidity
 
-  print("Top liquid 10 pairs at {liquidity_comparison_date}")
+  print(f"Top liquid 10 pairs at {liquidity_comparison_date}")
   for idx, tpl in enumerate(top_liquid_pairs_filtered.most_common(10), start=1):
       pair_id, liquidity = tpl
       ticker = make_full_ticker(pair_metadata[pair_id])
