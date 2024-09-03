@@ -72,7 +72,7 @@ liquidity_df = client.fetch_all_liquidity_samples(liquidity_time_bucket).to_pand
 print(f"Filtering out liquidity for chain {chain_id.name}")
 liquidity_df = liquidity_df.loc[liquidity_df.pair_id.isin(our_chain_pair_ids)]
 liquidity_per_pair = liquidity_df.groupby(liquidity_df.pair_id)
-print(f"Chain {chain_id.name} has liquidity data for {len(liquidity_per_pair.groups)}")
+print(f"Chain {chain_id.name} has liquidity data for {len(liquidity_per_pair.groups)} pairs")
 
 # Check that the highest peak of the pair liquidity filled our threshold
 passed_pair_ids = set()
