@@ -142,7 +142,7 @@ This allows you to "brute force search" better strategies and explore the behavi
 - [CSV export of top 100 Uniswap pairs](./scripts/export-csv-uniswap-v2-v3-ethereum-top-100.py)
   - This Python script downloads 1d trading data for all DEX pairs
   - From this dataset we export OHCLV CSV for top 100 most liquid pairs on Uniswap v2 and v3 on Ethereum
-  - This CSV can be then imported to the various trading strategy development applications like RealTrader and MetaTrader
+  - This CSV can be then imported to the various trading strategy development applications like [RealTest](https://mhptrading.com/) and [MetaTrader](https://mhptrading.com/)
 - [ADX regime filter research](./notebooks/research/regime-filter-playground.ipynb)
   - This is an indicator visualisation -only notebook for testing different ADX [market regime filter](https://tradingstrategy.ai/glossary/regime-filter) values
   - The notebook will render the regime detection (bull market, bear market, crab market) of various cryptocurrencies
