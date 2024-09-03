@@ -3,7 +3,7 @@
 - This is an example repository for [the Trading Strategy SDK](https://tradingstrategy.ai) to 
   get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to DEXes and DeFi markets.
 - Trading Strategy SDK does
-     - DEX and lending protocol market data fees
+     - DEX and lending protocol market data feeds
      - Backtesting and strategy development
      - Live trade execution
      - Asset management for multiple investors using smart contract vaults
