@@ -180,12 +180,16 @@ def main():
 
   print(f"Retrofitting OHLCV columns for human readability")
   price_df = price_df.obj
-  price_df["pair_id"] = price_df.index.get_level_values(0)
+  price_df["pair_id"] = price_df.index.get_level_values(0) 
   price_df["ticker"] = price_df.apply(lambda row: make_full_ticker(pair_metadata[row.pair_id]), axis=1)
   price_df["link"] = price_df.apply(lambda row: make_link(pair_metadata[row.pair_id]), axis=1)
 
+  # Export data, make sure we got columns in an order we want
   print(f"Writing OHLCV CSV")
-  column_order = ('ticker', 'open', 'high', 'low', 'close', 'volume', 'link', 'pair_id',)
+  del price_df["timestamp"]
+  del price_df["pair_id"]
+  price_df = price_df.reset_index()
+  column_order = ('ticker', 'timestamp', 'open', 'high', 'low', 'close', 'volume', 'link', 'pair_id',)
   price_df = price_df.reindex(columns=column_order)  # Sort columns in a specific order
   price_df.to_csv(
     price_output_fname,
