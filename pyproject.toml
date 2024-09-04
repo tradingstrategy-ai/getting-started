@@ -23,3 +23,15 @@ build-backend = "poetry.core.masonry.api"
 packages = [
     { include = "getting_started" },
 ]
+
+# We hate arbitrary line lengths
+[tool.black]
+line-length = 999
+
+[tool.isort]
+profile = "black"
+
+# We hate arbitrary line lengths
+[flake8]
+max-line-length = 999
+extend-ignore = "E203"

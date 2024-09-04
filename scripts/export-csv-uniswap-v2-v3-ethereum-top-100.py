@@ -16,6 +16,8 @@
 
 - The result CSV output is not sorted
 
+- The result CSV open, high, low, close, volume values are normalised to US Dollar (even e.g. if the quote token is /ETH)
+
 - Large amount of RAM and disk space is needed, dataset being processed are in gigabytes.
   It is recommend you do the processing on a development server off-band and
   then transfer files to your local development laptop.
