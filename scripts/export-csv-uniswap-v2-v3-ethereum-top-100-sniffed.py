@@ -1,8 +1,10 @@
-"""Download top 100 liquid pairs from Uniswap v2 + Uniswap v3 and output OHLCV as CSV, filter with TokenSniffer
+"""Download top 100 liquid pairs from Uniswap v2, Uniswap v3, Sushi and output OHLCV as CSV, filter with TokenSniffer
 
-- TokenSniffer API key needed
+- Factors for survivorship-bias by sorting top 100 by their maximum historical liquidity, not the current liquidity
 
-- See `export-csv-uniswap-v2-v3-ethereum-top-100.py` for details
+- Uses TokenSniffer to filter out ponzis, honeypots and such: TokenSniffer API key needed
+
+- See `export-csv-uniswap-v2-v3-ethereum-top-100.py` for more details
 
 """
 
@@ -19,7 +21,7 @@ from tradingstrategy.timebucket import TimeBucket
 from tradingstrategy.utils.time import floor_pandas_week
 from tradingstrategy.utils.forward_fill import forward_fill
 from tradingstrategy.utils.wrangle import fix_dex_price_data
-from eth_defi.token_analysis.tokensniffer import CachedTokenSniffer, is_tradeable_token
+from eth_defi.token_analysis.tokensniffer import CachedTokenSniffer, is_tradeable_token, KNOWN_GOOD_TOKENS
 
 
 TOKENSNIFFER_API_KEY = os.environ.get("TOKENSNIFFER_API_KEY")
@@ -42,6 +44,63 @@ def make_link(row: pd.Series) -> str:
     return f"https://tradingstrategy.ai/trading-view/{chain_slug}/{row.exchange_slug}/{row.pair_slug}"
 
 
+def get_somewhat_realistic_max_liquidity(
+    liquidity_df, 
+    pair_id, 
+    samples=10,
+    broken_liquidity=100_000_000, 
+) -> float:
+    """Get the max liquidity of a trading pair over its history.
+
+    - Get the token by its maximum ever liquidity, so we avoid survivorship bias
+
+    - Instead of picking the absolute top, we pick n top samples 
+      and choose lowest of those
+      
+    - This allows us to avoid data sampling issues when the liquidity value,
+      as calculated with the function of price, might have been weird when the token launched
+      
+    :param broken_liquidity:
+        Cannot have more than 100M USD
+    
+    """
+    
+    try:
+        liquidity_samples = liquidity_df.obj.loc[pair_id]["close"].nlargest(samples)
+        sample = min(liquidity_samples)
+        if sample > broken_liquidity:
+            return 0
+        return sample            
+    except KeyError:
+        # Pair not available, because liquidity data is not there, or zero, or broken
+        return 0    
+
+
+def get_liquidity_today(
+    liquidity_df, 
+    pair_id, 
+    delay=pd.Timedelta(days=21)
+) -> float:
+    """Get the current liquidity of a trading pair
+
+    :param delay:
+        Look back X days.
+        
+        To avoid indexer delays.        
+
+    :return:
+        US dollars
+    """
+    
+    try:
+        timestamp = floor_pandas_week(pd.Timestamp.now() - delay)
+        sample = liquidity_df.obj.loc[pair_id]["close"][timestamp]
+        return sample            
+    except KeyError:
+        # Pair not available, because liquidity data is not there, or zero, or broken
+        return 0   
+
+
 def main():
 
     #
@@ -51,11 +110,12 @@ def main():
     chain_id = ChainId.ethereum
     time_bucket = TimeBucket.d1  # OHCLV data frequency
     liquidity_time_bucket = TimeBucket.d1  # TVL data for Uniswap v3 is only sampled daily, more fine granular is not needed
-    exchange_slugs = {"uniswap-v3", "uniswap-v2"}
+    exchange_slugs = {"uniswap-v3", "uniswap-v2", "sushi"}
     exported_top_pair_count = 100
     liquidity_comparison_date = floor_pandas_week(pd.Timestamp.now() - pd.Timedelta(days=7))  # What date we use to select top 100 liquid pairs
-    tokensniffer_threshold = 65  # We want our TokenSniffer score to be higher than this for base tokens
-    min_liquidity_threshold = 500_000  # Prefilter pairs with this liquidity before calling token sniffer
+    tokensniffer_threshold = 24  # We want our TokenSniffer score to be higher than this for base tokens
+    min_liquidity_threshold = 4_000_000  # Prefilter pairs with this liquidity before calling token sniffer
+    allowed_pairs_for_token_sniffer = 150  # How many pairs we let to go through TokenSniffer filtering process (even if still above min_liquidity_threshold)
 
     #
     # Set up output files - use Trading Strategy client's cache folder
@@ -97,6 +157,8 @@ def main():
     print(f"We have data for {len(our_chain_pair_ids)} trading pairs on {fname} set")
     pairs_df = pairs_df.set_index("pair_id")
     pair_metadata = {pair_id: row for pair_id, row in pairs_df.iterrows()}
+    uni_v3_pair_metadata = {pair_id: row for pair_id, row in pairs_df.iterrows() if row["exchange_slug"] == "uniswap-v3"}
+    print(f"From this, Uniswap v3 data has  {len(uni_v3_pair_metadata)} pairs")
 
     # Download all liquidity data, extract
     # trading pairs that exceed our prefiltering threshold
@@ -107,25 +169,25 @@ def main():
     liquidity_df = liquidity_df.set_index("timestamp").groupby("pair_id")
     print(f"Forward-filling liquidity, before forward-fill the size is {len(liquidity_df)} samples, target frequency is {liquidity_time_bucket.to_frequency()}")
     liquidity_df = forward_fill(liquidity_df, liquidity_time_bucket.to_frequency(), columns=("close",))
-
-    print(f"Filtering out liquidity for chain {chain_id.name}")
-    # Find top 100 liquid pairs on a given date
-    pair_liquidity_map = Counter()
+    
+    print(f"Filtering out historical liquidity of pairs")
+    
+    # Get top liquidity for all of our pairs
+    pair_liquidity_max_historical = Counter()
+    pair_liquidity_today = Counter()
     for pair_id in our_chain_pair_ids:
-        try:
-            # Access data using MultiIndex (pair, timestamp)[column]
-            liquidity_sample = liquidity_df.obj.loc[pair_id, liquidity_comparison_date]["close"]
-        except KeyError:
-            # Pair not available, because liquidity data is not there, or zero, or broken
-            continue        
-        pair_liquidity_map[pair_id] = liquidity_sample
+        pair_liquidity_max_historical[pair_id] = get_somewhat_realistic_max_liquidity(liquidity_df, pair_id)
+        pair_liquidity_today[pair_id] = get_liquidity_today(liquidity_df, pair_id)
 
-    print(f"Chain {chain_id.name} has liquidity data for {len(pair_liquidity_map)} pairs at {liquidity_comparison_date}")
+    print(f"Chain {chain_id.name} has liquidity data for {len(pair_liquidity_max_historical)} pairs at {liquidity_comparison_date}")
+    uniswap_v3_liquidity_pairs = {pair_id for pair_id in pair_liquidity_max_historical.keys() if pair_id in uni_v3_pair_metadata}
+    print(f"From this, Uniswap v3 is {len(uniswap_v3_liquidity_pairs)} pairs")
+    assert len(uniswap_v3_liquidity_pairs) > 0, "No Uniswap v3 liquidity detected"
     
     # Remove duplicate pairs
     print("Prefiltering and removing duplicate pairs")
     top_liquid_pairs_filtered = Counter()
-    for pair_id, liquidity in pair_liquidity_map.most_common():
+    for pair_id, liquidity in pair_liquidity_max_historical.most_common():
         ticker = make_simple_ticker(pair_metadata[pair_id])
         if liquidity < min_liquidity_threshold:
             # Prefilter pairs
@@ -139,12 +201,13 @@ def main():
     print(f"After prefilter, we have {len(top_liquid_pairs_filtered):,} pairs left")
 
     # Remove tokens failing sniff test
-    print("Sniffing out bad trading pairs")
+    print(f"Sniffing out bad trading pairs, max allowed {allowed_pairs_for_token_sniffer}")
     safe_top_liquid_pairs_filtered = Counter()
-    for pair_id, liquidity in top_liquid_pairs_filtered.items():
-        ticker = make_full_ticker(pair_metadata[pair_id])
+    for pair_id, liquidity in top_liquid_pairs_filtered.most_common(allowed_pairs_for_token_sniffer):
+        ticker = make_full_ticker(pair_metadata[pair_id])        
         pair_row = pair_metadata[pair_id]
         dex_pair = DEXPair.from_series(pair_id, pair_row)
+        base_token_symbol = dex_pair.base_token_symbol
         address = dex_pair.base_token_address
         try:
             sniffed_data = sniffer.fetch_token_info(chain_id.value, address)
@@ -158,9 +221,13 @@ def main():
             
             raise RuntimeError(f"Could not sniff {ticker}, address {address}: {e}") from e
         
-        if not is_tradeable_token(sniffed_data, tokensniffer_threshold):
+        if not is_tradeable_token(
+            sniffed_data, 
+            symbol=base_token_symbol,
+            risk_score_threshold=tokensniffer_threshold):
             score = sniffed_data["score"]
-            print(f"WARN: Skipping pair {ticker}, address {address} as the TokenSniffer score {score} is below our risk threshold, liquidity is {liquidity:,.2f} USD")
+            whitelisted = base_token_symbol in KNOWN_GOOD_TOKENS
+            print(f"WARN: Skipping pair {ticker}, address {address} as the TokenSniffer score {score} (whitelisted {whitelisted}) is below our risk threshold, liquidity is {liquidity:,.2f} USD")
             continue
 
         safe_top_liquid_pairs_filtered[pair_id] = liquidity
@@ -169,7 +236,7 @@ def main():
     print(f"We skip {skipped_tokens:,} in TokenSniffer filter")
     print(f"Token sniffer info is:\n{sniffer.get_diagnostics()}")
 
-    print(f"Top liquid 10 pairs at {liquidity_comparison_date}")
+    print(f"Top liquid 10 pairs (historically)")
     for idx, tpl in enumerate(safe_top_liquid_pairs_filtered.most_common(10), start=1):
         pair_id, liquidity = tpl
         ticker = make_full_ticker(pair_metadata[pair_id])
@@ -186,9 +253,13 @@ def main():
     # Check how much liquidity we can address
     total_liq = 0
     for pair_id in top_liquid_pair_ids:
-        total_liq += pair_liquidity_map[pair_id]
-    print(f"Total available tradeable liquidity at {liquidity_comparison_date} for {len(top_liquid_pair_ids)} pairs is {total_liq:,.2f} USD")
-
+        total_liq += pair_liquidity_max_historical[pair_id]
+    print(f"Historical tradeable liquidity for {len(top_liquid_pair_ids)} pairs is {total_liq:,.2f} USD")    
+    total_liq = 0
+    for pair_id in top_liquid_pair_ids:
+        total_liq += pair_liquidity_today[pair_id]
+    print(f"Total's tradeable liquidity for {len(top_liquid_pair_ids)} pairs is {total_liq:,.2f} USD")
+    
     # Clamp liquidity output to only 100 top pairs
     # TODO: wrangle liquidity data for spikes and massage them out
     liquidity_df = liquidity_df.obj
