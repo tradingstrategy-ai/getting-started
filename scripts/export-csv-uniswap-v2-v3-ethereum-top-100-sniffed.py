@@ -258,7 +258,7 @@ def main():
     total_liq = 0
     for pair_id in top_liquid_pair_ids:
         total_liq += pair_liquidity_today[pair_id]
-    print(f"Total's tradeable liquidity for {len(top_liquid_pair_ids)} pairs is {total_liq:,.2f} USD")
+    print(f"Today's tradeable liquidity for {len(top_liquid_pair_ids)} pairs is {total_liq:,.2f} USD")
     
     # Clamp liquidity output to only 100 top pairs
     # TODO: wrangle liquidity data for spikes and massage them out
