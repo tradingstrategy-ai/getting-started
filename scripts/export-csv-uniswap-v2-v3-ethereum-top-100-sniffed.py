@@ -2,6 +2,10 @@
 
 - Factors for survivorship-bias by sorting top 100 by their maximum historical liquidity, not the current liquidity
 
+- Filter out bad known untradeable tokens like OHM (rebase)
+
+- Filter out non-volatile pairs like USDT/USDC
+
 - Uses TokenSniffer to filter out ponzis, honeypots and such: TokenSniffer API key needed
 
 - See `export-csv-uniswap-v2-v3-ethereum-top-100.py` for more details
@@ -21,6 +25,8 @@ from tradingstrategy.timebucket import TimeBucket
 from tradingstrategy.utils.time import floor_pandas_week
 from tradingstrategy.utils.forward_fill import forward_fill
 from tradingstrategy.utils.wrangle import fix_dex_price_data
+from tradingstrategy.utils.liquidity_filter import build_liquidity_summary
+from tradingstrategy.utils.token_filter import filter_pairs_default
 from eth_defi.token_analysis.tokensniffer import CachedTokenSniffer, is_tradeable_token, KNOWN_GOOD_TOKENS
 
 
@@ -38,67 +44,15 @@ def make_simple_ticker(row: pd.Series) -> str:
     return row["base_token_symbol"] + "-" + row["quote_token_symbol"]
 
 
+def make_base_symbol(row: pd.Series) -> str:
+    """Generate a base symbol."""
+    return row["base_token_symbol"] 
+
+
 def make_link(row: pd.Series) -> str:
     """Get TradingStrategy.ai explorer link for the trading data"""
     chain_slug = ChainId(row.chain_id).get_slug()
     return f"https://tradingstrategy.ai/trading-view/{chain_slug}/{row.exchange_slug}/{row.pair_slug}"
-
-
-def get_somewhat_realistic_max_liquidity(
-    liquidity_df, 
-    pair_id, 
-    samples=10,
-    broken_liquidity=100_000_000, 
-) -> float:
-    """Get the max liquidity of a trading pair over its history.
-
-    - Get the token by its maximum ever liquidity, so we avoid survivorship bias
-
-    - Instead of picking the absolute top, we pick n top samples 
-      and choose lowest of those
-      
-    - This allows us to avoid data sampling issues when the liquidity value,
-      as calculated with the function of price, might have been weird when the token launched
-      
-    :param broken_liquidity:
-        Cannot have more than 100M USD
-    
-    """
-    
-    try:
-        liquidity_samples = liquidity_df.obj.loc[pair_id]["close"].nlargest(samples)
-        sample = min(liquidity_samples)
-        if sample > broken_liquidity:
-            return 0
-        return sample            
-    except KeyError:
-        # Pair not available, because liquidity data is not there, or zero, or broken
-        return 0    
-
-
-def get_liquidity_today(
-    liquidity_df, 
-    pair_id, 
-    delay=pd.Timedelta(days=21)
-) -> float:
-    """Get the current liquidity of a trading pair
-
-    :param delay:
-        Look back X days.
-        
-        To avoid indexer delays.        
-
-    :return:
-        US dollars
-    """
-    
-    try:
-        timestamp = floor_pandas_week(pd.Timestamp.now() - delay)
-        sample = liquidity_df.obj.loc[pair_id]["close"][timestamp]
-        return sample            
-    except KeyError:
-        # Pair not available, because liquidity data is not there, or zero, or broken
-        return 0   
 
 
 def main():
@@ -115,7 +69,7 @@ def main():
     liquidity_comparison_date = floor_pandas_week(pd.Timestamp.now() - pd.Timedelta(days=7))  # What date we use to select top 100 liquid pairs
     tokensniffer_threshold = 24  # We want our TokenSniffer score to be higher than this for base tokens
     min_liquidity_threshold = 4_000_000  # Prefilter pairs with this liquidity before calling token sniffer
-    allowed_pairs_for_token_sniffer = 150  # How many pairs we let to go through TokenSniffer filtering process (even if still above min_liquidity_threshold)
+    allowed_pairs_for_token_sniffer = 250  # How many pairs we let to go through TokenSniffer filtering process (even if still above min_liquidity_threshold)
 
     #
     # Set up output files - use Trading Strategy client's cache folder
@@ -139,7 +93,7 @@ def main():
     )
 
     #
-    # Download - process - save
+    # Set out trading pair universe
     #
 
     print("Downloading/opening exchange dataset")
@@ -153,33 +107,44 @@ def main():
     # We need pair metadata to know which pairs belong to Polygon
     print("Downloading/opening pairs dataset")
     pairs_df = client.fetch_pair_universe().to_pandas()
-    our_chain_pair_ids = pairs_df[(pairs_df.chain_id == chain_id.value) & (pairs_df.exchange_id.isin(exchange_ids))]["pair_id"].unique()
+    
+    pairs_df = filter_pairs_default(
+        pairs_df,
+        chain_id=chain_id,
+        exchange_ids=exchange_ids,
+    )
+    our_chain_pair_ids = pairs_df["pair_id"]
+        
     print(f"We have data for {len(our_chain_pair_ids)} trading pairs on {fname} set")
+    print("Building pair metadata map")
     pairs_df = pairs_df.set_index("pair_id")
     pair_metadata = {pair_id: row for pair_id, row in pairs_df.iterrows()}
     uni_v3_pair_metadata = {pair_id: row for pair_id, row in pairs_df.iterrows() if row["exchange_slug"] == "uniswap-v3"}
-    print(f"From this, Uniswap v3 data has  {len(uni_v3_pair_metadata)} pairs")
+    print(f"From this, Uniswap v3 data has {len(uni_v3_pair_metadata)} pairs")
+
+    #
+    # Filter by liquidity
+    #    
 
     # Download all liquidity data, extract
     # trading pairs that exceed our prefiltering threshold
     print(f"Downloading/opening TVL/liquidity dataset {liquidity_time_bucket}")
     liquidity_df = client.fetch_all_liquidity_samples(liquidity_time_bucket).to_pandas()
-    print("Setting up per-pair liquidity filtering")
+    print(f"Setting up per-pair liquidity filtering, raw liquidity data os {len(liquidity_df):,} entries")
     liquidity_df = liquidity_df.loc[liquidity_df.pair_id.isin(our_chain_pair_ids)]
     liquidity_df = liquidity_df.set_index("timestamp").groupby("pair_id")
     print(f"Forward-filling liquidity, before forward-fill the size is {len(liquidity_df)} samples, target frequency is {liquidity_time_bucket.to_frequency()}")
-    liquidity_df = forward_fill(liquidity_df, liquidity_time_bucket.to_frequency(), columns=("close",))
-    
-    print(f"Filtering out historical liquidity of pairs")
+    liquidity_df = forward_fill(liquidity_df, liquidity_time_bucket.to_frequency(), columns=("close",))  # Only daily close liq needed for analysis, don't bother resample other cols
     
     # Get top liquidity for all of our pairs
-    pair_liquidity_max_historical = Counter()
-    pair_liquidity_today = Counter()
-    for pair_id in our_chain_pair_ids:
-        pair_liquidity_max_historical[pair_id] = get_somewhat_realistic_max_liquidity(liquidity_df, pair_id)
-        pair_liquidity_today[pair_id] = get_liquidity_today(liquidity_df, pair_id)
-
+    print(f"Filtering out historical liquidity of pairs")    
+    pair_liquidity_max_historical, pair_liquidity_today = build_liquidity_summary(liquidity_df, our_chain_pair_ids)
     print(f"Chain {chain_id.name} has liquidity data for {len(pair_liquidity_max_historical)} pairs at {liquidity_comparison_date}")
+    
+    # Check how many pairs did not have good values for liquidity
+    broken_pairs = {pair_id for pair_id, liquidity in pair_liquidity_max_historical.items() if liquidity < 0}
+    print(f"Liquidity data is broken for {len(broken_pairs)} trading pairs")
+    
     uniswap_v3_liquidity_pairs = {pair_id for pair_id in pair_liquidity_max_historical.keys() if pair_id in uni_v3_pair_metadata}
     print(f"From this, Uniswap v3 is {len(uniswap_v3_liquidity_pairs)} pairs")
     assert len(uniswap_v3_liquidity_pairs) > 0, "No Uniswap v3 liquidity detected"
@@ -187,16 +152,18 @@ def main():
     # Remove duplicate pairs
     print("Prefiltering and removing duplicate pairs")
     top_liquid_pairs_filtered = Counter()
+    processed_base_tokens = set()
     for pair_id, liquidity in pair_liquidity_max_historical.most_common():
-        ticker = make_simple_ticker(pair_metadata[pair_id])
+        base_token_symbol = make_base_symbol(pair_metadata[pair_id])
         if liquidity < min_liquidity_threshold:
             # Prefilter pairs
             continue
-        if ticker in top_liquid_pairs_filtered:
+        if base_token_symbol in processed_base_tokens:
             # This pair is already in the dataset under a different pool
             # with more liquidity
             continue
         top_liquid_pairs_filtered[pair_id] = liquidity
+        processed_base_tokens.add(base_token_symbol)
 
     print(f"After prefilter, we have {len(top_liquid_pairs_filtered):,} pairs left")
 
@@ -285,8 +252,11 @@ def main():
     print(f"Retrofitting OHLCV columns for human readability")
     price_df = price_df.obj
     price_df["pair_id"] = price_df.index.get_level_values(0)
-    price_df["ticker"] = price_df.apply(lambda row: make_full_ticker(pair_metadata[row.pair_id]), axis=1)
-    price_df["link"] = price_df.apply(lambda row: make_link(pair_metadata[row.pair_id]), axis=1)
+    price_df["ticker"] = price_df["pair_id"].apply(lambda pair_id: make_full_ticker(pair_metadata[pair_id]))
+    price_df["link"] = price_df["pair_id"].apply(lambda pair_id: make_link(pair_metadata[pair_id]))
+    price_df["base"] = price_df["pair_id"].apply(lambda pair_id: pair_metadata[pair_id]["base_token_symbol"])
+    price_df["quote"] = price_df["pair_id"].apply(lambda pair_id: pair_metadata[pair_id]["quote_token_symbol"])
+    price_df["fee"] = price_df["pair_id"].apply(lambda pair_id: pair_metadata[pair_id]["fee"])
 
     # Export data, make sure we got columns in an order we want
     print(f"Writing OHLCV CSV")
