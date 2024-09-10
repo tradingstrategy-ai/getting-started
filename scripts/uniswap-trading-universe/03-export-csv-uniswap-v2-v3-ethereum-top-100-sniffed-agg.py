@@ -1,14 +1,8 @@
 """Download top 100 liquid pairs from Uniswap v2, Uniswap v3, Sushi and output OHLCV as CSV, filter with TokenSniffer
 
-- Factors for survivorship-bias by sorting top 100 by their maximum historical liquidity, not the current liquidity
+- Aggregate output across multiple trading pairs
 
-- Filter out bad known untradeable tokens like OHM (rebase)
-
-- Filter out non-volatile pairs like USDT/USDC
-
-- Uses TokenSniffer to filter out ponzis, honeypots and such: TokenSniffer API key needed
-
-- See `export-csv-uniswap-v2-v3-ethereum-top-100.py` for more details
+- See `export-csv-uniswap-v2-v3-ethereum-top-100-sniffer.py` for more details
 
 """
 
@@ -19,40 +13,22 @@ from pathlib import Path
 import pandas as pd
 
 from tradingstrategy.pair import DEXPair
+from tradingstrategy.pair import PandasPairUniverse
 from tradingstrategy.chain import ChainId
 from tradingstrategy.client import Client
 from tradingstrategy.timebucket import TimeBucket
 from tradingstrategy.utils.time import floor_pandas_week
 from tradingstrategy.utils.forward_fill import forward_fill
 from tradingstrategy.utils.wrangle import fix_dex_price_data
-from tradingstrategy.utils.liquidity_filter import build_liquidity_summary
+from tradingstrategy.utils.liquidity_filter import build_liquidity_summary, get_top_liquidity_pairs_by_base_token
 from tradingstrategy.utils.token_filter import filter_pairs_default
+from tradingstrategy.utils.aggregate_ohlcv import aggregate_ohlcv_across_pairs
+from tradingstrategy.utils.wrangle import examine_anomalies
 from eth_defi.token_analysis.tokensniffer import CachedTokenSniffer, is_tradeable_token, KNOWN_GOOD_TOKENS
 
 
 TOKENSNIFFER_API_KEY = os.environ.get("TOKENSNIFFER_API_KEY")
 assert TOKENSNIFFER_API_KEY, "TOKENSNIFFER_API_KEY env missing"
-
-
-def make_full_ticker(row: pd.Series) -> str:
-    """Generate a base-quote ticker for a pair."""
-    return row["base_token_symbol"] + "-" + row["quote_token_symbol"] + "-" + row["exchange_slug"] + "-" + str(row["fee"]) + "bps"
-
-
-def make_simple_ticker(row: pd.Series) -> str:
-    """Generate a ticker for a pair with fee and DEX info."""
-    return row["base_token_symbol"] + "-" + row["quote_token_symbol"]
-
-
-def make_base_symbol(row: pd.Series) -> str:
-    """Generate a base symbol."""
-    return row["base_token_symbol"] 
-
-
-def make_link(row: pd.Series) -> str:
-    """Get TradingStrategy.ai explorer link for the trading data"""
-    chain_slug = ChainId(row.chain_id).get_slug()
-    return f"https://tradingstrategy.ai/trading-view/{chain_slug}/{row.exchange_slug}/{row.pair_slug}"
 
 
 def main():
@@ -76,7 +52,7 @@ def main():
     #
     client = Client.create_jupyter_client()
     cache_path = client.transport.cache_path
-    fname = "uniswap-v2-v3-ethereum-top-100-sniffed"
+    fname = "uniswap-v2-v3-ethereum-top-100-sniffed-agg"
     os.makedirs(f"{cache_path}/prefiltered", exist_ok=True)
     liquidity_output_fname = Path(f"{cache_path}/prefiltered/liquidity-{fname}.csv")
     price_output_fname = Path(f"{cache_path}/prefiltered/price-{fname}.csv")
@@ -114,13 +90,10 @@ def main():
         exchange_ids=exchange_ids,
     )
     our_chain_pair_ids = pairs_df["pair_id"]
+    
+    pair_universe = PandasPairUniverse(pairs_df)
         
     print(f"We have data for {len(our_chain_pair_ids)} trading pairs on {fname} set")
-    print("Building pair metadata map")
-    pairs_df = pairs_df.set_index("pair_id")
-    pair_metadata = {pair_id: row for pair_id, row in pairs_df.iterrows()}
-    uni_v3_pair_metadata = {pair_id: row for pair_id, row in pairs_df.iterrows() if row["exchange_slug"] == "uniswap-v3"}
-    print(f"From this, Uniswap v3 data has {len(uni_v3_pair_metadata)} pairs")
 
     #
     # Filter by liquidity
@@ -144,17 +117,19 @@ def main():
     # Check how many pairs did not have good values for liquidity
     broken_pairs = {pair_id for pair_id, liquidity in pair_liquidity_max_historical.items() if liquidity < 0}
     print(f"Liquidity data is broken for {len(broken_pairs)} trading pairs")
-    
-    uniswap_v3_liquidity_pairs = {pair_id for pair_id in pair_liquidity_max_historical.keys() if pair_id in uni_v3_pair_metadata}
-    print(f"From this, Uniswap v3 is {len(uniswap_v3_liquidity_pairs)} pairs")
-    assert len(uniswap_v3_liquidity_pairs) > 0, "No Uniswap v3 liquidity detected"
-    
+       
     # Remove duplicate pairs
     print("Prefiltering and removing duplicate pairs")
     top_liquid_pairs_filtered = Counter()
     processed_base_tokens = set()
+    
+    # List of base token addresses that have reached the threshold.
+    # Is ordered.
+    all_base_tokens = list()
+    
     for pair_id, liquidity in pair_liquidity_max_historical.most_common():
-        base_token_symbol = make_base_symbol(pair_metadata[pair_id])
+        pair_metadata = pair_universe.get_pair_by_id(pair_id)
+        base_token_symbol = pair_metadata.base_token_symbol
         if liquidity < min_liquidity_threshold:
             # Prefilter pairs
             continue
@@ -163,17 +138,31 @@ def main():
             # with more liquidity
             continue
         top_liquid_pairs_filtered[pair_id] = liquidity
-        processed_base_tokens.add(base_token_symbol)
+        all_base_tokens.append(pair_metadata.base_token_address)
+        
+    # Remove duplicat base tokens, maintain the list order
+    seen = set()
+    included_base_tokens = [x for x in all_base_tokens if not (x in seen or seen.add(x))]        
 
     print(f"After prefilter, we have {len(top_liquid_pairs_filtered):,} pairs left")
+    print(f"This is {len(all_base_tokens)} pairs with {len(included_base_tokens)} included base tokens")
 
     # Remove tokens failing sniff test
     print(f"Sniffing out bad trading pairs, max allowed {allowed_pairs_for_token_sniffer}")
     safe_top_liquid_pairs_filtered = Counter()
-    for pair_id, liquidity in top_liquid_pairs_filtered.most_common(allowed_pairs_for_token_sniffer):
-        ticker = make_full_ticker(pair_metadata[pair_id])        
-        pair_row = pair_metadata[pair_id]
-        dex_pair = DEXPair.from_series(pair_id, pair_row)
+    
+    base_token_liquidity = get_top_liquidity_pairs_by_base_token(
+        pair_universe,
+        top_liquid_pairs_filtered,
+        good_base_tokens=included_base_tokens,
+        count=allowed_pairs_for_token_sniffer
+    )
+    
+    print(f"Base token mapped liquidity has {len(base_token_liquidity)} pairs")
+    
+    for pair_id, liquidity in base_token_liquidity:
+        dex_pair = pair_universe.get_pair_by_id(pair_id)
+        ticker = dex_pair.get_ticker()
         base_token_symbol = dex_pair.base_token_symbol
         address = dex_pair.base_token_address
         try:
@@ -203,19 +192,14 @@ def main():
     print(f"We skip {skipped_tokens:,} in TokenSniffer filter")
     print(f"Token sniffer info is:\n{sniffer.get_diagnostics()}")
 
-    print(f"Top liquid 10 pairs (historically)")
+    print(f"Top liquid 10 pairs (historically), sorted by base token")
     for idx, tpl in enumerate(safe_top_liquid_pairs_filtered.most_common(10), start=1):
         pair_id, liquidity = tpl
-        ticker = make_full_ticker(pair_metadata[pair_id])
+        pair_metadata = pair_universe.get_pair_by_id(pair_id)
+        ticker = f"{pair_metadata.get_ticker()} with fee {pair_metadata.fee} BPS on {pair_metadata.exchange_slug}"
         print(f"{idx}. {ticker}: {liquidity:,.2f} USD")
 
     top_liquid_pair_ids = {key for key, _ in safe_top_liquid_pairs_filtered.most_common(exported_top_pair_count)}
-
-    def is_uniswap_v3(pair_id):
-        metadata = pair_metadata[pair_id]
-        return metadata["exchange_slug"] == "uniswap-v3"
-    
-    assert any([is_uniswap_v3(pair_id) for pair_id in top_liquid_pair_ids]), "Top liquid pars did not contain a single Uni v3 pair"
 
     # Check how much liquidity we can address
     total_liq = 0
@@ -227,13 +211,6 @@ def main():
         total_liq += pair_liquidity_today[pair_id]
     print(f"Today's tradeable liquidity for {len(top_liquid_pair_ids)} pairs is {total_liq:,.2f} USD")
     
-    # Clamp liquidity output to only 100 top pairs
-    # TODO: wrangle liquidity data for spikes and massage them out
-    liquidity_df = liquidity_df.obj
-    liquidity_out_df = liquidity_df[liquidity_df.index.get_level_values(0).isin(top_liquid_pair_ids)]  # Select from (pair id, timestamp) MultiIndex
-    liquidity_out_df.to_csv(liquidity_output_fname)
-    print(f"Wrote {liquidity_output_fname}, {liquidity_output_fname.stat().st_size:,} bytes")
-
     # After we know pair ids that fill the liquidity criteria,
     # we can build OHLCV dataset for these pairs
     print(f"Downloading/opening OHLCV dataset {time_bucket}")
@@ -248,34 +225,50 @@ def main():
         freq=time_bucket.to_frequency(),
         forward_fill=True,
     )
+    
+    pair_universe_left = pair_universe.limit_to_pairs(top_liquid_pair_ids)
+    print("Checking price data issues")
+    examine_anomalies(
+        pair_universe_left,
+        price_df.obj,
+        pair_id_column=None,
+    )
+    
+    print(f"Building OHLCVL aggregate data across {pair_universe_left.get_count()} pairs, down from {pair_universe.get_count()} pairs")
 
-    print(f"Retrofitting OHLCV columns for human readability")
-    price_df = price_df.obj
-    price_df["pair_id"] = price_df.index.get_level_values(0)
-    price_df["ticker"] = price_df["pair_id"].apply(lambda pair_id: make_full_ticker(pair_metadata[pair_id]))
-    price_df["link"] = price_df["pair_id"].apply(lambda pair_id: make_link(pair_metadata[pair_id]))
-    price_df["base"] = price_df["pair_id"].apply(lambda pair_id: pair_metadata[pair_id]["base_token_symbol"])
-    price_df["quote"] = price_df["pair_id"].apply(lambda pair_id: pair_metadata[pair_id]["quote_token_symbol"])
-    price_df["fee"] = price_df["pair_id"].apply(lambda pair_id: pair_metadata[pair_id]["fee"])
-
+    agg_df = aggregate_ohlcv_across_pairs(
+        pair_universe_left,
+        price_df,
+        liquidity_df["close"],
+    )
+    
+    # Convert pair id list to comma-separated strings
+    agg_df["pair_ids"] = agg_df["pair_ids"].apply(lambda x: str(x))
+    
+    print("Checking aggregate data issues")
+    examine_anomalies(
+        None,
+        agg_df,
+        pair_id_column="aggregate_id",
+    )
+    print(f"The aggregate price/liquidity dataset contains total {len(agg_df['base'].unique())} base tokens, {len(agg_df):,} rows")
+    
     # Export data, make sure we got columns in an order we want
     print(f"Writing OHLCV CSV")
-    del price_df["timestamp"]
-    del price_df["pair_id"]
-    price_df = price_df.reset_index()
     column_order = (
-        "ticker",
-        "timestamp",
+        "base",
+        "quote",
         "open",
         "high",
         "low",
         "close",
         "volume",
-        "link",
-        "pair_id",
+        "liquidity",
+        "aggregate_id",
+        "pair_ids"
     )
-    price_df = price_df.reindex(columns=column_order)  # Sort columns in a specific order
-    price_df.to_csv(
+    agg_df = agg_df.reindex(columns=column_order)  # Sort columns in a specific order
+    agg_df.to_csv(
         price_output_fname,
     )
     print(f"Wrote {price_output_fname}, {price_output_fname.stat().st_size:,} bytes")
