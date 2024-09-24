@@ -121,6 +121,13 @@ Individual backtests:
     to open and close positions
   - Uses ETH daily price from Uniswap v3 on Ethereum
   - Low complexity
+- [Capacity limitations](./notebooks/single-backtest/capacity-limited.ipynb)
+  - An example notebook for a strategy with limited capacity - the strategy cannot deploy all the capital it has
+  - The strategy demostrates how to avoid taking too large positions in low liquidity DEX pools
+  - The strategy attempts to trade $10M in low liquidity QuickSwap Polygon pools
+  - Uses `AlphaModel` and `USDTVLSizeRiskModel` to reduce the size of positions so that it is small % of the overall pool size
+  - After the backtest the notebook examines what was the % of the deployed capital of all capital we could have deployed
+  - Medium complexity
 
 # Example grid and optimisation searches 
 
