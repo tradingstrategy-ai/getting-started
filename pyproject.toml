@@ -8,11 +8,23 @@ readme = "README.md"
 keywords = ["algorithmic trading", "ethereum", "cryptocurrency", "tradingview", "quantitative finance", "binance", "coinbase", "uniswap"]
 homepage = "https://tradingstrategy.ai"
 repository = "https://github.com/tradingstrategy-ai/getting-started"
+packages = [
+    { include = "getting_started" },
+]
 
 
+#
+# TODO: It's very hard to make local dev env to have trade-executor
+# editable dependency with Poetry at the moment.
+# Thus we assume is that if you install yourself, you have cloned
+# trade-executor to ../trade-executor path.
+# Or change the line below.
+#
+# Poetry develop = true and Visual Studio Code bug https://github.com/microsoft/pylance-release/issues/4664
+#
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-trade-executor = {path = "deps/trade-executor", develop = true, extras=["execution", "quantstats"]}
+trade-executor = {path = "../trade-executor", develop = false, extras=["execution", "quantstats"]}
 ipython = "^8.12.0"
 ipdb = "^0.13.13"
 parquet-cli = "^1.3"

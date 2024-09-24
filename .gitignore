@@ -17,3 +17,6 @@ bug-hunting/
 cache/
 
 tmp/
+
+# No idea - Visual Studio Code?
+.python-version
