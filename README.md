@@ -74,7 +74,7 @@ Individual backtests:
   - Easy complexity
   - One of the simplest technical indicator-based trading strategies there is
   - We buy if the Bitcoin daily close price is above its simple moving average (MA), otherwise sell
-- [ETH: rolling close maximum strategy](./notebooks/single-backtest/eth-10-days-high.ipynb)
+- [ETH: rolling maximum close strategy](./notebooks/single-backtest/eth-10-days-high.ipynb)
   - Easy complexity
   - One of the simplest technical indicator-based trading strategies there is
   - We buy if the Ether daily close price is above its 10 days maximum
