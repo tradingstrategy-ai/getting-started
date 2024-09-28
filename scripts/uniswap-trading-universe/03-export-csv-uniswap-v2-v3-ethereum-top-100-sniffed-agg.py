@@ -27,8 +27,8 @@ from tradingstrategy.utils.wrangle import examine_anomalies
 from eth_defi.token_analysis.tokensniffer import CachedTokenSniffer, is_tradeable_token, KNOWN_GOOD_TOKENS
 
 
+# You can optionally give TokenSniffer API key to check for scam tokens as the part of the process
 TOKENSNIFFER_API_KEY = os.environ.get("TOKENSNIFFER_API_KEY")
-assert TOKENSNIFFER_API_KEY, "TOKENSNIFFER_API_KEY env missing"
 
 
 def main():
@@ -63,10 +63,13 @@ def main():
 
     db_file = Path(cache_path) / "tokensniffer.sqlite"
 
-    sniffer = CachedTokenSniffer(
-        db_file,
-        TOKENSNIFFER_API_KEY,
-    )
+    if TOKENSNIFFER_API_KEY:
+        sniffer = CachedTokenSniffer(
+            db_file,
+            TOKENSNIFFER_API_KEY,
+        )
+    else:
+        sniffer = None
 
     #
     # Set out trading pair universe
@@ -147,8 +150,6 @@ def main():
     print(f"After prefilter, we have {len(top_liquid_pairs_filtered):,} pairs left")
     print(f"This is {len(all_base_tokens)} pairs with {len(included_base_tokens)} included base tokens")
 
-    # Remove tokens failing sniff test
-    print(f"Sniffing out bad trading pairs, max allowed {allowed_pairs_for_token_sniffer}")
     safe_top_liquid_pairs_filtered = Counter()
     
     base_token_liquidity = get_top_liquidity_pairs_by_base_token(
@@ -159,38 +160,48 @@ def main():
     )
     
     print(f"Base token mapped liquidity has {len(base_token_liquidity)} pairs")
+
+    if TOKENSNIFFER_API_KEY:
+        # Remove tokens failing sniff test
+        print(f"Sniffing out bad trading pairs, max allowed {allowed_pairs_for_token_sniffer}")
+    else:
+        print(f"TokenSniffer DISABLED. Give TOKENSNIFFER_API_KEY env.")
     
     for pair_id, liquidity in base_token_liquidity:
         dex_pair = pair_universe.get_pair_by_id(pair_id)
         ticker = dex_pair.get_ticker()
         base_token_symbol = dex_pair.base_token_symbol
         address = dex_pair.base_token_address
-        try:
-            sniffed_data = sniffer.fetch_token_info(chain_id.value, address)
-        except Exception as e:
-            
-            if "404" in str(e):
-                # No idea what's going on with these ones
-                # RuntimeError: Could not verify OLAS-WETH-uniswap-v2-30bps, address 0x0001a500a6b18995b03f44bb040a5ffc28e45cb0: TokeSniffer replied: <Response [404]>: {"message":"Contract not found"}
-                print(f"WARN: TokenSniffer 404 not found {ticker}, address {address} as the TokenSniffer score {score} is below our risk threshold, liquidity is {liquidity:,.2f} USD")
+
+        if sniffer:
+            try:
+                sniffed_data = sniffer.fetch_token_info(chain_id.value, address)
+            except Exception as e:
+                
+                if "404" in str(e):
+                    # No idea what's going on with these ones
+                    # RuntimeError: Could not verify OLAS-WETH-uniswap-v2-30bps, address 0x0001a500a6b18995b03f44bb040a5ffc28e45cb0: TokeSniffer replied: <Response [404]>: {"message":"Contract not found"}
+                    print(f"WARN: TokenSniffer 404 not found {ticker}, address {address} as the TokenSniffer score {score} is below our risk threshold, liquidity is {liquidity:,.2f} USD")
+                    continue
+                
+                raise RuntimeError(f"Could not sniff {ticker}, address {address}: {e}") from e
+                
+            if not is_tradeable_token(
+                sniffed_data, 
+                symbol=base_token_symbol,
+                risk_score_threshold=tokensniffer_threshold
+            ):
+                score = sniffed_data["score"]
+                whitelisted = base_token_symbol in KNOWN_GOOD_TOKENS
+                print(f"WARN: Skipping pair {ticker}, address {address} as the TokenSniffer score {score} (whitelisted {whitelisted}) is below our risk threshold, liquidity is {liquidity:,.2f} USD")
                 continue
-            
-            raise RuntimeError(f"Could not sniff {ticker}, address {address}: {e}") from e
-        
-        if not is_tradeable_token(
-            sniffed_data, 
-            symbol=base_token_symbol,
-            risk_score_threshold=tokensniffer_threshold):
-            score = sniffed_data["score"]
-            whitelisted = base_token_symbol in KNOWN_GOOD_TOKENS
-            print(f"WARN: Skipping pair {ticker}, address {address} as the TokenSniffer score {score} (whitelisted {whitelisted}) is below our risk threshold, liquidity is {liquidity:,.2f} USD")
-            continue
 
         safe_top_liquid_pairs_filtered[pair_id] = liquidity
 
     skipped_tokens = len(top_liquid_pairs_filtered) - len(safe_top_liquid_pairs_filtered)
     print(f"We skip {skipped_tokens:,} in TokenSniffer filter")
-    print(f"Token sniffer info is:\n{sniffer.get_diagnostics()}")
+    if sniffer:
+        print(f"Token sniffer info is:\n{sniffer.get_diagnostics()}")
 
     print(f"Top liquid 10 pairs (historically), sorted by base token")
     for idx, tpl in enumerate(safe_top_liquid_pairs_filtered.most_common(10), start=1):
@@ -257,7 +268,6 @@ def main():
     print(f"Writing OHLCV CSV")
     column_order = (
         "base",
-        "quote",
         "open",
         "high",
         "low",
