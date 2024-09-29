@@ -6,13 +6,14 @@
 
 """
 
+import logging
 from collections import Counter
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-from tradingstrategy.pair import DEXPair
 from tradingstrategy.pair import PandasPairUniverse
 from tradingstrategy.chain import ChainId
 from tradingstrategy.client import Client
@@ -33,6 +34,13 @@ TOKENSNIFFER_API_KEY = os.environ.get("TOKENSNIFFER_API_KEY")
 
 def main():
 
+    # Configure logging using basicConfig
+    logging.basicConfig(
+        level=logging.WARNING,  # Set logging level to WARNING or above
+        format='%(asctime)s - %(levelname)s - %(message)s',  # Set the format of the log message
+        stream=sys.stdout  # Direct logs to stdout
+    )
+    
     #
     # Set up filtering and output parameters
     #
@@ -54,7 +62,6 @@ def main():
     cache_path = client.transport.cache_path
     fname = "uniswap-v2-v3-ethereum-top-100-sniffed-agg"
     os.makedirs(f"{cache_path}/prefiltered", exist_ok=True)
-    liquidity_output_fname = Path(f"{cache_path}/prefiltered/liquidity-{fname}.csv")
     price_output_fname = Path(f"{cache_path}/prefiltered/price-{fname}.csv")
 
     #
@@ -238,13 +245,7 @@ def main():
     )
     
     pair_universe_left = pair_universe.limit_to_pairs(top_liquid_pair_ids)
-    print("Checking price data issues")
-    examine_anomalies(
-        pair_universe_left,
-        price_df.obj,
-        pair_id_column=None,
-    )
-    
+
     print(f"Building OHLCVL aggregate data across {pair_universe_left.get_count()} pairs, down from {pair_universe.get_count()} pairs")
 
     agg_df = aggregate_ohlcv_across_pairs(
@@ -256,12 +257,17 @@ def main():
     # Convert pair id list to comma-separated strings
     agg_df["pair_ids"] = agg_df["pair_ids"].apply(lambda x: str(x))
     
-    print("Checking aggregate data issues")
-    examine_anomalies(
-        None,
-        agg_df,
-        pair_id_column="aggregate_id",
-    )
+    # Moved to notebook.
+    #
+    # See scratchpad/bad-data
+    #
+    # print("Checking aggregate data issues")
+    # examine_anomalies(
+    #     None,
+    #     agg_df,
+    #     pair_id_column="aggregate_id",
+    # )
+
     print(f"The aggregate price/liquidity dataset contains total {len(agg_df['base'].unique())} base tokens, {len(agg_df):,} rows")
     
     # Export data, make sure we got columns in an order we want
