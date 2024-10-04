@@ -41,18 +41,18 @@ def main():
     time_bucket = TimeBucket.d1  # OHCLV data frequency
     liquidity_time_bucket = TimeBucket.d1  # TVL data for Uniswap v3 is only sampled daily, more fine granular is not needed
     exchange_slugs = {"uniswap-v3", "uniswap-v2", "sushi"}
-    exported_top_pair_count = 100
+    exported_top_pair_count = 500
     liquidity_comparison_date = floor_pandas_week(pd.Timestamp.now() - pd.Timedelta(days=7))  # What date we use to select top 100 liquid pairs
     tokensniffer_threshold = 24  # We want our TokenSniffer score to be higher than this for base tokens
-    min_liquidity_threshold = 4_000_000  # Prefilter pairs with this liquidity before calling token sniffer
-    allowed_pairs_for_token_sniffer = 250  # How many pairs we let to go through TokenSniffer filtering process (even if still above min_liquidity_threshold)
+    min_liquidity_threshold = 1_000_000  # Prefilter pairs with this liquidity before calling token sniffer
+    allowed_pairs_for_token_sniffer = 450  # How many pairs we let to go through TokenSniffer filtering process (even if still above min_liquidity_threshold)
 
     #
     # Set up output files - use Trading Strategy client's cache folder
     #
     client = Client.create_jupyter_client()
     cache_path = client.transport.cache_path
-    fname = "uniswap-v2-v3-ethereum-top-100-sniffed-agg"
+    fname = "uniswap-v2-v3-ethereum-top-sniffed-agg"
     os.makedirs(f"{cache_path}/prefiltered", exist_ok=True)
     liquidity_output_fname = Path(f"{cache_path}/prefiltered/liquidity-{fname}.csv")
     price_output_fname = Path(f"{cache_path}/prefiltered/price-{fname}.csv")
@@ -192,7 +192,7 @@ def main():
     print(f"We skip {skipped_tokens:,} in TokenSniffer filter")
     print(f"Token sniffer info is:\n{sniffer.get_diagnostics()}")
 
-    print(f"Top liquid 10 pairs (historically), sorted by base token")
+    print(f"Top liquid 10 pairs, by historical peak, sorted by base token")
     for idx, tpl in enumerate(safe_top_liquid_pairs_filtered.most_common(10), start=1):
         pair_id, liquidity = tpl
         pair_metadata = pair_universe.get_pair_by_id(pair_id)
