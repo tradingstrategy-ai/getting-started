@@ -1,4 +1,6 @@
  # Getting started with algorithmic trading with TradingStrategy.ai
+
+ ![splash](./splash.png)
  
 - This is an example repository for [the Trading Strategy SDK](https://tradingstrategy.ai) to 
   get started bringing your [algorithmic trading strategy](https://tradingstrategy.ai/glossary/algorithmic-trading) to DEXes and DeFi markets.
