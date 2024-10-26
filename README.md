@@ -68,7 +68,8 @@ You can either run and edit these examples
 
 # Example strategy backtests
 
-You can find these example strategy backtests.
+Here are example notebooks for backtesting. Each of the backtest code can be taken to a live trading strategy as is. 
+The examples vary between from old fashioned technical indicator based algorithms to portfolio construction and DeFi yield optimisation.
 
 Individual backtests:
 
