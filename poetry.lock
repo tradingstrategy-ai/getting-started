@@ -5196,13 +5196,13 @@ files = [
 
 [[package]]
 name = "sigfig"
-version = "1.3.15"
+version = "1.3.17"
 description = "Python library for rounding numbers (with expected results)"
 optional = false
 python-versions = "<4.0,>=3.6"
 files = [
-    {file = "sigfig-1.3.15-py3-none-any.whl", hash = "sha256:91cecd0686d8e651e87e0b4c1793a8eb6edd50263e6ca3bcbd079873410edd95"},
-    {file = "sigfig-1.3.15.tar.gz", hash = "sha256:01aaf04d0365b9bcf497b7f007b3c6b791d40883166c25f1de85b30e649395fb"},
+    {file = "sigfig-1.3.17-py3-none-any.whl", hash = "sha256:2b532bf7b12ba81603b273a406cfda35eda9b2329dc08dcd45ce45985ba8c631"},
+    {file = "sigfig-1.3.17.tar.gz", hash = "sha256:490fccae9ffcaa15377b215b1d8ddba0f33453053dd8d3a299bf0c5c954429a0"},
 ]
 
 [package.dependencies]
@@ -5537,7 +5537,7 @@ web3-ethereum-defi = {path = "deps/web3-ethereum-defi", develop = true, extras =
 zstandard = "^0.23.0"
 
 [package.extras]
-demeter = []
+demeter = ["zelos-demeter (>=0.7.4,<0.8.0)"]
 execution = ["beautifulsoup4 (>=4.12.2,<5.0.0)", "colorama (>=0.4.4,<0.5.0)", "coloredlogs (>=15.0.1,<16.0.0)", "prompt-toolkit (>=3.0.31,<4.0.0)", "python-dotenv (>=0.21.0,<0.22.0)", "python-logging-discord-handler (>=0.1.3,<0.2.0)", "python-logstash-tradingstrategy (==0.5.1)", "telegram-bot-logger @ git+https://github.com/tradingstrategy-ai/telegram_bot_logger.git@patch-bleeding-edges", "typer (>=0.12.3,<0.13.0)", "web3-ethereum-defi[data,test] @ file:///Users/moo/code/trade-executor/deps/web3-ethereum-defi"]
 qstrader = ["trading-strategy-qstrader (>=0.5,<0.6)"]
 trendsspotter = ["fsspec (>=2024.6.1,<2025.0.0)", "gcsfs (>=2024.6.1,<2025.0.0)", "google-auth (>=2.32.0,<3.0.0)", "google-cloud-storage (>=2.17.0,<3.0.0)"]
@@ -5549,7 +5549,7 @@ url = "../trade-executor"
 
 [[package]]
 name = "trading-strategy"
-version = "0.24.3"
+version = "0.24.4"
 description = "Algorithmic trading data for cryptocurrencies and DEXes like Uniswap, Aave and PancakeSwap"
 optional = false
 python-versions = ">=3.10,<3.13"
@@ -6174,13 +6174,13 @@ propcache = ">=0.2.0"
 
 [[package]]
 name = "yfinance"
-version = "0.2.47"
+version = "0.2.48"
 description = "Download market data from Yahoo! Finance API"
 optional = false
 python-versions = "*"
 files = [
-    {file = "yfinance-0.2.47-py2.py3-none-any.whl", hash = "sha256:e9c7afd965776d23f1f561c1617917a696936ad2ca63e3490dfaf2a8606c80de"},
-    {file = "yfinance-0.2.47.tar.gz", hash = "sha256:37bdbd5ee252bfebd1d88614ea213361f00a3b4bf7cfd62a4efb16900a055abc"},
+    {file = "yfinance-0.2.48-py2.py3-none-any.whl", hash = "sha256:eda797145faa4536595eb629f869d3616e58ed7e71de36856b19f1abaef71a5b"},
+    {file = "yfinance-0.2.48.tar.gz", hash = "sha256:1434cd8bf22f345fa27ef1ed82bfdd291c1bb5b6fe3067118a94e256aa90c4eb"},
 ]
 
 [package.dependencies]
