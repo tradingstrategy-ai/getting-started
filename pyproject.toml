@@ -24,7 +24,7 @@ packages = [
 #
 [tool.poetry.dependencies]
 python = ">=3.11,<=3.12"
-trade-executor = {path = "../trade-executor", develop = false, extras=["execution", "quantstats"]}
+trade-executor = {path = "../trade-executor", develop = true, extras=["execution", "quantstats"]}
 ipython = "^8.12.0"
 ipdb = "^0.13.13"
 parquet-cli = "^1.3"
