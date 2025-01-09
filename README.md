@@ -112,6 +112,13 @@ Individual backtests:
   - Trades any token on Uniswap v3 on Ethereum
   - The trading universe is open-ended: trades any token that has been ever listed on Uniswap v3
   - High complexity  
+- [Category index strategy: memecoins](./notebooks/single-backtest/momentum-basket.ipynb)
+  - A portfolio construction strategy example
+  - Trades all memecoins on Uniswap v2 and Uniswap v3 on Base
+  - The trading universe is open-ended: trades any token that has been ever listed on Uniswap v3
+  - Equally weighted
+  - Uses TVL and volume inclusion criterias for the index
+  - High complexity  
 - [Alternative data](./notebooks/single-backtest/alternative-data.ipynb)
   - Reads custom signal data (sentiment data) from CSV file and incorporates it as part of the trading strategy
   - Otherwise same as above
