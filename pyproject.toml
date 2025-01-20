@@ -29,6 +29,12 @@ ipython = "^8.12.0"
 ipdb = "^0.13.13"
 parquet-cli = "^1.3"
 optimalportfolios = {version = "^2.1.8", optional = true}
+finrl = "^0.3.7"
+gymnasium = "^1.0.0"
+stable-baselines3 = {extras = ["extra"], version = "^2.4.1"}
+exchange-calendars = "^4.8"
+stockstats = "^0.6.3"
+wrds = "^3.2.0"
 
 [build-system]
 requires = ["poetry-core"]
