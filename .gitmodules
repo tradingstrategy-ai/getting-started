@@ -1,0 +1,6 @@
+[submodule "deps/FinRL"]
+	path = deps/FinRL
+	url = https://github.com/AI4Finance-Foundation/FinRL.git
+[submodule "deps/alpaca-trade-api-python"]
+	path = deps/alpaca-trade-api-python
+	url = https://github.com/alpacahq/alpaca-trade-api-python.git

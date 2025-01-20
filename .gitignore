@@ -20,3 +20,6 @@ tmp/
 
 # No idea - Visual Studio Code?
 .python-version
+
+# FinRL output
+**/results/*
