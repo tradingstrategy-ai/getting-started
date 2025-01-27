@@ -23,3 +23,6 @@ tmp/
 
 # FinRL output
 **/results/*
+
+# FinRL model policy files
+*.pt
