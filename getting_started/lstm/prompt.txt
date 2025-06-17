@@ -1,0 +1,19 @@
+I want to create LSTM price predictor for cryptocurrency prices in Python. I want it to run fast on my Macbook. I want to use tools like scikit and pytorch. I want to predict the price of multiple assets, every asset using the same model for the prediction. There is approximate 100 trading pairs with 1.5 years of history.
+
+I want to have a trainer module that understands that each trading pair, identified by pair_id column, has its own price action and these pairs all train the same module.
+
+The model must use walk-forward optimization where training and validation datasets move over time, with the number of given slices. In the initial work, the fixed-size window is 4 months
+
+Price data is sourced as dataframe with columns, with 1h timestamps. I want the prediction to be be 6 hours in the future. The dataframe has columsn pair_id, open, high, low, close, volume, ath_distance and atl_distance and DatetimeIndex. The number of feature columns may vary based on DataFrame. The trading pair data is sparse time-wise: some pairs may be addec and some removed over time. The feature columns are specified in `getting_started.lstm.feature_columns` module and variable `FEATURE_COLUMNS` which is a list of strings.
+
+The data contains mixed trading prices with all of them having different base price and markets. For feature data normalisation between different trading pairs, it should use relative returns or other standard normalisation methods used with LSTM. For volume normalisation, use what is the best practice of normalisation trading volume for training and comment out this method. You can also add generate features which are standard in price prediction such as volatility.
+
+The training module must be able to handle training of each trading pair separately against same model, trading pairs identified by pair_id column.
+
+For tests I want to use pytest. For code comments, I want to use Sphinx style restructured text. Please use reST syntax like :param: and :return: for commenting the code. All Python function arguments should use type hints when possible. In comments, explain a lot what is going on, assume the developer is not familiar with LSTM or pytorch. If there are number constants like 4, 0.001 or 100 used as the default parameter value, the comments should include explanation how these constants were chosen and what they mean.
+
+I want to have a Python Jupyter notebook that uses Plotly display some charts how well the model is performing. This must also show how different rolling windows affect the predicition.
+
+I also want to have a Python function, which takes model and DataFrame as input, and then returns a dict of price predictions of each trading pair. Then for this function, I want to have a standalone notebook example how to use it. This prediction function must use the final training dataset with most history.
+
+For the generated code, the code must live in `getting_started/lstm` folder (submodule) of `getting_started` Python package. All imports should start with absolute `getting_started.lstm` import.
