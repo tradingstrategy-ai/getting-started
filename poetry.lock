@@ -182,7 +182,7 @@ description = "Disable App Nap on macOS >= 10.9"
 optional = false
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "(platform_system == \"Darwin\" or sys_platform == \"darwin\") and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
+markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and (sys_platform == \"darwin\" or platform_system == \"Darwin\")"
 files = [
     {file = "appnope-0.1.4-py2.py3-none-any.whl", hash = "sha256:502575ee11cd7a28c0205f379b525beefebab9d161b7c964670864014ed7213c"},
     {file = "appnope-0.1.4.tar.gz", hash = "sha256:1de3860566df9caf38f01f86f65e0e13e379af54f9e4bee1e66b48f2efffd1ee"},
@@ -1585,6 +1585,21 @@ requests = ">=2.32.3,<3.0.0"
 
 [package.extras]
 async = ["httpx (>=0.28.1,<0.29.0)"]
+
+[[package]]
+name = "dotenv"
+version = "0.9.9"
+description = "Deprecated package"
+optional = false
+python-versions = "*"
+groups = ["main"]
+markers = "implementation_name == \"cpython\" or implementation_name == \"pypy\""
+files = [
+    {file = "dotenv-0.9.9-py2.py3-none-any.whl", hash = "sha256:29cf74a087b31dafdb5a446b6d7e11cbce8ed2741540e2339c69fbef92c94ce9"},
+]
+
+[package.dependencies]
+python-dotenv = "*"
 
 [[package]]
 name = "ecdsa"
@@ -4752,7 +4767,7 @@ description = "Pexpect allows easy control of interactive console applications."
 optional = false
 python-versions = "*"
 groups = ["main"]
-markers = "sys_platform != \"win32\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
+markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and sys_platform != \"win32\""
 files = [
     {file = "pexpect-4.9.0-py2.py3-none-any.whl", hash = "sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523"},
     {file = "pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f"},
@@ -5177,7 +5192,7 @@ description = "Run a subprocess in a pseudo terminal"
 optional = false
 python-versions = "*"
 groups = ["main"]
-markers = "(sys_platform != \"win32\" or os_name != \"nt\") and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
+markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and (sys_platform != \"win32\" or os_name != \"nt\")"
 files = [
     {file = "ptyprocess-0.7.0-py2.py3-none-any.whl", hash = "sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35"},
     {file = "ptyprocess-0.7.0.tar.gz", hash = "sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220"},
@@ -5645,7 +5660,7 @@ description = "A python implementation of GNU readline."
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "sys_platform == \"win32\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
+markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and sys_platform == \"win32\""
 files = [
     {file = "pyreadline3-3.5.4-py3-none-any.whl", hash = "sha256:eaf8e6cc3c49bcccf145fc6067ba8643d1df34d604a1ec0eccbf7a18e6d3fae6"},
     {file = "pyreadline3-3.5.4.tar.gz", hash = "sha256:8d57d53039a1c75adba8e50dd3d992b28143480816187ea5efbd5c78e6c885b7"},
@@ -5841,7 +5856,7 @@ description = "Python for Window Extensions"
 optional = false
 python-versions = "*"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" and platform_python_implementation != \"PyPy\" or platform_system == \"Windows\") and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
+markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and (sys_platform == \"win32\" and platform_python_implementation != \"PyPy\" or platform_system == \"Windows\")"
 files = [
     {file = "pywin32-311-cp310-cp310-win32.whl", hash = "sha256:d03ff496d2a0cd4a5893504789d4a15399133fe82517455e78bad62efbb7f0a3"},
     {file = "pywin32-311-cp310-cp310-win_amd64.whl", hash = "sha256:797c2772017851984b97180b0bebe4b620bb86328e8a884bb626156295a63b3b"},
@@ -5872,7 +5887,7 @@ description = "Pseudo terminal support for Windows from Python."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "os_name == \"nt\" and (implementation_name == \"cpython\" or implementation_name == \"pypy\")"
+markers = "(implementation_name == \"cpython\" or implementation_name == \"pypy\") and os_name == \"nt\""
 files = [
     {file = "pywinpty-2.0.15-cp310-cp310-win_amd64.whl", hash = "sha256:8e7f5de756a615a38b96cd86fa3cd65f901ce54ce147a3179c45907fa11b4c4e"},
     {file = "pywinpty-2.0.15-cp311-cp311-win_amd64.whl", hash = "sha256:9a6bcec2df2707aaa9d08b86071970ee32c5026e10bcc3cc5f6f391d85baf7ca"},
@@ -8329,4 +8344,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<=3.12"
-content-hash = "c844771889a82c55057f0b4dd0e4eb6f8b7b1ab35184b8b06a4bebaa739f8634"
+content-hash = "7eeb1396643f6a102810f9611d280961784c92a6de6e399cd2f2723dc1b5fcdc"
