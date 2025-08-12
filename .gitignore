@@ -26,3 +26,7 @@ tmp/
 
 # FinRL model policy files
 *.pt
+
+# Dotenv
+# May contain secrets
+.env
