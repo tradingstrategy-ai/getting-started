@@ -1,17 +1,16 @@
 [tool.poetry]
-name = "trading-strategy-getting-started"
-version = "0.1"
-description = "Trading Strategy Getting Started kit"
 authors = ["Mikko Ohtamaa <mikko@opensourcehacker.com>"]
-license = "MIT"
-readme = "README.md"
-keywords = ["algorithmic trading", "ethereum", "cryptocurrency", "tradingview", "quantitative finance", "binance", "coinbase", "uniswap"]
+description = "Trading Strategy Getting Started kit"
 homepage = "https://tradingstrategy.ai"
-repository = "https://github.com/tradingstrategy-ai/getting-started"
+keywords = ["algorithmic trading", "ethereum", "cryptocurrency", "tradingview", "quantitative finance", "binance", "coinbase", "uniswap"]
+license = "MIT"
+name = "trading-strategy-getting-started"
 packages = [
-    { include = "getting_started" },
+  {include = "getting_started"},
 ]
-
+readme = "README.md"
+repository = "https://github.com/tradingstrategy-ai/getting-started"
+version = "0.1"
 
 #
 # TODO: It's very hard to make local dev env to have trade-executor
@@ -23,24 +22,24 @@ packages = [
 # Poetry develop = true and Visual Studio Code bug https://github.com/microsoft/pylance-release/issues/4664
 #
 [tool.poetry.dependencies]
-python = ">=3.11,<=3.12"
-trade-executor = {path = "../trade-executor", develop = true, extras=["execution", "quantstats"]}
-ipython = "<8"
-ipdb = "^0.13.13"
-parquet-cli = "^1.3"
-selenium = "^4.28.0"
-webdriver-manager = "^4.0.2"
-gym = "^0.26.2"
-torch-geometric = "^2.6.1"
-plotly = ">6"
 dotenv = "^0.9.9"
+gym = "^0.26.2"
+ipdb = "^0.13.13"
+ipython = "<8"
+parquet-cli = "^1.3"
+plotly = ">6"
+python = ">=3.11,<=3.12"
+selenium = "^4.28.0"
+torch-geometric = "^2.6.1"
+trade-executor = {path = "../trade-executor", develop = true, extras = ["execution", "quantstats"]}
+webdriver-manager = "^4.0.2"
 
 [build-system]
-requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 packages = [
-    { include = "getting_started" },
+  {include = "getting_started"},
 ]
+requires = ["poetry-core"]
 
 # We hate arbitrary line lengths
 [tool.black]
@@ -51,5 +50,5 @@ profile = "black"
 
 # We hate arbitrary line lengths
 [flake8]
-max-line-length = 999
 extend-ignore = "E203"
+max-line-length = 999
