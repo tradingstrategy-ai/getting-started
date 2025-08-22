@@ -33,6 +33,7 @@ selenium = "^4.28.0"
 torch-geometric = "^2.6.1"
 trade-executor = {path = "../trade-executor", develop = true, extras = ["execution", "quantstats"]}
 webdriver-manager = "^4.0.2"
+nbformat = "^5.10.4"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
