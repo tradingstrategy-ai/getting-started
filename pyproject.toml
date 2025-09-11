@@ -46,6 +46,12 @@ packages = [
 ]
 requires = ["poetry-core"]
 
+[tool.pytest.ini_options]
+addopts = "--capture=no"
+testpaths = [
+  "tests",
+]
+
 # We hate arbitrary line lengths
 [tool.black]
 line-length = 999
