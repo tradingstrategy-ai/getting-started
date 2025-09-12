@@ -14,7 +14,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tradingstrategy-ai/devcontainer:latest
+      image: ghcr.io/tradingstrategy-ai/trade-executor:latest
 
     steps:
       - name: Checkout getting-started repo
@@ -25,14 +25,11 @@ jobs:
         with:
           cache: 'poetry'
 
-      - name: Install Poetry
-        run: pipx install poetry==2.1.3
-
       - name: Link trade-executor from container
-        # The devcontainer has the trade-executor source at /trading-strategy
-        # Our pyproject.toml expects it at ../trade-executor relative to the checkout dir.
+        # The trade-executor image has the source at /usr/src/trade-executor
+        # Our pyproject.toml expects it at ../trade-executor relative to the checkout dir
         run: |
-          ln -s /trading-strategy ../trade-executor
+          ln -s /usr/src/trade-executor ../
 
       - name: Create API key settings file
         # The notebooks initialize Trading Strategy client with Client.create_jupyter_client()
