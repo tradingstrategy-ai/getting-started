@@ -1,0 +1,51 @@
+name: Automated notebook tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  TRADING_STRATEGY_API_KEY: ${{ secrets.TRADING_STRATEGY_API_KEY }}
+  BASE_BINANCE_API_URL: ${{ vars.BASE_BINANCE_API_URL }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tradingstrategy-ai/trade-executor:latest
+
+    steps:
+      - name: Checkout getting-started repo
+        uses: actions/checkout@v5
+
+      - name: Cache Poetry dependencies
+        # Using actions/cache to cache poetry deps instead of setup-python since
+        # our trade-executor image already has python/poetry installed.
+        uses: actions/cache@v4
+        with:
+          path: /github/home/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Link trade-executor from container
+        # The trade-executor image has the source at /usr/src/trade-executor
+        # Our pyproject.toml expects it at ../trade-executor relative to the checkout dir
+        run: |
+          ln -s /usr/src/trade-executor ../
+
+      - name: Create API key settings file
+        # The notebooks initialize Trading Strategy client with Client.create_jupyter_client()
+        # which prompts the user for their API key unless it's already saved in a settings file.
+        # We create that file here so the notebooks can run non-interactively.
+        run: |
+          mkdir -p $HOME/.tradingstrategy
+          echo "{\"api_key\": \"${TRADING_STRATEGY_API_KEY}\"}" > $HOME/.tradingstrategy/settings.json
+
+      - name: Install getting-started dependencies
+        run: poetry install --with=test
+
+      - name: Run notebook tests
+        run: poetry run pytest

@@ -1,3 +1,6 @@
+# python bytecode directories
+__pycache__/
+
 # Dependencies checkout
 deps
 
