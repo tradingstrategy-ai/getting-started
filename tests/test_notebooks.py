@@ -4,6 +4,9 @@ import pytest
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 
+# Reduce multiprocessing warnings (from Jupyter subprocess)
+os.environ["PYTHONWARNINGS"] = "ignore::UserWarning:multiprocessing.resource_tracker"
+
 # Scope to single-backtest notebooks for now
 NOTEBOOK_GLOB_PATTERN = "notebooks/single-backtest/*.ipynb"
 
