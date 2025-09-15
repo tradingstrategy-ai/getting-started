@@ -20,10 +20,15 @@ jobs:
       - name: Checkout getting-started repo
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Cache Poetry dependencies
+        # Using actions/cache to cache poetry deps instead of setup-python since
+        # our trade-executor image already has python/poetry installed.
+        uses: actions/cache@v4
         with:
-          cache: 'poetry'
+          path: /github/home/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
 
       - name: Link trade-executor from container
         # The trade-executor image has the source at /usr/src/trade-executor
