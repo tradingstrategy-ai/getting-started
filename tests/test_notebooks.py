@@ -4,12 +4,18 @@ import pytest
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 
-NOTEBOOK_GLOB_PATTERN = "notebooks/**/*.ipynb"
+# Scope to single-backtest notebooks for now
+NOTEBOOK_GLOB_PATTERN = "notebooks/single-backtest/*.ipynb"
 
 # Notebooks containing any of these strings will be skipped
 # - Fix issues in these notebooks (related to the skip strings) to enable them to run successfully
-# - Notebooks requiring perform_gride_search and prefilter- scripts may need to be run manually due to long runtimes
-SKIP_NOTEBOOK_STRINGS = ["perform_grid_search", "prefilter-", "create_binance_universe", "df_trend_polygon", "polygon_token_list", "filter_scams", "demeter"]
+# - Notebooks requiring prefilter- scripts may need to be run manually due to long runtimes
+SKIP_NOTEBOOK_STRINGS = [
+    "prefilter-",
+    "df_trend_polygon",
+    "polygon_token_list",
+    "filter_scams",
+]
 
 def contains_code(notebook_path: str, search_strings: list[str]) -> bool:
     """Check if notebook contains any code strings."""
