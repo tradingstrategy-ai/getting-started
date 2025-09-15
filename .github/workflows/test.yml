@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [ master ]
   repository_dispatch:
+    # See trade-executor docker.yml workflow where this event is dispatched
     types: [ trade-executor-released ]
 
 env:
