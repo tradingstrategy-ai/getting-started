@@ -1,0 +1,34 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.formatOnPaste": false,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "search.exclude": {
+        "**/contracts": true,
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/.git": true,
+        "**/docs/build": true    
+    },
+    "python.analysis.exclude": [
+        "**/.venv",
+        "**/venv"
+    ],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/../trade-executor/tradeexecutor",
+        "${workspaceFolder}/../trade-executor/deps/web3-ethereum-defi/eth_defi",
+        "${workspaceFolder}/../trade-executor/deps/trading-strategy/tradingstrategy"
+    ],
+    "python.analysis.diagnosticMode": "workspace",
+    "[markdown]": {
+        "editor.defaultFormatter": null,
+         "editor.formatOnSave": false
+    }        
+}
