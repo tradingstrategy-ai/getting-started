@@ -21,6 +21,9 @@
         "**/.venv",
         "**/venv"
     ],
+    "python.analysis.include": [
+        "**/tradeexecutor",
+    ],    
     "python.analysis.extraPaths": [
         "${workspaceFolder}/../trade-executor/tradeexecutor",
         "${workspaceFolder}/../trade-executor/deps/web3-ethereum-defi/eth_defi",
