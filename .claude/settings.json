@@ -1,26 +1,29 @@
 {
-	"permissions": {
-		"allow": [
-			"WebSearch",
-			"WebFetch",
-			"Bash(mkdir:*)",
-			"Bash(ls:*)",
-			"Bash(cat:*)",
-			"Bash(git:*)",
-			"Bash(python:*)",
-			"Bash(python3:*)",
-			"Bash(poetry:*)",
-			"Bash(source:*)",
-			"Bash(grep:*)",
-			"Bash(pnpm:*)",
-			"Bash(gh:*)",
-			"Edit(**)",
-			"Write(**)",
-			"MultiEdit(**)",
-			"Bash(./scripts/*.sh:*)",
-			"Bash(bash scripts/:*)",
-			"Bash(sh scripts/:*)",
-			"mcp__playwright__*"
-		]
-	}
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(git:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(poetry:*)",
+      "Bash(source:*)",
+      "Bash(grep:*)",
+      "Bash(pnpm:*)",
+      "Bash(python3:*)",
+      "Bash(gh:*)",
+      "Edit(**)",
+      "Write(**)",
+      "MultiEdit(**)",
+      "Bash(./scripts/*.sh:*)",
+      "Bash(bash scripts/:*)",
+      "Bash(sh scripts/:*)",
+      "mcp__playwright__*",
+      "Bash(curl:*)",
+      "Bash(# Try the known API pattern curl -s ''https://tradingstrategy.ai/trading-view/vaults/all/__data.json'')"
+    ]
+  }
 }
