@@ -55,3 +55,8 @@ Don't format code.
 ## Python notebooks
 
 - Whenever possible, prefer table output instead of print(). Use Pandas DataFrame and notebook's built-in display() function to render tabular data.
+
+## Editing files
+
+- When you need to modify files the editable Python packages live under ~/code/trade-executor
+- Never edit files under ~/code/docs
