@@ -137,6 +137,7 @@ def filter_vault(
     excluded_flags: set[str],
     require_known_protocol: bool,
     hypercore_min_tvl: float,
+    skip_cagr_filter: bool = False,
 ) -> tuple[bool, str]:
     """Check if vault passes filters. Returns (passes, reason)."""
     # Must-include vaults always pass
@@ -165,7 +166,7 @@ def filter_vault(
         return False, f"unknown_protocol={v.protocol_slug!r}"
 
     # Hyperliquid chains (Hypercore + HyperEVM): both 3m and 1y CAGR must be positive
-    if v.chain_id in (9999, 999):
+    if not skip_cagr_filter and v.chain_id in (9999, 999):
         cagr_3m = v.cagr_periods.get("3M")
         cagr_1y = v.cagr_periods.get("1Y")
         if cagr_3m is not None and cagr_3m <= 0:
@@ -205,6 +206,7 @@ def select_top_vaults(
     require_known_protocol: bool,
     hypercore_min_tvl: float,
     top_n_override: int | None = None,
+    skip_cagr_filter: bool = False,
 ) -> dict[int, list[VaultInfo]]:
     """Select top vaults per chain after filtering."""
 
@@ -221,6 +223,7 @@ def select_top_vaults(
         excluded_flags=excluded_flags,
         require_known_protocol=require_known_protocol,
         hypercore_min_tvl=hypercore_min_tvl,
+        skip_cagr_filter=skip_cagr_filter,
     )
 
     # Group by chain

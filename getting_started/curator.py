@@ -1,5 +1,7 @@
 """Curated vault lists for vault-of-vault filtering scripts."""
 
+import datetime
+
 # Vaults that must always be included (by address lowercase)
 MUST_INCLUDE = {
     # Ostium on Arbitrum
@@ -46,9 +48,34 @@ EXCLUDED_VAULTS = {
     "0x15be61aef0ea4e4dc93c79b668f26b3f1be75a66",
     # +convexity on Hypercore
     "0x5661a070eb13c7c55ac3210b2447d4bea426cbf5",
+    # Hyperliquidity Trader (HLT) on Hypercore - unstable share price action
+    "0x5a733b25a17dc0f26b862ca9e32b439801b1a8c7",
 }
 
 # Protocols to exclude (output as commented-out lines with reason)
 EXCLUDED_PROTOCOLS = {
     "accountable": "Assets are illiquid for strategies",
 }
+
+# Quarantine periods: vaults with unreliable price data during specific windows.
+# Format: (address, start_date, end_date, reason)
+# Vaults are excluded from trading signals during quarantine but remain in the universe.
+QUARANTINE_PERIODS = [
+    # Satori Quantum HF Vault - 164% share price spike on 2025-10-15,
+    # then sustained at ~3.5x until crash in Feb 2026.
+    (
+        "0xbbf7d7a9d0eaeab4115f022a6863450296112422",
+        datetime.datetime(2025, 10, 1),
+        datetime.datetime(2026, 2, 15),
+        "Share price spike 164% on 2025-10-15, unreliable price data",
+    ),
+]
+
+
+def is_quarantined(address: str, timestamp: datetime.datetime) -> bool:
+    """Check if a vault address is quarantined at a given timestamp."""
+    address = address.lower()
+    for q_address, q_start, q_end, _reason in QUARANTINE_PERIODS:
+        if q_address.lower() == address and q_start <= timestamp <= q_end:
+            return True
+    return False
