@@ -1,6 +1,7 @@
 """Curated vault lists for vault-of-vault filtering scripts."""
 
 import datetime
+import enum
 
 # Vaults that must always be included (by address lowercase)
 MUST_INCLUDE = {
@@ -50,6 +51,17 @@ EXCLUDED_VAULTS = {
     "0x5661a070eb13c7c55ac3210b2447d4bea426cbf5",
     # Hyperliquidity Trader (HLT) on Hypercore - unstable share price action
     "0x5a733b25a17dc0f26b862ca9e32b439801b1a8c7",
+    # BitCorn50xLong on Hypercore
+    "0x368eafa587cdc5b5f79eb40eae18c62286ab8f9d",
+    # HyperTwin - Blue Whale on Hypercore - no copy trading
+    "0x9a3006e0b7ffacf11729103098ff16fa6e17bd24",
+    # Test vault on Hypercore
+    "0x4692441b5a9e26a690eea6d2f36139679add737b",
+    # AILab Test Ultra 2 on Hypercore - test vault
+    "0x780825f3f0ad6799e304fb843387934c1fa06e70",
+    "0x21edf2d791f626ee69352120e7f6e2fbb0f48cf1",
+    # Overdose on Hypercore - erratic profits
+    "0xe67dbf2d051106b42104c1a6631af5e5a458b682",
 }
 
 # Protocols to exclude (output as commented-out lines with reason)
@@ -70,6 +82,49 @@ QUARANTINE_PERIODS = [
         "Share price spike 164% on 2025-10-15, unreliable price data",
     ),
 ]
+
+
+class VaultQuality(enum.Enum):
+    """Quality tier for Hyperliquid vaults, used for concentration tweaks."""
+    gold = "gold"
+    high = "high"
+    medium = "medium"
+
+
+# Manually curated address -> quality mapping for known good Hyperliquid vaults
+_HYPERLIQUID_QUALITY_MAP: dict[str, VaultQuality] = {
+    # Gold: HLP
+    "0xdfc24b077bc1425ad1dea75bcb6f8158e10df303": VaultQuality.gold,
+    # High: [ Systemic Strategies ] L/S Grids
+    "0x07fd993f0fa3a185f7207adccd29f7a87404689d": VaultQuality.high,
+    # High: Growi HF
+    "0x1e37a337ed460039d1b15bd3bc489de789768d5e": VaultQuality.high,
+    # High: pmalt
+    "0x4dec0a851849056e259128464ef28ce78afa27f6": VaultQuality.high,
+    # High: L/S Momentum Strategy
+    "0x394c57ac43a9cbd5fffce1c7e681c650154a2b0b": VaultQuality.high,
+    # High: Satori Quantum HF Vault
+    "0xbbf7d7a9d0eaeab4115f022a6863450296112422": VaultQuality.high,
+    # High: Satori Quantum Vault
+    "0x149b47e62de45cd73b67054eaca8d2e77bab4c38": VaultQuality.high,
+    # Medium: Delta Neutral | R Tech
+    "0xf182de5226dc4fe2f134c9b375281a6f50309416": VaultQuality.medium,
+    # Medium: Loop Fund
+    "0xfeab64de8cdf9dcebc0f49812499e396273efc06": VaultQuality.medium,
+    # Medium: Nero Quant Capital
+    "0x497f213095ca5dc149cc1e03caf0338b5fe4a3f9": VaultQuality.medium,
+}
+
+def get_hyperliquid_concentration_tweak() -> dict[str, VaultQuality]:
+    """Return address -> VaultQuality for Hyperliquid vaults known to be good.
+
+    Used to give higher max concentration to trusted vaults.
+    Manually curated — update ``_HYPERLIQUID_QUALITY_MAP`` to add new vaults.
+
+    :return:
+        Dict of lowercase address -> VaultQuality.
+    """
+    return dict(_HYPERLIQUID_QUALITY_MAP)
 
 
 def is_quarantined(address: str, timestamp: datetime.datetime) -> bool:

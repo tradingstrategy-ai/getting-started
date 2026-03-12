@@ -8,12 +8,14 @@ Cache is stored in ~/.cache/indicators/ alongside indicator caches,
 so it is cleared by the existing /clear-backtesting-cache skill.
 """
 
+import hashlib
 import json
 import sys
 from pathlib import Path
 
 from tradingstrategy.chain import ChainId
 
+from getting_started.curator import EXCLUDED_PROTOCOLS, EXCLUDED_VAULTS, MUST_INCLUDE
 from getting_started.vault_universe_creation import (
     fetch_vaults,
     parse_vault,
@@ -44,11 +46,18 @@ TRACKED_PERIODS = ("1M", "3M", "1Y")
 CACHE_DIR = Path.home() / ".cache" / "indicators"
 
 
+def _curator_fingerprint() -> str:
+    """Short hash of curator lists so cache invalidates on changes."""
+    parts = sorted(EXCLUDED_VAULTS) + sorted(MUST_INCLUDE) + sorted(EXCLUDED_PROTOCOLS.keys())
+    digest = hashlib.md5("|".join(parts).encode()).hexdigest()[:8]
+    return digest
+
+
 def _make_cache_key(min_tvl: float, top_n: int | None, min_age: float, sort_period: str, include_closed_vaults: bool) -> str:
     """Derive a cache key from filter parameters."""
     top_part = "topall" if top_n is None else f"top{top_n}"
     closed_part = "-closed" if include_closed_vaults else ""
-    return f"tvl{int(min_tvl)}-{top_part}-age{min_age}-sort{sort_period}{closed_part}"
+    return f"tvl{int(min_tvl)}-{top_part}-age{min_age}-sort{sort_period}{closed_part}-cur{_curator_fingerprint()}"
 
 
 def _cache_path(cache_key: str) -> Path:

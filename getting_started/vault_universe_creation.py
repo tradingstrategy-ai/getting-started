@@ -252,7 +252,7 @@ def select_top_vaults(
         # for backtesting — we currently lack historical data on when
         # Hyperliquid vaults opened or closed deposits, so we cannot
         # easily determine this during the backtest timeline.
-        if not include_closed_vaults and v.chain_id == 9999 and v.deposit_closed_reason is not None:
+        if not include_closed_vaults and not v.must_include and v.chain_id == 9999 and v.deposit_closed_reason is not None:
             stats["filtered_out"] += 1
             filter_reasons["deposit_closed"] = filter_reasons.get("deposit_closed", 0) + 1
             continue

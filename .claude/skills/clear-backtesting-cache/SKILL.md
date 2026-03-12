@@ -12,3 +12,9 @@ rm -rf ~/.cache/indicators
 ```
 
 After deleting, report the size of the deleted directory if available, or confirm deletion.
+
+If this is an optimiser notebook, also delete its cache folder. It should in `perform_optimisation()` function output like:
+
+```
+/Users/moo/.cache/tradingstrategy/grid-search/42-hyperliquid-univ-daily-august-start
+```
