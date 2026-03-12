@@ -18,3 +18,4 @@ This skill create a variant of backtesting/optimizer notebook.
 - Update parameters in the notebook with new values - usually in `Parameters` class. Sometimes they are not, like when we ask to change the optimiser optimisation function.
 - Update notebook title and description in the first cell to reflect the new variant - what did we change
 - In the first cell, include the name of the notebook this variant is based
+- If the notebook has Research findings and such data at its heading, remove those, because they are relevant for the old notebook, not the new one

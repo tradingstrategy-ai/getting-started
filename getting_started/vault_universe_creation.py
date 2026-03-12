@@ -22,6 +22,7 @@ class VaultInfo:
     cagr_periods: dict[str, float | None]
     cagr_all: float
     tvl: float
+    peak_tvl: float
     risk: str | None
     flags: list[str]
     protocol_slug: str
@@ -116,6 +117,7 @@ def parse_vault(
         cagr_periods=get_cagr_periods(vault, tracked_periods),
         cagr_all=vault.get("cagr", 0.0) or 0.0,
         tvl=get_tvl(vault),
+        peak_tvl=vault.get("peak_nav") or 0.0,
         risk=vault.get("risk"),
         flags=vault.get("flags") or [],
         protocol_slug=vault.get("protocol_slug") or "",
@@ -138,6 +140,7 @@ def filter_vault(
     require_known_protocol: bool,
     hypercore_min_tvl: float,
     skip_cagr_filter: bool = False,
+    use_peak_tvl: bool = False,
 ) -> tuple[bool, str]:
     """Check if vault passes filters. Returns (passes, reason)."""
     # Must-include vaults always pass
@@ -179,10 +182,14 @@ def filter_vault(
     if normalised not in allowed_denominations:
         return False, f"denomination={v.denomination} ({normalised})"
 
-    # TVL filter (Hypercore has higher threshold)
+    # TVL filter (Hypercore has higher threshold).
+    # When use_peak_tvl=True, check all-time peak TVL instead of current TVL
+    # to include vaults that have ever crossed the threshold — this eliminates
+    # survivorship bias in backtesting.
     effective_min_tvl = hypercore_min_tvl if v.chain_id == 9999 else min_tvl
-    if v.tvl < effective_min_tvl:
-        return False, f"TVL={format_tvl(v.tvl)} < {format_tvl(effective_min_tvl)}"
+    check_tvl = v.peak_tvl if use_peak_tvl else v.tvl
+    if check_tvl < effective_min_tvl:
+        return False, f"TVL={format_tvl(check_tvl)} < {format_tvl(effective_min_tvl)}"
 
     # Age filter (per-chain override supported via min_age in CHAIN_CONFIG)
     effective_min_age = chain_config.get(v.chain_id, {}).get("min_age", min_age)
@@ -207,6 +214,8 @@ def select_top_vaults(
     hypercore_min_tvl: float,
     top_n_override: int | None = None,
     skip_cagr_filter: bool = False,
+    use_peak_tvl: bool = False,
+    include_closed_vaults: bool = False,
 ) -> dict[int, list[VaultInfo]]:
     """Select top vaults per chain after filtering."""
 
@@ -224,6 +233,7 @@ def select_top_vaults(
         require_known_protocol=require_known_protocol,
         hypercore_min_tvl=hypercore_min_tvl,
         skip_cagr_filter=skip_cagr_filter,
+        use_peak_tvl=use_peak_tvl,
     )
 
     # Group by chain
@@ -236,9 +246,13 @@ def select_top_vaults(
     for v in vaults:
         stats["total"] += 1
 
-        # Hypercore deposit-closed vaults are excluded entirely
-        # (we cannot allocate to them from the strategy)
-        if v.chain_id == 9999 and v.deposit_closed_reason is not None:
+        # Hypercore deposit-closed vaults are excluded by default
+        # (we cannot allocate to them from the strategy).
+        # When include_closed_vaults=True, keep them in the universe
+        # for backtesting — we currently lack historical data on when
+        # Hyperliquid vaults opened or closed deposits, so we cannot
+        # easily determine this during the backtest timeline.
+        if not include_closed_vaults and v.chain_id == 9999 and v.deposit_closed_reason is not None:
             stats["filtered_out"] += 1
             filter_reasons["deposit_closed"] = filter_reasons.get("deposit_closed", 0) + 1
             continue
@@ -264,22 +278,26 @@ def select_top_vaults(
         chain_vaults = by_chain[chain_id]
         chain_vaults.sort(key=sort_key)
 
-        top_n = top_n_override or chain_config[chain_id]["top_n"]
+        top_n = top_n_override if top_n_override is not None else chain_config[chain_id].get("top_n")
 
-        # Sort all candidates together, then ensure must-includes are in the top N
-        must_include = [v for v in chain_vaults if v.must_include]
-        regular = [v for v in chain_vaults if not v.must_include]
+        if top_n is None:
+            # No truncation — return all qualifying vaults
+            selected = list(chain_vaults)
+        else:
+            # Sort all candidates together, then ensure must-includes are in the top N
+            must_include = [v for v in chain_vaults if v.must_include]
+            regular = [v for v in chain_vaults if not v.must_include]
 
-        # Reserve slots for must-include vaults not in top N
-        regular_top = regular[:top_n]
-        regular_top_addrs = {v.address for v in regular_top}
+            # Reserve slots for must-include vaults not in top N
+            regular_top = regular[:top_n]
+            regular_top_addrs = {v.address for v in regular_top}
 
-        # Must-include vaults that aren't already in the top N
-        extra_must = [v for v in must_include if v.address not in regular_top_addrs]
+            # Must-include vaults that aren't already in the top N
+            extra_must = [v for v in must_include if v.address not in regular_top_addrs]
 
-        # Trim regular to make room for extra must-includes
-        slots_for_regular = max(0, top_n - len(extra_must))
-        selected = regular[:slots_for_regular] + extra_must
+            # Trim regular to make room for extra must-includes
+            slots_for_regular = max(0, top_n - len(extra_must))
+            selected = regular[:slots_for_regular] + extra_must
 
         # Add excluded vaults at the end
         for ev in excluded_by_chain[chain_id]:
