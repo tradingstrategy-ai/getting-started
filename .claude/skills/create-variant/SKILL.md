@@ -19,3 +19,13 @@ This skill create a variant of backtesting/optimizer notebook.
 - Update notebook title and description in the first cell to reflect the new variant - what did we change
 - In the first cell, include the name of the notebook this variant is based
 - If the notebook has Research findings and such data at its heading, remove those, because they are relevant for the old notebook, not the new one
+
+If there is a heatmap element, and the variant changes the optimiser target, remember to update it:
+
+```
+from tradeexecutor.analysis.grid_search_parameters import analyse_parameter_pair_heatmaps
+
+figs = analyse_parameter_pair_heatmaps(df, analysis_metric="Calmar")
+for fig in figs:
+    fig.show()
+```
