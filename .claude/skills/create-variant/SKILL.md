@@ -28,4 +28,10 @@ from tradeexecutor.analysis.grid_search_parameters import analyse_parameter_pair
 figs = analyse_parameter_pair_heatmaps(df, analysis_metric="Calmar")
 for fig in figs:
     fig.show()
+
 ```
+
+## Verification
+
+After the notebook is created, run it with `jupyter execute` as instructions in CLAUDE.md. Fix any bugs and issues you may have created.
+For fixing bugs, use `clear-backtesting-cache` skill if needed. Use 15 minutes timeout for execution, as optimisers can run for a long time. If the notebook runs successfully, then the skill is complete.
