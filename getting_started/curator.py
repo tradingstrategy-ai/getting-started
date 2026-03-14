@@ -1,4 +1,9 @@
-"""Curated vault lists for vault-of-vault filtering scripts."""
+"""Curated vault lists for vault-of-vault filtering scripts.
+
+- For one-off blocked trades to avoid backtest outlieries, use :py:attr:`QUARANTINE_PERIODS`
+- For blocking vaults overall, due to general low quality, use :py:attr:`EXCLUDED_VAULTS`
+
+"""
 
 import datetime
 import enum
@@ -72,6 +77,9 @@ EXCLUDED_PROTOCOLS = {
 # Quarantine periods: vaults with unreliable price data during specific windows.
 # Format: (address, start_date, end_date, reason)
 # Vaults are excluded from trading signals during quarantine but remain in the universe.
+#
+# Make sure the backtesting notebook decide_trades() correctly calls :py:ref:`is_quarantined()` to block the bad trades
+#
 QUARANTINE_PERIODS = [
     # Satori Quantum HF Vault - 164% share price spike on 2025-10-15,
     # then sustained at ~3.5x until crash in Feb 2026.
@@ -80,6 +88,22 @@ QUARANTINE_PERIODS = [
         datetime.datetime(2025, 10, 1),
         datetime.datetime(2026, 2, 15),
         "Share price spike 164% on 2025-10-15, unreliable price data",
+    ),
+    # Winwin on Hypercore - 297% single position spike on 2026-02-08,
+    # $58k single-day P&L skews backtest results.
+    (
+        "0xa7f152a5f79bb5483c079610203d8fc03fd77c8e",
+        datetime.datetime(2026, 2, 7),
+        datetime.datetime(2026, 2, 10),
+        "297% single position spike on 2026-02-08, skews backtest results",
+    ),
+    # Hyperextropy Provider (HEP) on Hypercore - 7558% annualised return
+    # on a 15-day position (2026-02-02 to 2026-02-17), single outlier.
+    (
+        "0x93ad52177d0795de8c67c92b1a72035293cb7aac",
+        datetime.datetime(2026, 2, 1),
+        datetime.datetime(2026, 2, 18),
+        "7558% annualised return spike on 15-day position, skews backtest results",
     ),
 ]
 

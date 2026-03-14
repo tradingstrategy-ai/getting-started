@@ -66,3 +66,9 @@ Don't format code.
 
 - When you need to modify files the editable Python packages live under ~/code/trade-executor
 - Never edit files under ~/code/docs
+
+## Indicator cache
+
+If the notebook crashes because of what looks like indicator cache issue: we have added or edited indicators and the data is not correctly recalculated, you can clear the indicator cache wtih `clear-backtesting-cache` skill. 
+
+This skill should not be used unless the notebook crashes because of indicator data problems.

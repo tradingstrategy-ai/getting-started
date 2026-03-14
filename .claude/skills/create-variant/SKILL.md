@@ -31,7 +31,10 @@ for fig in figs:
 
 ```
 
+## Optimiser iterations
+
+If the original notebook uses an optimiser (e.g. `perform_optimisation` with an `iterations` variable), reset `iterations = 10` in the variant so that the initial run does not take too long. The user can increase iterations later once the notebook is confirmed working.
+
 ## Verification
 
 After the notebook is created, run it with `jupyter execute` as instructions in CLAUDE.md. Fix any bugs and issues you may have created.
-For fixing bugs, use `clear-backtesting-cache` skill if needed. Use 15 minutes timeout for execution, as optimisers can run for a long time. If the notebook runs successfully, then the skill is complete.
