@@ -38,3 +38,12 @@ If the original notebook uses an optimiser (e.g. `perform_optimisation` with an 
 ## Verification
 
 After the notebook is created, run it with `jupyter execute` as instructions in CLAUDE.md. Fix any bugs and issues you may have created.
+
+## Analysis
+
+- After the notebook has been successfully run, analyse the experiement result
+- Update the notebook heading with the results
+- Analyse individual positions and jumps in the equity curve - if it looks like the results were because of the luck (individiual trade on one vault, not at the many vaults at the same time like in the market crash) use curator.py to quantine this trade
+- Check for other smelliness in the results, like best day result, kurtosis, others. Note that best day result might be correct if BTC and ETH move volatilely on that day.
+- Write the "Robustness analysis" in the heading section of the notebook noting any artefacts found during analysis.
+- If the analysis is not robust and you think there are gaps, you can increase iterations to 20 and fine-tune parameter search space.

@@ -24,6 +24,28 @@ Never use `ipython` command as it does not work with multiprocessing.
 
 Alternative if you have IDE access, you can use the IDE to run the notebook.
 
+### Watching optimiser progress
+
+All notebooks use [`tqdm_loggable`](https://github.com/tradingstrategy-ai/tqdm-loggable). Always use `TQDM_LOGGABLE_FORCE=stdout` and keep the command in the foreground:
+
+```shell
+TQDM_LOGGABLE_FORCE=stdout poetry run jupyter execute my-notebook.ipynb --inplace --timeout=900
+```
+
+This forces terminal progress output so the optimiser progress bar is visible from the calling terminal. Do not rely on notebook widgets alone.
+
+### Multiple agents and kernels
+
+If multiple agents are running notebooks concurrently:
+
+- Never kill all `ipykernel` processes broadly
+- Identify the exact `jupyter execute ... my-notebook.ipynb` parent process first, then match its child kernel by PID/start time
+- If kernel ownership is ambiguous, do not kill any — prefer leaving a stale kernel over killing another agent's live backtest
+
+```shell
+ps -Ao pid,ppid,%cpu,etime,command | rg 'jupyter-execute|ipykernel|ipykernel_launcher'
+```
+
 ## Running Python scripts
 
 When running a Python script use `poetry run python` command instead of plain `python` command, so that the virtual environment is activated.
@@ -72,3 +94,13 @@ Don't format code.
 If the notebook crashes because of what looks like indicator cache issue: we have added or edited indicators and the data is not correctly recalculated, you can clear the indicator cache wtih `clear-backtesting-cache` skill. 
 
 This skill should not be used unless the notebook crashes because of indicator data problems.
+
+### Code comments
+
+- For code comments, Use Sphinx restructured text style
+- For documenting dataclass and Enum members, use Sphinx `#: comment here` line comment above variable, not `:param:`
+- If a. class function overloads a function inherited from the parent, and there is nothing to comment, do not repeat the code comment and leave it empty instead
+
+### Type hinting
+
+- Use type-specific typehints like `Percent`, `USDollarAmount`, `USDollarPrice`, `HexAddress` instead of `str` or `float` when possible

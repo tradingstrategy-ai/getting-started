@@ -7880,14 +7880,14 @@ telegram = ["requests"]
 
 [[package]]
 name = "tqdm-loggable"
-version = "0.3"
+version = "0.4"
 description = "TQDM progress bar helpers for logging and other headless application"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "tqdm_loggable-0.3-py3-none-any.whl", hash = "sha256:e5175d36927eb7453f9580cd7aee0eb145f06bc5c38874cca9b4ab7fa8ede345"},
-    {file = "tqdm_loggable-0.3.tar.gz", hash = "sha256:a01d634fea248aa21d0a8ed20f250438e19faf8f299461a1c77ae50b0c5bb872"},
+    {file = "tqdm_loggable-0.4-py3-none-any.whl", hash = "sha256:a448c92b1f3ea7bc95a1ffc1038558e82bbc010c63abfaf5746f5185522ffe8a"},
+    {file = "tqdm_loggable-0.4.tar.gz", hash = "sha256:083dcf7df7ea655d2d3bebf43fbf1593f5e334c2640964ea7bb0699cb7d34179"},
 ]
 
 [package.dependencies]
@@ -7932,7 +7932,7 @@ statsmodels = "^0.14.0"
 tblib = "^1.7.0"
 telegram-bot-logger = {git = "https://github.com/tradingstrategy-ai/telegram_bot_logger.git", branch = "main", optional = true}
 tqdm = "^4.64.1"
-tqdm-loggable = "^0.3"
+tqdm-loggable = "^0.4"
 trading-strategy = {path = "deps/trading-strategy", develop = true}
 typer = {version = "^0.12.3", optional = true}
 web3-ethereum-defi = {path = "deps/web3-ethereum-defi", develop = true, extras = ["data", "hypersync", "test"]}
@@ -8939,5 +8939,5 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.11,<=3.12"
-content-hash = "bcb1a307835b519ce3f2a1a5a2893749caa05c0794fa6968f7ec522a3ba78847"
+python-versions = ">=3.11,<3.13"
+content-hash = "943c9ecf415269b9b0a2af5da3a6ef35e45bccf3c0fe83adbc5ee8cec32cfab4"
