@@ -33,7 +33,7 @@ for fig in figs:
 
 ## Optimiser iterations
 
-If the original notebook uses an optimiser (e.g. `perform_optimisation` with an `iterations` variable), reset `iterations = 10` in the variant so that the initial run does not take too long. The user can increase iterations later once the notebook is confirmed working.
+If the original notebook uses an optimiser (e.g. `perform_optimisation` with an `iterations` variable), reset `iterations = 18` in the variant so that the initial run does not take too long. The user can increase iterations later once the notebook is confirmed working.
 
 ## Verification
 
@@ -46,4 +46,4 @@ After the notebook is created, run it with `jupyter execute` as instructions in 
 - Analyse individual positions and jumps in the equity curve. If the result looks lucky because of a single trade on one vault, instead of many vaults moving together during a broader market event, use `curator.py` to quantify that trade.
 - Check for other suspicious traits in the results, such as an unusually strong best day or extreme kurtosis. Note that a strong best day can still be valid if BTC and ETH moved sharply on that day.
 - Write the "Robustness analysis" in the heading section of the notebook noting any artefacts found during analysis.
-- If the analysis is not robust and you think there are gaps, you can increase iterations to 20 and fine-tune parameter search space.
+- If the analysis is not robust and you think there are gaps, you can increase iterations to 28 and fine-tune parameter search space.
