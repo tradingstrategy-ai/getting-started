@@ -1,11 +1,11 @@
 ---
 name: convert-to-backtest
-description: Convert an optimiser or grid search notebook to a standalone backtest notebook and use the bundled helper script plus mapping reference for the transformation.
+description: Convert an optimiser or grid search notebook into a standalone backtest notebook using the bundled helper script and mapping guidance.
 ---
 
 # Convert optimiser to backtest
 
-Convert an optimiser/grid search notebook into a standalone backtesting notebook that runs a single backtest with the best parameter values from the optimisation.
+Convert an optimiser or grid search notebook into a standalone backtesting notebook that runs a single backtest with the best parameter values from the optimisation.
 
 ## Input
 

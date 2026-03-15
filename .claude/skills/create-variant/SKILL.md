@@ -1,11 +1,11 @@
 ---
 name: create-variant
-description: Create variant of backtesting/optimizer notebook
+description: Create a variant of a backtesting or optimiser notebook.
 ---
 
 # Create variant
 
-This skill create a variant of backtesting/optimizer notebook.
+This skill creates a variant of a backtesting or optimiser notebook.
 
 ## Input
 
@@ -14,13 +14,13 @@ This skill create a variant of backtesting/optimizer notebook.
 
 ## Output
 
-- New notebook file: 1) increase running counter prefix 2) change the slug
-- Update parameters in the notebook with new values - usually in `Parameters` class. Sometimes they are not, like when we ask to change the optimiser optimisation function.
-- Update notebook title and description in the first cell to reflect the new variant - what did we change
-- In the first cell, include the name of the notebook this variant is based
-- If the notebook has Research findings and such data at its heading, remove those, because they are relevant for the old notebook, not the new one
+- New notebook file: increase the running counter prefix and change the slug
+- Update parameters in the notebook with new values. Usually these live in the `Parameters` class, but sometimes they do not, such as when changing the optimiser target function.
+- Update the notebook title and description in the first cell to reflect the new variant.
+- In the first cell, include the name of the notebook this variant is based on.
+- If the notebook heading contains research findings or other inherited results, remove them because they belong to the old notebook, not the new one.
 
-If there is a heatmap element, and the variant changes the optimiser target, remember to update it:
+If there is a heatmap and the variant changes the optimiser target, remember to update it:
 
 ```
 from tradeexecutor.analysis.grid_search_parameters import analyse_parameter_pair_heatmaps
@@ -41,9 +41,9 @@ After the notebook is created, run it with `jupyter execute` as instructions in 
 
 ## Analysis
 
-- After the notebook has been successfully run, analyse the experiement result
-- Update the notebook heading with the results
-- Analyse individual positions and jumps in the equity curve - if it looks like the results were because of the luck (individiual trade on one vault, not at the many vaults at the same time like in the market crash) use curator.py to quantine this trade
-- Check for other smelliness in the results, like best day result, kurtosis, others. Note that best day result might be correct if BTC and ETH move volatilely on that day.
+- After the notebook has been successfully run, analyse the experiment result.
+- Update the notebook heading with the results.
+- Analyse individual positions and jumps in the equity curve. If the result looks lucky because of a single trade on one vault, instead of many vaults moving together during a broader market event, use `curator.py` to quantify that trade.
+- Check for other suspicious traits in the results, such as an unusually strong best day or extreme kurtosis. Note that a strong best day can still be valid if BTC and ETH moved sharply on that day.
 - Write the "Robustness analysis" in the heading section of the notebook noting any artefacts found during analysis.
 - If the analysis is not robust and you think there are gaps, you can increase iterations to 20 and fine-tune parameter search space.

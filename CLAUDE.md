@@ -1,5 +1,13 @@
 # Instructions to work with the code base
 
+## Skills
+
+Codex autodiscovers repo-local skills from `.codex/skills/`.
+
+In this repository, `.codex/skills` is a symlink to `.claude/skills` so the same skill set works for both Codex and Claude tooling.
+
+When adding or updating a skill, edit the files under `.claude/skills/` and keep the `SKILL.md` file in each skill directory as the entrypoint.
+
 ## English
 
 - Use UK/British English instead of US English

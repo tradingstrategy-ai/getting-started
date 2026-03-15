@@ -1,6 +1,6 @@
 ---
 name: convert-to-optimiser
-description: Convert a backtesting notebook to a parameter optimisation notebook and use the bundled transformation mapping to choose searchable parameters and rewrite the notebook.
+description: Convert a backtesting notebook into a parameter optimisation notebook using the bundled transformation mapping to choose searchable parameters and rewrite the notebook.
 ---
 
 # Convert backtest to optimiser
@@ -22,7 +22,7 @@ Convert a single backtesting notebook into an optimiser notebook that optimises 
 
 2. **Read the reference optimiser notebook** (`getting-started/scratchpad/vault-of-vaults/32-waterfall-diversified-larger-universe-grid-search-4d-rebalance-profit.ipynb`) — you will copy output cells from this.
 
-3. **Identify tuneable parameters**: Look at the `Parameters` class in the backtest notebook. Identify strategy-specific parameters that could be searched (signal/indicator params, portfolio sizing, risk params). Exclude structural parameters like `chain_id`, `exchanges`, `candle_time_bucket`, `cycle_duration`, `routing`, `backtest_start/end`, `initial_cash`, `min_volume`, `min_tvl`, rolling window calculations, and yield settings.
+3. **Identify tunable parameters**: Look at the `Parameters` class in the backtest notebook. Identify strategy-specific parameters that could be searched (signal or indicator params, portfolio sizing, risk params). Exclude structural parameters like `chain_id`, `exchanges`, `candle_time_bucket`, `cycle_duration`, `routing`, `backtest_start/end`, `initial_cash`, `min_volume`, `min_tvl`, rolling window calculations, and yield settings.
 
 4. **Ask the user** which parameters to make searchable and what value ranges to use. Suggest ranges centred on the current fixed values. The original value must be included in every range.
 
@@ -36,7 +36,7 @@ Convert a single backtesting notebook into an optimiser notebook that optimises 
 
    d. **Parameters cell** (code): Transform from the backtest version:
       - Add `from skopt.space import Categorical` to imports
-      - Replace chosen tuneable parameters with `Categorical([...])` ranges
+      - Replace chosen tunable parameters with `Categorical([...])` ranges
       - Set `use_managed_yield = False`
       - Add at the end:
         ```python
@@ -155,7 +155,7 @@ Add import:
 from skopt.space import Categorical
 ```
 
-Wrap tuneable strategy parameters in `Categorical([...])`. The original value must be included in the list. Example:
+Wrap tunable strategy parameters in `Categorical([...])`. The original value must be included in the list. Example:
 
 ```python
 # Backtest (fixed)
