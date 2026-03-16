@@ -32,6 +32,8 @@ Never use `ipython` command as it does not work with multiprocessing.
 
 Alternative if you have IDE access, you can use the IDE to run the notebook.
 
+When running multiple notebooks with subagents, use max 3 agents to avoid exhausting RAM and crashing the computer.
+
 ### Watching optimiser progress
 
 All notebooks use [`tqdm_loggable`](https://github.com/tradingstrategy-ai/tqdm-loggable). Always use `TQDM_LOGGABLE_FORCE=stdout` and keep the command in the foreground:

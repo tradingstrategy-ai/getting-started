@@ -47,3 +47,9 @@ After the notebook is created, run it with `jupyter execute` as instructions in 
 - Check for other suspicious traits in the results, such as an unusually strong best day or extreme kurtosis. Note that a strong best day can still be valid if BTC and ETH moved sharply on that day.
 - Write the "Robustness analysis" in the heading section of the notebook noting any artefacts found during analysis.
 - If the analysis is not robust and you think there are gaps, you can increase iterations to 28 and fine-tune parameter search space.
+
+We want to see sections:
+
+- Key new insights and what did we leart from this experiemenet
+- Summary of results
+- Robustness of results
