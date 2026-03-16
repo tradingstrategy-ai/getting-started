@@ -252,3 +252,78 @@ Calmar is dominated by a single worst-drawdown event. With ~11 months of Hyperli
 8. **NB120** (start date sensitivity) — robustness check before integration.
 9. **NB122** (full pipeline) — integration test.
 10. **NB123** (walk-forward of full pipeline) — final validation gate.
+
+---
+
+## Validation results (2026-03-16)
+
+All 10 experiments have been executed. The results fundamentally change the picture painted by the in-sample candidate signals above.
+
+### Experiment outcomes
+
+| NB | Experiment | Verdict | Key number |
+|---|---|---|---|
+| **114** | Flow walk-forward | **Failed OOS** | age_ramp wins holdout Sharpe 2-1; flow's 3.77 was in-sample overfitting |
+| **115** | Bucket + asymmetry veto | **Not additive** | Veto hurts concentrated bucket methods (Sharpe 2.79 vs age_ramp_veto 3.55) |
+| **116** | Bucket Sharpe optimisation | **In-sample winner, OOS failure** | Sharpe 3.92 with young<90d, mid<60d — but NB123 showed 0-3 holdout loss |
+| **117** | Asymmetry veto | **In-sample promising, not robust** | age_ramp+veto=20% Sharpe 3.55; but NB122 showed it hurts with tighter thresholds |
+| **118** | Threshold stability | **Confirmed** | min_tvl=25k, min_age=0.05 is Sharpe-optimal; surface very smooth (ratio 0.14) |
+| **119** | R² walk-forward | **Failed OOS** | age_ramp wins holdout Sharpe 2-1; R² always wins training but degrades on holdout |
+| **120** | Start date sensitivity | **Robust, no age_ramp edge** | Both signals Sharpe 3.25–3.94 across all dates; age_ramp ≈ equal_weight under Sharpe |
+| **121** | Strategy decomposition | **Inconclusive** | 97% vaults classified as "other"; vault names too generic for strategy-type analysis |
+| **122** | Full pipeline | **Simplified** | age_bucket_equal best in-sample (3.78); veto hurt uniformly (-0.37 to -0.42 Sharpe) |
+| **123** | Walk-forward pipeline | **age_ramp wins OOS** | age_ramp_0.50 holdout Sharpe 5.13 vs bucket 2.67 vs equal_weight 4.73 |
+
+### The meta-lesson: in-sample metrics are not predictive of out-of-sample performance
+
+Every signal enhancement that looked good in-sample failed walk-forward validation:
+
+1. **Flow confirmation** (NB112 Sharpe 3.77 → NB114 holdout loss 1-2): TVL-derived interaction signals overfit the ~11 months of available history. The flow_window=30 parameter was fitting to specific capital movement episodes rather than capturing a durable pattern.
+
+2. **Trend R² overlay** (NB101 Calmar 127.5 → NB119 holdout loss 1-2): R² wins 6/6 training folds but systematically degrades on holdout. Price-derived trend quality is too noisy to add persistent value on top of the age structural prior.
+
+3. **Age bucket allocation** (NB116 Sharpe 3.92 → NB123 holdout loss 0-3): The optimised bucket boundaries (young<90d, mid<60d) were fitting to the specific distribution of vault ages in the training window. A clean sweep in the wrong direction.
+
+4. **Asymmetry veto** (NB117 Sharpe 3.55 → NB122 uniform degradation): The 20% veto looked promising in one universe configuration but hurt when thresholds were tightened. Binary filters are sensitive to the underlying universe composition.
+
+### What survived
+
+Only two things survived the full validation gauntlet:
+
+1. **Inclusion thresholds: min_tvl=25k, min_age=0.05** (NB118). The same winner under both Sharpe and Calmar optimisation. The grid surface is very smooth (ratio 0.14), confirming this is a genuine structural choice rather than a parameter-specific optimum. This is the single most robust and impactful parameter choice in 123 notebooks.
+
+2. **age_ramp at period=0.50** (NB100, NB123). Wins walk-forward Sharpe 3-0 against equal_weight (NB100), wins 3-0 against age_bucket_equal (NB123), and shows zero parameter drift across folds. However, under Sharpe optimisation specifically, its advantage over equal_weight is negligible (NB120: difference of -0.04 to 0.00).
+
+### Revised candidate signal assessment
+
+| Original candidate | In-sample promise | OOS reality | Status |
+|---|---|---|---|
+| Age cohort allocation | Strong (Calmar 58.5) | Survives walk-forward on Calmar; no edge on Sharpe | **Production-ready for Calmar; optional for Sharpe** |
+| Trend R² overlay | Strong (Calmar 127.5) | Fails walk-forward on both metrics | **Rejected** |
+| Flow-confirmed age ramp | Strong (Sharpe 3.77) | Fails walk-forward | **Rejected** |
+| Drawdown asymmetry | Promising (Calmar 71.4) | Fragile across universe configs | **Rejected for production** |
+| Hard inclusion thresholds | Strong (robustly optimal) | Confirmed under both metrics | **Production-ready** |
+
+### Production recommendation
+
+The validated production configuration is the simplest possible:
+
+```
+min_tvl = 25_000
+min_age = 0.05  # ~18 days
+weight_signal = "age_ramp"
+age_ramp_period = 0.50  # 6 months
+```
+
+If the priority is **Sharpe stability**, plain `equal_weight` with the same thresholds is equally valid — age_ramp's advantage is specifically in drawdown reduction (Calmar), not return enhancement (Sharpe).
+
+If the priority is **Calmar / drawdown control**, `age_ramp` at period=0.50 is the clear winner with walk-forward validated superiority.
+
+No overlays, vetos, bucket schemes, or signal combinations survived out-of-sample testing. The alpha in this strategy comes from **universe construction** (the thresholds) and **structural simplicity** (equal weight or age ramp), not from clever signal engineering.
+
+### Implications for future research
+
+1. **Walk-forward validation is non-negotiable.** Every promising in-sample result failed OOS. Future experiments should include walk-forward as part of the experiment, not as a follow-up.
+2. **~11 months of history is insufficient for price-derived signals.** Trend R², flow confirmation, and asymmetry all overfit. Structural signals (age, TVL thresholds) work because they require no estimation from the return series.
+3. **The complexity tax is real.** Each additional parameter or signal layer reduces OOS robustness. The simplest configuration (thresholds + equal weight or age ramp) is also the most robust.
+4. **Genuinely new information sources are needed** to beat the current baseline — vault strategy metadata from Hyperliquid API, leader/follower dynamics, or cross-chain correlation structure. Recombining the same price/TVL/age data in new ways is unlikely to help.
