@@ -12,9 +12,17 @@ This skill creates a variant of a backtesting or optimiser notebook.
 - Existing notebook file
 - Names of parameters we want to change
 
+## Template notebooks
+
+- For search and optimiser use `scratchpad/vault-of-vaults/67-hyperliquid-dual-signal-parameter-tuning.ipynb`
+- For a single backtest use `scratchpad/vault-of-vaults/40-hyperliquid-august-start.ipynb`
+
 ## Output
 
 - New notebook file: increase the running counter prefix and change the slug
+  - This is a backtest call the file {number}-backtest-{slug}.ipynb
+  - This is a optimiser call the file {number}-opt-{slug}.ipynb
+  - If it is other research call {number}-research-{slug}.ipynb
 - Update parameters in the notebook with new values. Usually these live in the `Parameters` class, but sometimes they do not, such as when changing the optimiser target function.
 - Update the notebook title and description in the first cell to reflect the new variant.
 - In the first cell, include the name of the notebook this variant is based on.
