@@ -1,0 +1,42 @@
+Experiment 11: Carry-first architecture
+=======================================
+
+Notebook: 11-backtest-carry-first.ipynb
+Based on: 01-initial.ipynb (survivor-first waterfall baseline)
+
+Architecture changes:
+- Equal weight base weights (weight_equal) instead of waterfall concentration (weight_passthrouh)
+- Young vault discount: 0.3 weight for vaults < 60 days old
+- Mild trend R2 overlay: 0.2 blend strength, 60-day window
+- No waterfall concentration (waterfall=False)
+- Looser max concentration cap: 20% (was 12%)
+
+Results:
+- CAGR: 9.74% (baseline 11.37%, delta -1.63pp)
+- Sharpe: 22.83 (baseline 6.33, delta +16.50)
+- Sortino: 148.68 (baseline 9.17)
+- Max DD: -0.04% (baseline -0.70%)
+- Calmar: 246.37
+- Annualised volatility: 0.41%
+- Final equity: 105,788.71 USD from 100,000 USD
+- Trades: 290; positions: 98
+- Median position days: 22.0 (baseline 93.5)
+- Deployment: 99.99% accepted/investable
+
+Success criteria evaluation:
+- Higher CAGR: NO (9.74% vs 11.37%)
+- Max DD < -2%: YES (-0.04%)
+- Lower concentration: YES (equal weight across 20 positions)
+- Simpler selected set: YES (no waterfall, pure equal weight with mild overlays)
+
+Verdict:
+The carry-first architecture delivers dramatically better risk-adjusted returns
+at the cost of lower raw CAGR. The Sharpe improvement is very large (6.33 to
+22.83) and drawdown is essentially eliminated (-0.04%). However, the strategy
+is arguably too smooth — annualised vol of 0.41% means it behaves more like a
+money-market fund than a yield strategy. The higher position count (98 vs 18)
+and shorter holds (22 vs 93.5 days) would also generate more execution friction
+in production. The result confirms that equal-weight sizing and mild overlays
+can work well for this universe, but the architecture may benefit from slightly
+more selection alpha to recover some of the lost CAGR without breaking the
+smoothness.

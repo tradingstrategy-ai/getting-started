@@ -1,0 +1,41 @@
+07-backtest-vol-of-vol-veto.ipynb — Vol-of-vol veto experiment
+================================================================
+
+Based on: 01-initial.ipynb
+Parameters changed: vol_window=60, volvol_veto_percentile=0.75
+
+Baseline (01-initial):  CAGR=11.37%  Sharpe=6.33   MaxDD=-0.70%
+Vol-of-vol veto (07):   CAGR=10.99%  Sharpe=32.21  MaxDD=-0.09%
+
+Key metrics:
+  Cumulative return:     6.52%
+  CAGR:                  10.99%
+  Sharpe:                32.21
+  Sortino:               73.48
+  Max drawdown:          -0.09%
+  Volatility (ann.):     0.32%
+  Best day:              0.09%
+  Worst day:             -0.09%
+  Win days:              98.64%
+  Win months:            100%
+  Kurtosis:              14.5
+  Skew:                  -1.58
+  Trades:                196
+  Positions:             36
+  Median position days:  32.5
+  Positions < 3d:        4
+  Final candidates:      45
+  Final survivors:       20
+  Mean candidates:       30.1
+  Mean survivors:        19.2
+  Vaults vetoed (final): 13
+  Volvol threshold:      0.002332
+
+Success criteria:
+  [PASS] Worst day improved:   -0.70% -> -0.09%
+  [PASS] Kurtosis came down:   23.51  -> 14.5
+  [PASS] Sharpe improved:      6.33   -> 32.21
+  [PASS] CAGR stayed close:    11.37% -> 10.99% (-0.38pp)
+
+Verdict: Hypothesis confirmed. The vol-of-vol veto is a clear
+risk-reduction win with minimal CAGR cost.

@@ -1,0 +1,48 @@
+05-backtest-trend-quality-overlay results summary
+==================================================
+
+Experiment: Add R² trend-quality overlay (60-day window, 0.3 blend) as multiplier on age_ramp signal.
+
+Baseline (01-initial):
+  CAGR:           11.37%
+  Sharpe:          6.33
+  Sortino:         9.17
+  Max DD:         -0.70%
+  Volatility:      n/a (not recorded)
+  Kurtosis:       23.51
+  Skew:           -2.20
+  Best day:        0.44%
+  Worst day:      -0.70%
+  Win days:       84.62%
+  Win months:    100.00%
+  Trades:        274
+  Positions:      18
+  Median hold:    93.5 days
+
+05-trend-quality-overlay:
+  CAGR:           10.63%
+  Sharpe:         28.56
+  Sortino:        61.54
+  Max DD:         -0.07%
+  Volatility:      0.35% (ann.)
+  Kurtosis:       13.19
+  Skew:           -1.30
+  Best day:        0.12%
+  Worst day:      -0.07%
+  Win days:       97.74%
+  Win months:    100.00%
+  Trades:        225
+  Positions:      33
+  Median hold:    31.0 days
+
+Delta vs baseline:
+  CAGR:          -0.74pp  (slight decrease)
+  Sharpe:       +22.23    (large improvement from vol compression)
+  Max DD:        +0.63pp  (much shallower drawdown)
+  Kurtosis:     -10.32    (improved tail behaviour)
+  Best day:      -0.32pp  (no spikey upside)
+
+Verdict: The trend-quality overlay succeeds at its stated goal. It rewards steady compounders
+without turning the strategy into a momentum chase. The CAGR trade-off is small (-0.74pp)
+while the risk profile improves dramatically. The extremely high Sharpe should be interpreted
+cautiously given the short backtest window.

@@ -15,6 +15,7 @@
       "Bash(pnpm:*)",
       "Bash(python3:*)",
       "Bash(gh:*)",
+      "Read(/tmp/**)",
       "Edit(**)",
       "Write(**)",
       "MultiEdit(**)",

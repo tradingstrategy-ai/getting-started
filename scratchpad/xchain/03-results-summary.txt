@@ -1,0 +1,12 @@
+CAGR=10.57%  Sharpe=12.50  MaxDD=-0.28%  Trades=181
+
+Equal-weight sizing nearly doubled the Sharpe ratio (12.50 vs 6.33 baseline) and halved
+the max drawdown (-0.28% vs -0.70%), confirming that the cross-chain universe lacks enough
+signal dispersion to justify waterfall concentration. PnL concentration dropped substantially
+(top-1 share fell from ~20% to 10.5%, top-3 from ~45% to 27.2%), and all five chains are
+now net-positive contributors. CAGR dipped modestly from 11.37% to 10.57%, a small price
+for nearly double the risk-adjusted return.
+
+Success criteria met: broader chain contribution (all 5 chains positive, HyperEVM up from
+near-zero to 11%), lower concentration (top-1 down from ~20% to 10.5%), CAGR similar
+(10.57% vs 11.37%), and Sharpe dramatically stronger (12.50 vs 6.33).

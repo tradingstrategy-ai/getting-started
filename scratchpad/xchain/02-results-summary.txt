@@ -1,0 +1,10 @@
+CAGR=11.37%  Sharpe=6.33  MaxDD=-0.70%  Trades=274
+
+Switching cycle_duration from cycle_1d to cycle_7d produced identical results to the
+daily baseline across all metrics. The vault interest backtester evaluates every daily
+candle regardless of the configured cycle_duration, so the parameter has no effect on
+rebalance frequency or trade count in this engine.
+
+Success criteria NOT met: CAGR did not improve (unchanged at 11.37%), trade count did
+not drop (unchanged at 274). The experiment is a conclusive negative result — cycle_duration
+is not a tunable lever for reducing turnover in the current vault-of-vaults backtester.

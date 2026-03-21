@@ -7,6 +7,40 @@ Original results (before fix) are available on the `fix/hyper-ai-remote-vault-no
 
 New results were produced by rerunning each notebook on 2026-03-19 with corrected data.
 
+## Why the bug disproportionately affected waterfall allocation
+
+The most important consequence of the fix is that **waterfall allocation went from the worst risk profile to competitive**, reversing the production allocator decision. NB143 waterfall went from Sharpe 3.16 / MaxDD -9.64% (old) to Sharpe 3.51 / MaxDD -4.5% (new), while NB142 equal-weight recycle barely changed (Sharpe 3.80 → 3.53, MaxDD -5.54% → -5.08%).
+
+The mechanism is **concentration amplifying universe errors**:
+
+- **Waterfall** allocates greedily from the top-ranked vault downwards — the #1 vault gets filled to its cap first, then #2, then #3, and so on. If the buggy cache promoted a vault that shouldn't have been highly ranked, waterfall loaded up on it with maximum size. A single incorrectly ranked vault near the top of the list could cause an outsized drawdown.
+- **Equal weight** spreads capital evenly across all selected vaults. Even if the same bad vaults were included in the universe, each one only got ~1/N of the portfolio. The damage from any single incorrectly ranked vault was capped at a small fraction of capital.
+
+The asymmetry in the correction confirms this:
+
+| Allocator | Old MaxDD | New MaxDD | Improvement |
+|---|---|---|---|
+| waterfall | -9.64% | -4.50% | +5.14pp |
+| equal_weight_recycle | -5.54% | -5.08% | +0.46pp |
+
+Waterfall improved 11× more than equal weight on MaxDD. If the bug were adding noise equally to all allocators, the shifts would be similar. Instead, the concentrated allocator absorbed the full impact of incorrect vault rankings while the diversified allocator was naturally hedged.
+
+In short: equal weight's robustness to universe errors was masking the bug, while waterfall was faithfully amplifying it. The old conclusion that "waterfall has terrible risk" was really "waterfall exposes universe data quality problems that equal weight hides."
+
+### NB150 allocator ablation (rerun 2026-03-19)
+
+The corrected NB150 allocator ablation confirms the reversal with both performance and deployment metrics:
+
+| Allocator | Cum. return | CAGR | Sharpe | Sortino | Max DD | Mean accepted | Mean cash |
+|---|---|---|---|---|---|---|---|
+| `signal_proportional_no_recycle` | 82.10% | 169.1% | **3.73** | 14.19 | **-3%** | 82.6% | 19.5% |
+| `equal_weight_no_recycle` | 80.44% | 165.1% | 3.64 | 12.75 | -4% | 81.4% | 20.7% |
+| `equal_weight_recycle` | 87.77% | 183.1% | 3.50 | 10.65 | -5% | 89.3% | 13.0% |
+| `capacity_aware_equal_weight` | 89.30% | 186.9% | 3.64 | 13.10 | -4% | 84.8% | 17.4% |
+| `waterfall` | **120.45%** | **269.0%** | 3.47 | 13.29 | -4% | **98.5%** | **4.1%** |
+
+Waterfall now leads on CAGR (269% vs next-best 187%), has competitive risk (Sharpe 3.47, MaxDD -4%), and dominates deployment (98.5% accepted, only 4.1% cash, 100% of cycles above 75% deployed). The old risk objection (Sharpe 3.16, MaxDD -10%) was an artefact of the buggy universe.
+
 ## Results table
 
 | # | Notebook | Summary | Old results (CAGR / Sharpe / MaxDD) | New results (CAGR / Sharpe / MaxDD) |
@@ -100,7 +134,7 @@ New results were produced by rerunning each notebook on 2026-03-19 with correcte
 | NB147 | 147-hyperliquid-equal-weight-recycle-event-exclusion-stress | Stress test of equal-weight recycle by excluding major market events. Tests whether results are driven by particular market episodes. | 190.45% / 3.8 / -5.54% | 185.77% / 3.53 / -5.08% |
 | NB148 | 148-hyperliquid-equal-weight-recycle-execution-friction-stress | Stress test with execution friction costs (higher slippage, fees). Validates that equal-weight recycle remains viable under realistic transaction cost assumptions. | 190.45% / 3.8 / -5.54% | 166.79% / 3.48 / -7.67% |
 | NB149 | 149-hyperliquid-equal-weight-recycle-universe-perturbation | Stress test with universe perturbation (removing/adding random vaults). Tests robustness of equal-weight recycle to universe construction choices. | 190.45% / 3.8 / -5.54% | 166.79% / 3.48 / -7.67% |
-| NB150 | 150-hyperliquid-equal-weight-recycle-allocator-ablation | Ablation study of allocator components within equal-weight recycle. Tests which parts of the allocator contribute most to performance. | 190.45% / 3.8 / -5.54% | 166.79% / 3.48 / -7.67% |
+| NB150 | 150-hyperliquid-equal-weight-recycle-allocator-ablation | Ablation study of allocator variants. **Waterfall now leads on both CAGR (269%) and deployment (98.5% accepted, 4.1% cash) with competitive risk (Sharpe 3.47, MaxDD -4%).** equal_weight_recycle demoted to worst MaxDD (-5%) and worst Sortino. See analysis above. | 190.45% / 3.8 / -5.54% | 166.79% / 3.48 / -7.67% |
 | NB151 | 151-hyperliquid-equal-weight-recycle-stability-ideas | Explores stability-improving ideas for equal-weight recycle: turnover constraints, position persistence, gradual rebalancing. Research notebook. | — / — / — | 265.52% / 3.78 / -9.69% |
 | NB152 | 152-hyperliquid-equal-weight-recycle-minimum-hold-3d | Tests minimum hold period of 3 days for equal-weight recycle. Reduces portfolio turnover and trading costs by preventing rapid position changes. | — / — / — | 192.95% / 3.03 / -6.8% |
 | NB153 | 153-research-hyperliquid-equal-weight-recycle-minimum-hold-cleanup | Clean-up research variant of minimum hold period testing. Explores the minimum hold constraint in a simplified, focused research context. | — / — / — | 81.72% / 2.13 / -6.17% |

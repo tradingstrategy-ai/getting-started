@@ -1,0 +1,64 @@
+Experiment 3: Age bucket equal weight (04-backtest-age-bucket-equal.ipynb)
+==========================================================================
+
+Hypothesis: Replace smooth age_ramp with age_bucket_equal for cross-chain vaults.
+
+Baseline (01-initial.ipynb):  CAGR=11.37%  Sharpe=6.33   MaxDD=-0.70%
+Age bucket equal:             CAGR=10.29%  Sharpe=11.85  MaxDD=-0.27%
+
+Delta:                        CAGR=-1.08pp Sharpe=+5.52  MaxDD=+0.43pp (improved)
+
+Detailed metrics
+----------------
+Cumulative return:    6.11%
+CAGR:                 10.29%
+Sharpe:               11.85
+Sortino:              22.66
+Max drawdown:         -0.27%
+Trades:               315
+Positions:            50
+Positions < 3d:       1 (2%)
+Median position days: 68.5
+Final equity:         106,109.45 USD
+
+Allocation
+----------
+Final candidate signals:        58
+Final selected survivors:       20
+Accepted positions:             20
+Mean accepted / investable:     99.99%
+Mean accepted position USD:     5,199.36
+Median accepted position USD:   5,199.36
+
+Top contributors (total return %)
+---------------------------------
+cSuperior Quality Private Credit USDC:  9.67%
+Plutus Hedge Token:                     7.56%
+HYPE++:                                 7.19%
+hyUSD0 (Looped HYPE) - 9:              5.56%
+hyUSD0 (hwHLP) - 11:                   5.56%
+Llama Lend asdCRV / crvUSD:            5.01%
+Senior ArcadiaV2 USD Coin:             4.79%
+ETH Strategy Perpetual Note:            4.46%
+Wrapped Senior ArcadiaV2 USD Coin:      4.43%
+Harvest: USDC Vault (0xC777):           4.24%
+
+Key findings
+------------
+1. Sharpe nearly doubled (6.33 -> 11.85) and max drawdown halved (-0.70% -> -0.27%).
+   The bucket approach is clearly superior on a risk-adjusted basis.
+
+2. CAGR dropped modestly (11.37% -> 10.29%), suggesting the smooth ramp captured
+   a small amount of age-driven alpha, but the risk reduction more than compensates.
+
+3. The portfolio explored far more vaults (50 positions vs 18) with longer median
+   holds (68.5d), indicating more measured rotation and less unnecessary churn.
+
+4. All 50 positions were profitable with zero losses, confirming broad-based
+   diversification rather than reliance on a few high-performers.
+
+5. Turning off waterfall normalisation produced perfectly even position sizing
+   (mean = median = 5,199 USD), consistent with the equal-weight bucket design.
+
+Verdict: Age bucket equal weight is a clear improvement over the baseline for
+cross-chain vaults. Recommend as the default weighting method.

@@ -1,0 +1,22 @@
+CAGR=11.42%  Sharpe=6.31  MaxDD=-0.70%  Trades=285
+
+Chain-aware sleeve sizing with a 40% per-chain signal cap produced results
+virtually identical to the baseline (11.37% CAGR, 6.33 Sharpe, -0.70% max DD).
+
+The cap is not binding for the current 58-vault hand-curated universe. The raw
+signal distribution already balances across chains: HyperEVM 20.2%, Arbitrum
+20.1%, Base 20.0%, Ethereum 16.3%, Avalanche 14.9%, Monad 8.4% — all well
+below 40%.
+
+Despite balanced signal weights, realised PnL remains concentrated in Arbitrum
+(48.5%), Base (27.5%), and Ethereum (23.2%). HyperEVM and Avalanche together
+contributed less than 1%. This is a vault-quality problem, not a signal-weighting
+problem.
+
+Success criteria NOT fully met: chain contribution did not become more balanced
+in PnL terms, Sharpe is similar (6.31 vs 6.33), and the mechanism is a no-op
+for this universe. However, the mechanism is mechanically correct and would
+provide insurance against future universe composition changes.
+
+Conclusive negative for the hypothesis that explicit chain caps improve
+diversification in the current universe.

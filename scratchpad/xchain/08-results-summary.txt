@@ -1,0 +1,32 @@
+Experiment 08: Reduced breadth (max_assets_in_portfolio = 12 vs baseline 20)
+
+Baseline (01-initial):  CAGR=11.37%  Sharpe=6.33  MaxDD=-0.70%  Positions=18
+Experiment 08:          CAGR=11.26%  Sharpe=6.23  MaxDD=-0.70%  Positions=20
+
+Delta:                  CAGR=-0.11pp  Sharpe=-0.10  MaxDD=+0.00pp
+
+Final equity:         106,672.55 USD (from 100,000 USD)
+Cumulative return:    6.67%
+Sortino:              9.10 (vs 9.17 baseline)
+Trades:               275 (vs 274 baseline)
+Positions:            20 (vs 18 baseline)
+Final survivors:      12 (vs 20 baseline)
+Accepted positions:   9 (same as baseline)
+Median position days: 84.0 (vs 93.5 baseline)
+Win days:             84.16% (vs 84.62% baseline)
+Win months:           100% (same)
+Position win %:       90.91%
+Positions < 3 days:   0
+
+Top contributors by PnL:
+  1. cSuperior Quality Private Credit USDC (Ethereum)  +1,318.30 USD  11.23%
+  2. HYPE++ (Arbitrum)                                 +796.33 USD    6.35%
+  3. Senior ArcadiaV2 USD Coin (Base)                  +667.74 USD    5.51%
+  4. Wrapped Senior ArcadiaV2 USD Coin (Base)          +645.33 USD    5.08%
+  5. Ostium Liquidity Pool Vault (Arbitrum)             +613.79 USD    4.14%
+
+Conclusion: The reduced 12-vault basket produced nearly identical metrics to the
+20-vault baseline. The hypothesis that fewer vaults would raise return per vault
+was not confirmed. The universe's alpha is naturally concentrated in ~9-12 vaults,
+so the 20-vault cap already accommodates this without penalty. Reducing breadth
+offers no material benefit for this cross-chain universe.

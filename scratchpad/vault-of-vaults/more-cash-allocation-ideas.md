@@ -34,150 +34,59 @@ The later notebooks changed that picture:
 
 The practical implication is that the next ideas should focus on **allocation mechanics**, not on inventing a new signal family.
 
+## Correction notice (2026-03-19)
+
+All notebooks from NB63 onwards were affected by a cache bug in Hyperliquid vault universe curation. The bug caused incorrect vault universe data to be used in backtests. The results below were updated after rerunning NB150 on 2026-03-19 with corrected data. See `rerun-differences.md` for the full rerun table.
+
+The most significant change is that **waterfall allocation is no longer the worst risk profile**. The old waterfall result (Sharpe 3.16, MaxDD -10%) was an artefact of the buggy universe. Corrected waterfall achieves Sharpe 3.47 and MaxDD -4%, which reverses the original decision to choose equal-weight recycle over waterfall.
+
 ## Lessons learnt from the NB142 robustness run
 
-The strongest new lesson is that NB142 now looks like a **real allocation architecture**, not just a lucky single backtest. The confidence does not come from one number, but from the pattern across NB145 to NB150:
+NB142 looks like a real allocation architecture, not just a lucky single backtest. The confidence comes from the pattern across NB145 to NB150:
 
 - the local optimiser in NB145 stayed in the same family instead of escaping to a different regime
 - the walk-forward notebook in NB146 kept deployment very high in every fold
 - the event-exclusion notebook in NB147 showed real event sensitivity, but not a complete collapse from removing one short cluster
 - the execution-friction notebook in NB148 showed the strategy is more sensitive to capacity than to small ticket thresholds
 - the universe-perturbation notebook in NB149 showed the strategy is not a one-vault artefact
-- the allocator ablation in NB150 showed that the final sizing rule really matters, and that deployment-aware evaluation gives a different answer from pure performance tables
+- the allocator ablation in NB150 showed that waterfall is now competitive on risk while delivering the highest CAGR
 
-### The deployment fix is more robust than the alpha magnitude
+### Allocator ablation (NB150 — rerun 2026-03-19)
 
-This is the most important distinction from the new batch.
+NB150 held the thresholds fixed and changed only the final allocator.
 
-NB145 found a supportive local plateau around:
+Performance:
 
-- `max_assets_in_portfolio=18`
-- `max_concentration=0.10`
-- `min_tvl=7.5k`
-- `min_age=0.075`
-- `age_ramp_period=0.75`
+| Allocator | Cum. return | CAGR | Sharpe | Sortino | Max DD |
+|---|---|---|---|---|---|
+| `signal_proportional_no_recycle` | 82.10% | 169.1% | **3.73** | 14.19 | **-3%** |
+| `equal_weight_no_recycle` | 80.44% | 165.1% | 3.64 | 12.75 | -4% |
+| `equal_weight_recycle` | 87.77% | 183.1% | 3.50 | 10.65 | -5% |
+| `capacity_aware_equal_weight` | 89.30% | 186.9% | 3.64 | 13.10 | -4% |
+| `waterfall` | **120.45%** | **269.0%** | 3.47 | 13.29 | -4% |
 
-Its fixed rerun delivered:
+Deployment:
 
-- `99.11%` cumulative return
-- `211.88%` CAGR
-- `3.85` Sharpe
-- `17.53` Sortino
-- `-6.21%` max drawdown
-- `84.05%` final accepted / investable
-- `87.33%` mean accepted / investable
-- `14.95%` mean cash
+| Allocator | Mean accepted / investable | Mean cash % | Final cash % | Cycles > 75% deployed |
+|---|---|---|---|---|
+| `signal_proportional_no_recycle` | 82.6% | 19.5% | 29.2% | 91.9% |
+| `equal_weight_no_recycle` | 81.4% | 20.7% | 29.1% | 97.3% |
+| `equal_weight_recycle` | 89.3% | 13.0% | 17.3% | 94.6% |
+| `capacity_aware_equal_weight` | 84.8% | 17.4% | 26.7% | 98.2% |
+| `waterfall` | **98.5%** | **4.1%** | **2.1%** | **100.0%** |
 
-That says the equal-weight recycle family is not a knife-edge point estimate. But the walk-forward results in NB146 show the return stream is still uneven through time:
+Key changes versus the old (buggy) run:
 
-- `90/30` scheme: `2/4` positive folds
-- `120/30` scheme: `1/3` positive folds
-- `120/45` scheme: `1/2` positive folds
+- **Waterfall** went from the worst risk profile (Sharpe 3.16, MaxDD -10%) to competitive (Sharpe 3.47, MaxDD -4%). It now leads on CAGR by a wide margin while matching the middle of the pack on risk. It also dominates deployment: 98.5% mean accepted/investable, only 4.1% mean cash, and 100% of cycles above 75% deployed.
+- **equal_weight_recycle** now has the **worst** MaxDD (-5%) and worst Sortino (10.65) of all five allocators. Its deployment advantage (89.3% accepted) is real but much smaller than waterfall's (98.5%).
+- **capacity_aware_equal_weight** emerges as the most balanced choice on performance: second-best CAGR, tied-best MaxDD, second-best Sharpe. However its deployment (84.8% accepted, 17.4% mean cash) is worse than equal_weight_recycle.
+- **signal_proportional_no_recycle** has the best Sharpe (3.73) and best MaxDD (-3%) but lowest CAGR and worst deployment (82.6% accepted, 19.5% cash).
 
-At the same time, deployment remained strong in every fold:
+The production shortlist should now be:
 
-- mean accepted deployment stayed around `94.9%`
-- every fold stayed above `75%` deployment
-
-So the honest read is: the allocator is robust, but the realised edge is still opportunistic rather than smooth.
-
-### Event sensitivity is real, but this is not a one-day fake
-
-NB147 showed how much of the result depended on the strongest realised days.
-
-Baseline NB142:
-
-- `90.71%` cumulative return
-- `3.80` Sharpe
-- `16.15` Sortino
-
-Removing the `2026-02-04` to `2026-02-08` cluster:
-
-- `47.87%` cumulative return
-- `3.24` Sharpe
-- `10.55` Sortino
-
-Removing the top `5` gain days:
-
-- `26.54%` cumulative return
-- `2.67` Sharpe
-
-Removing the top `10` gain days:
-
-- `5.93%` cumulative return
-- `0.97` Sharpe
-- `1.47` Sortino
-
-This means the strategy is not reducible to one lucky jump, but the magnitude of the final result was still strongly amplified by a relatively small number of exceptional days.
-
-### Capacity remains the real bottleneck
-
-NB148 is important because it shows where the strategy is actually fragile.
-
-Baseline NB142:
-
-- `90.71%` cumulative return
-- `3.80` Sharpe
-- `89.37%` mean accepted deployment
-
-Higher minimum trade threshold:
-
-- almost unchanged
-
-Tighter pool cap:
-
-- `78.37%` cumulative return
-- `3.70` Sharpe
-- `84.84%` mean accepted deployment
-
-Lower allocation:
-
-- `84.09%` cumulative return
-- `3.83` Sharpe
-
-Combined harsher case:
-
-- `75.01%` cumulative return
-- `3.72` Sharpe
-
-The deployment breakthrough is therefore not a fragile ticket-rounding artefact. The true long-term limit is still vault capacity. That pushes future work towards capacity-aware deployment and concentration control rather than tiny rebalance-threshold tweaks.
-
-### The strategy is not one-vault luck, but top winners still matter
-
-NB149 removed the biggest contributors and reran the strategy.
-
-Baseline rerun:
-
-- `90.71%` cumulative return
-- `3.80` Sharpe
-
-Exclude top `1` PnL vault:
-
-- `59.61%` cumulative return
-- `2.67` Sharpe
-- `-12%` max drawdown
-
-Exclude top `3` PnL vaults:
-
-- `43.60%` cumulative return
-- `2.01` Sharpe
-- `-9%` max drawdown
-
-So the architecture survives those removals, which is good evidence against a single-vault artefact. But the step-down is still large, so the biggest winners clearly mattered to the final magnitude of the result.
-
-### Allocator choice matters, and pure performance tables are not enough
-
-NB150 held the thresholds fixed and changed only the final allocator:
-
-- `signal_proportional_no_recycle`: `84.36%` cumulative return, `3.82` Sharpe, `17.54` Sortino
-- `equal_weight_no_recycle`: `84.81%` cumulative return, `3.84` Sharpe, `17.92` Sortino
-- `equal_weight_recycle`: `90.71%` cumulative return, `3.80` Sharpe, `16.15` Sortino
-- `capacity_aware_equal_weight`: `91.89%` cumulative return, `3.79` Sharpe, `18.31` Sortino
-- `waterfall`: `112.85%` cumulative return, `3.16` Sharpe, `-10%` max drawdown
-
-This is a very useful lesson. If we looked only at Sharpe or Sortino, we might prefer a no-recycle allocator or the mild capacity-aware variant. If we looked only at raw return, waterfall would win. But those reads miss the whole reason these experiments were started: idle cash and deployability.
-
-Once the earlier direct capital-utilisation audits are brought back into the picture, equal-weight recycle still looks like the cleanest production compromise.
+1. **Waterfall** — highest CAGR by far (269%), competitive risk (Sharpe 3.47, MaxDD -4%), and best deployment (98.5% accepted, 4.1% cash). Needs walk-forward validation of the corrected results.
+2. **equal_weight_recycle** — second-best deployment (89.3% accepted, 13.0% cash), moderate CAGR (183.1%), but worst MaxDD (-5%) and Sortino.
+3. **capacity_aware_equal_weight** — most balanced performance profile (186.9% CAGR, Sharpe 3.64, MaxDD -4%) but weaker deployment (84.8% accepted, 17.4% cash).
 
 ### Practical conclusion
 
@@ -185,11 +94,13 @@ The best current read is:
 
 - keep `age_ramp` as the selector
 - keep survivor-first logic as the structural starting point
-- treat equal-weight recycle as the current best deployable default
+- **waterfall deserves walk-forward validation** as a production candidate — the risk objection that ruled it out was based on buggy data
+- **capacity_aware_equal_weight** is the conservative fallback if waterfall concentration proves fragile out-of-sample
+- equal-weight recycle remains a viable option but is no longer the default recommendation
 - treat the remaining problem as a capacity and concentration problem, not a signal problem
 - be explicit that the strategy is deployable and structurally real, but still opportunistic and event-amplified
 
-That means the next allocation ideas should try to improve capacity absorption and concentration discipline without giving back the deployment gains that NB142 achieved.
+That means the next allocation ideas should validate the waterfall's corrected risk profile out-of-sample, and compare it against capacity-aware equal weight under realistic friction.
 
 ## Design principles
 
@@ -251,25 +162,17 @@ Use `age_ramp` only to decide which vaults survive into the accepted set. After 
 
 - Equal weighting may still create too many borderline tickets if the accepted set remains too wide.
 
-## Priority 2: capped waterfall across accepted survivors
+## Priority 2: walk-forward validation of waterfall
 
 ### Idea
 
-Use a waterfall or greedy allocator after the accepted set is known. Allocate first to the highest-ranked survivors, then continue down the list until capital is exhausted, while respecting concentration and pool-size caps.
-
-### Why this is worth testing
-
-- Waterfall logic historically deployed cash efficiently in earlier notebooks.
-- It is naturally compatible with discrete ticket sizes.
-- It should reduce the “many small leftovers” problem better than smooth proportional weights.
+The NB150 rerun (2026-03-19) showed that waterfall now has the best CAGR (269%) with competitive risk (Sharpe 3.47, MaxDD -4%). The old risk objection (Sharpe 3.16, MaxDD -10%) was based on buggy universe data. Waterfall needs walk-forward validation before it can replace equal-weight recycle as the production default.
 
 ### Implementation sketch
 
-1. Use the current survivor-first `age_ramp` selection.
-2. Build the accepted set.
-3. Allocate greedily from the top-ranked survivor downwards.
-4. Respect `max_concentration`, pool-size caps, and minimum trade size.
-5. Stop when the next ticket would be too small or no further names can absorb size.
+1. Use the current survivor-first `age_ramp` selection with waterfall allocation.
+2. Run walk-forward with the same fold structure as NB146.
+3. Compare holdout performance against equal-weight recycle and capacity-aware equal weight.
 
 ### Variants worth checking
 
@@ -279,13 +182,13 @@ Use a waterfall or greedy allocator after the accepted set is known. Allocate fi
 
 ### What would count as success
 
-- Higher final and mean deployment than the broad Sharpe family.
-- Drawdown still below the aggressive NB130-style branch.
-- Clear reduction in idle cash caused by discrete ticket rounding.
+- Waterfall maintains its CAGR advantage out-of-sample.
+- MaxDD stays below -6% across folds (confirming the corrected -4% is not an artefact).
+- Sharpe stays above 3.0 across folds.
 
 ### Main risk
 
-- Concentration may rise too quickly and undo the risk improvements from the Sharpe family.
+- Concentration may still rise in specific folds and undo the risk improvements seen in the full-period backtest.
 
 ## Priority 3: capacity-aware equal weight
 
@@ -370,11 +273,13 @@ These do not look like the best next use of time:
 
 ## Recommended notebook sequence
 
+Updated after the 2026-03-19 universe cache fix and NB150 rerun.
+
 Suggested next experiment order:
 
-1. Refine accepted-set equal weight with survivor-first recycling
-2. Test a more disciplined capacity-aware equal-weight recycle variant
-3. Test capped waterfall only as an upper-bound deployment benchmark
+1. Walk-forward validate waterfall with corrected data (highest priority — the risk objection was based on buggy results)
+2. Walk-forward validate capacity-aware equal weight as a conservative alternative
+3. Refine accepted-set equal weight with survivor-first recycling
 4. Explore a discrete knapsack-style allocator if simpler methods still leave meaningful cash idle
 5. Test a residual cash sleeve only if the main allocator is already correct
 

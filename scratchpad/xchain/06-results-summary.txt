@@ -1,0 +1,50 @@
+06-backtest-flow-confirmation results summary
+==============================================
+
+Experiment: Add TVL flow confirmation for entries (experiment 5 from EXPERIMENTS.md)
+Based on: 01-initial.ipynb
+Parameters: flow_window=30, flow_confirmed_boost=1.5, flow_unconfirmed_floor=0.5
+
+Metrics
+-------
+Final equity:          105,855.97 USD (from 100,000 USD)
+Cumulative return:     5.86%
+CAGR:                  9.85%
+Sharpe:                6.34
+Sortino:               8.24
+Max drawdown:          -0.71%
+Calmar:                13.85
+Trades:                2,087
+Positions:             922
+Positions < 3 days:    736 (79.8%)
+Median position days:  1.0
+Final candidates:      58
+Final survivors:       23
+
+Baseline comparison (NB01)
+--------------------------
+Metric               NB01      NB06      Delta
+CAGR                 11.37%    9.85%     -1.52 pp
+Sharpe               6.33      6.34      +0.01
+Sortino              9.17      8.24      -0.93
+Max drawdown         -0.70%    -0.71%    -0.01 pp
+Calmar               16.24     13.85     -2.39
+Trades               274       2,087     +1,813
+Positions            18        922       +904
+Positions < 3d       0         736       +736
+Median pos. days     93.5      1.0       -92.5
+
+Verdict
+-------
+FAILED — the hypothesis is not supported.
+
+The binary flow confirmation gate applied daily causes extreme position churn.
+Daily TVL percentage changes oscillate between positive and negative frequently,
+so the 0.5x floor triggers position exits and the 1.5x boost triggers re-entries
+on a near-daily basis. This destroyed position stability without improving returns.
+
+CAGR fell by 1.52 pp, Sortino fell by 0.93, and position count exploded from 18
+to 922 with 79.8% of positions lasting fewer than 3 days.
+
+The flow confirmation concept needs smoothing (longer window, threshold band,
+or EMA-based signal) to avoid reacting to daily TVL measurement noise.

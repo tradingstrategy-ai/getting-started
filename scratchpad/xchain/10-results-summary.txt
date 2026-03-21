@@ -1,0 +1,35 @@
+Experiment 10: Deposit-closed vault handling
+=============================================
+Based on: 01-initial.ipynb
+Hypothesis: Blocking new entries into vaults with declining TVL improves capital routing
+
+Parameters changed from baseline:
+  tvl_decline_threshold = -0.10  (new)
+  deposit_check_window  = 30     (new)
+
+Metrics (experiment vs baseline):
+  CAGR:              11.26% vs 11.37%  (-0.11pp)
+  Sharpe:             6.23 vs  6.33   (-0.10)
+  Sortino:            9.11 vs  9.17   (-0.06)
+  Max drawdown:      -0.70% vs -0.70% (unchanged)
+  Cumulative return:  6.67% vs  6.74% (-0.07pp)
+  Trades:              275 vs   274   (+1)
+  Positions:            20 vs    18   (+2)
+  Median position days: 84.0 vs 93.5  (-9.5d)
+
+Capital utilisation:
+  Mean accepted / investable: 100%
+  Mean cash % of equity:      2.5%
+  Median cash % of equity:    2.1%
+
+Success criteria check:
+  [PASS] Idle cash does not rise (2.5% mean, 100% deployment)
+  [NEUTRAL] Realised return is marginally lower — filter barely fires on this curated universe
+  [PASS] No positions stuck in stale names — filter blocks new entries only
+
+Conclusion:
+  The deposit-closed filter has near-zero impact on this curated cross-chain
+  universe because very few vaults show sustained TVL declines of 10% or more
+  over 30 days. The filter is safe to include as a guardrail — it does not
+  strand capital or degrade performance — but its main value will appear in
+  broader or live universes where deposit closures are more common.
