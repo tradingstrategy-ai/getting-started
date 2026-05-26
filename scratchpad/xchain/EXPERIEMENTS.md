@@ -272,6 +272,8 @@ All 10 experiments were run against the `01-initial.ipynb` baseline (11.37% CAGR
 | 8 | Chain-aware sleeve (40%) | 09-backtest-chain-aware-sleeve | 11.42% | 6.31 | -0.70% | 285 | 18 | Neutral |
 | 9 | Deposit-closed filter | 10-backtest-deposit-closed | 11.26% | 6.23 | -0.70% | 275 | 20 | Neutral |
 | 10 | Carry-first architecture | 11-backtest-carry-first | 9.74% | 22.83 | -0.04% | 290 | 98 | Mixed |
+| 11 | Trend + vol-of-vol search | 12-opt-trend-volvol-search | 10.40% | 41.50 | -0.08% | 226 | 68 | Success |
+| 12 | Trend overlay validation | 13-research-trend-overlay-validation | 11.20% | 35.53 | -0.06% | 167 | 24 | Validated |
 
 ## Experiment 1 — Slower rebalance
 
@@ -353,11 +355,31 @@ The carry-first architecture (equal-weight, young vault discount, mild trend R²
 
 **Lesson learnt:** The carry-first approach works mechanically but may be too smooth. It confirms that equal-weight + mild overlays is a strong base for this universe, but some selection alpha is needed to recover CAGR without breaking the smoothness.
 
+## Experiment 11 — Trend + vol-of-vol parameter search
+
+**Notebook:** `12-opt-trend-volvol-search.ipynb` | **Verdict:** Success
+
+Combining the trend R² overlay (Experiment 4) with the vol-of-vol veto (Experiment 6) in a joint parameter search over 108 combinations produced a best Sharpe of 41.50 with CAGR 10.40% and max drawdown -0.08%. Best parameters: `trend_blend=0.5`, `trend_window=60`, `vol_window=90`, `volvol_veto_percentile=0.5`. The combined result exceeded both individual experiments on risk-adjusted metrics (Sharpe 41.50 vs 28.56/32.21), confirming the two overlays capture different risk dimensions. The aggressive volvol veto (0.5 percentile) was the most influential parameter. CAGR was stable across all 108 combinations (9.65%–11.66%), suggesting strong parameter robustness.
+
+**Lesson learnt:** Trend quality and vol-of-vol instability are complementary filters. The combined overlay is the strongest risk-reduction configuration tested so far. The `0.75` veto percentile may be preferable in production for robustness over the more aggressive `0.5`.
+
+## Experiment 12 — Trend overlay robustness validation
+
+**Notebook:** `13-research-trend-overlay-validation.ipynb` | **Verdict:** Validated
+
+Three independent robustness checks on the Experiment 4 trend overlay:
+
+1. **Event exclusion**: removing the top 10 gain days barely moved Sharpe (34.96 vs 35.53). The result is not driven by a few lucky days.
+2. **Universe perturbation**: removing the top 1 PnL vault dropped Sharpe to 20.12 (still strong); removing the top 3 dropped it to 5.96 (moderate concentration risk).
+3. **Walk-forward**: all 7/7 holdout folds (30-day periods) were positive, with Sharpe ranging 20.89–48.79.
+
+**Lesson learnt:** The trend overlay is a genuine signal, not in-sample luck. However, its risk-adjusted magnitude partly depends on having a few strong carry vaults in the universe. The mechanism (rewarding smooth compounders) is sound and temporally stable.
+
 ## Key cross-experiment findings
 
 1. **Equal-weight sizing is the single most impactful change.** Experiments 2, 3, and 10 all confirm that removing waterfall concentration dramatically improves risk-adjusted returns for this low-dispersion universe.
 
-2. **Trend quality (R²) and vol-of-vol veto are complementary risk reducers.** Both produced Sharpe above 28 with tiny drawdowns. Combining them in a future experiment is a natural next step.
+2. **Trend quality (R²) and vol-of-vol veto are complementary risk reducers.** Both produced Sharpe above 28 individually, and the combined search (Experiment 11) achieved Sharpe 41.50, confirming the overlays address different risk dimensions.
 
 3. **The vault backtester ignores `cycle_duration`.** Any rebalance cadence experiment needs a different approach (e.g. cycle-skip logic in `decide_trades`).
 
