@@ -1,5 +1,7 @@
 Update the crosschain configuration in  notebook to contain top 10 vaults based on one year returns from
 
+Before selecting vaults, read `../../.claude/docs/vault-selection.md` for the current vault data download paths, fields, scripts, and example notebooks.
+
 - Arbitrum
 - Base 
 - Ethereum

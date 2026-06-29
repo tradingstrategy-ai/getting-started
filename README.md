@@ -171,6 +171,8 @@ This allows you to "brute force search" better strategies and explore the behavi
 
 # Example research only notebooks
 
+For internal notes on selecting DeFi vault universes, downloading vault data, and using vault helper scripts, see [vault selection](./.claude/docs/vault-selection.md).
+
 - [Uniswap CSV export of top 100 pairs](./scripts/uniswap-trading-universe/01-export-csv-uniswap-v2-v3-ethereum-top-100.py)
   - This Python script downloads 1d trading data for all DEX pairs
   - From this dataset we export OHCLV CSV for top 100 most liquid pairs on Uniswap v2 and v3 on Ethereum

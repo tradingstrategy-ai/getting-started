@@ -93,6 +93,7 @@ Don't format code.
 ## Python notebooks
 
 - Whenever possible, prefer table output instead of print(). Use Pandas DataFrame and notebook's built-in display() function to render tabular data.
+- For vault selection workflows, read `.claude/docs/vault-selection.md` before editing vault universe lists or recommending vault candidates.
 
 ## Editing files
 
