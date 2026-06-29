@@ -9,6 +9,7 @@ Usage:
     poetry run python scripts/filter-top-vaults.py
     poetry run python scripts/filter-top-vaults.py --top 15
     poetry run python scripts/filter-top-vaults.py --min-tvl 200000
+    poetry run python scripts/filter-top-vaults.py --morpho-vault-flag-ignore red-and-yellow
 """
 
 import argparse
@@ -69,6 +70,7 @@ DEFAULT_MIN_AGE = 0.3
 SORT_PERIOD = "1Y"
 
 TRACKED_PERIODS = ("1M", "3M", "1Y")
+MORPHO_VAULT_FLAG_FILTER_CHOICES = ("none", "red-only", "red-and-yellow")
 
 
 def main():
@@ -88,6 +90,18 @@ def main():
     parser.add_argument(
         "--json", action="store_true",
         help="Output as JSON instead of Python code",
+    )
+    parser.add_argument(
+        "--morpho-vault-flag-ignore",
+        "--morpho-vault-flag-filter",
+        dest="morpho_vault_flag_filter",
+        choices=MORPHO_VAULT_FLAG_FILTER_CHOICES,
+        default="none",
+        help=(
+            "Filter out vaults with Morpho vault display flags by severity: "
+            "none keeps current behaviour, red-only excludes red flags, "
+            "red-and-yellow excludes red and yellow flags."
+        ),
     )
     args = parser.parse_args()
 
@@ -109,6 +123,7 @@ def main():
         excluded_flags=EXCLUDED_FLAGS,
         require_known_protocol=REQUIRE_KNOWN_PROTOCOL,
         hypercore_min_tvl=HYPERCORE_MIN_TVL,
+        morpho_vault_flag_filter=args.morpho_vault_flag_filter,
         top_n_override=args.top,
     )
 
@@ -132,6 +147,7 @@ def main():
                     "deposit_closed_reason": v.deposit_closed_reason,
                     "must_include": v.must_include,
                     "excluded": v.excluded,
+                    "vault_display_flags": v.vault_display_flags,
                 })
         print(json.dumps(output, indent=2))
     else:
@@ -142,6 +158,7 @@ def main():
             default_min_age=DEFAULT_MIN_AGE,
             sort_period=SORT_PERIOD,
             tracked_periods=TRACKED_PERIODS,
+            morpho_vault_flag_filter=args.morpho_vault_flag_filter,
         ))
 
 
