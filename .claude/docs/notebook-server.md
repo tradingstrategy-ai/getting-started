@@ -4,6 +4,8 @@ Use `poetry run notebook-static-server` to view saved notebook outputs from a br
 
 The server renders existing `.ipynb` files to static HTML. It does not rerun notebooks, start kernels, call `jupyter execute`, or refresh stale outputs. Run the notebook separately first if you need fresh results.
 
+Always use this static server for notebook previews. Do not start `jupyter notebook`, `jupyter lab`, or another live kernel server when the task is only to preview saved notebook outputs.
+
 ## Supported notebooks
 
 The server only serves notebooks from these repository folders:
@@ -21,6 +23,8 @@ Start from the repository root:
 poetry run notebook-static-server --port 8765
 ```
 
+Do not pass `--host 127.0.0.1` for normal preview use. By default the server binds to all IPv4 network interfaces with `0.0.0.0` on the selected port, so the preview is reachable through loopback and Tailscale. In socket terms this means all available IPv4 addresses, not a single local address. If `8765` is already in use, choose another port with `--port`.
+
 Open:
 
 ```text
@@ -34,7 +38,7 @@ viewer
 viewer
 ```
 
-The server binds to `0.0.0.0` by default, but rejects clients that are not loopback or Tailscale addresses. The hardcoded Basic Auth credentials assume access happens through a trusted intranet or Tailscale.
+The server rejects clients that are not loopback or Tailscale addresses. The hardcoded Basic Auth credentials assume access happens through a trusted intranet or Tailscale.
 
 The default `0.0.0.0` bind is IPv4-only.
 
@@ -85,10 +89,22 @@ Per-notebook links use URL-escaped relative paths under `/view/`.
 Use `--url-for` to derive the viewer URL after a notebook run:
 
 ```shell
-poetry run notebook-static-server --port 8765 --public-base-url http://127.0.0.1:8765 --url-for scratchpad/xchain2/04-backtest-3m-score-weightings.ipynb
+poetry run notebook-static-server --port 8765 --url-for scratchpad/xchain2/04-backtest-3m-score-weightings.ipynb
 ```
 
-Without `--public-base-url`, the script tries `tailscale ip -4` and falls back to `127.0.0.1`.
+By default, the URL uses the machine's Tailscale MagicDNS hostname from `tailscale status --json`, for example:
+
+```text
+http://brian.tail71b97.ts.net:8765/view/scratchpad/xchain2/04-backtest-3m-score-weightings.ipynb
+```
+
+If the `*.ts.net` hostname is not available, the script falls back to `tailscale ip -4`, then to `127.0.0.1`.
+
+For a purely local URL, pass an explicit base URL:
+
+```shell
+poetry run notebook-static-server --port 8765 --public-base-url http://127.0.0.1:8765 --url-for scratchpad/xchain2/04-backtest-3m-score-weightings.ipynb
+```
 
 Tailscale URLs are internal links. They are useful in chat and internal PR comments, but external GitHub reviewers cannot open them unless they are on the same tailnet.
 
