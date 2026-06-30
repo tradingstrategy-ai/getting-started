@@ -3,10 +3,13 @@
 
 import argparse
 import base64
+import copy
 import hmac
 import html
 import ipaddress
+import json
 import os
+import re
 import subprocess
 import sys
 from http import HTTPStatus
@@ -18,6 +21,7 @@ from urllib.parse import unquote
 from urllib.parse import urlparse
 
 import nbformat
+from nbformat import NotebookNode
 from nbconvert import HTMLExporter
 
 
@@ -32,6 +36,30 @@ DEFAULT_PORT = 8765
 BASIC_AUTH_USER = "viewer"
 BASIC_AUTH_PASSWORD = "viewer"
 TAILSCALE_IPV4_NETWORK = ipaddress.ip_network("100.64.0.0/10")
+PROGRESS_OUTPUT_MESSAGE = "Backtest progress output hidden in preview. Re-run the notebook in a terminal to see live progress.\n"
+TOC_STYLE = """
+<style>
+.notebook-toc {
+  border: 1px solid #ddd;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0 2rem;
+}
+.notebook-toc h2 {
+  font-size: 1rem;
+  margin-top: 0;
+}
+.notebook-toc-level-3 {
+  margin-left: 1rem;
+}
+</style>
+"""
+HEADING_RE = re.compile(r"<h([1-3])\b([^>]*)>(.*?)</h\1>", re.IGNORECASE | re.DOTALL)
+ID_RE = re.compile(r"\bid\s*=\s*([\"'])(.*?)\1", re.IGNORECASE | re.DOTALL)
+ANCHOR_LINK_RE = re.compile(
+    r"<a\b[^>]*class\s*=\s*([\"'])[^\"']*\banchor-link\b[^\"']*\1[^>]*>.*?</a>",
+    re.IGNORECASE | re.DOTALL,
+)
+TAG_RE = re.compile(r"<[^>]+>")
 
 
 class NotebookServerError(Exception):
@@ -127,6 +155,20 @@ def get_public_base_url(port: int, public_base_url: str | None) -> str:
 
     try:
         completed = subprocess.run(
+            ["tailscale", "status", "--json"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        status = json.loads(completed.stdout)
+        dns_name = status.get("Self", {}).get("DNSName", "").rstrip(".")
+        if dns_name.endswith(".ts.net"):
+            return f"http://{dns_name}:{port}"
+    except Exception:
+        pass
+
+    try:
+        completed = subprocess.run(
             ["tailscale", "ip", "-4"],
             check=True,
             capture_output=True,
@@ -147,13 +189,182 @@ def notebook_url_for(notebook_path: str | Path, port: int, public_base_url: str 
     return get_public_base_url(port, public_base_url) + view_path_for(notebook_path)
 
 
+def get_heading_id(attributes: str) -> str | None:
+    """Extract a heading id attribute from rendered HTML."""
+
+    match = ID_RE.search(attributes)
+    if not match:
+        return None
+    return html.unescape(match.group(2))
+
+
+def get_heading_label(content: str) -> str:
+    """Extract visible heading text from rendered HTML."""
+
+    without_anchor = ANCHOR_LINK_RE.sub("", content)
+    without_tags = TAG_RE.sub("", without_anchor)
+    return html.unescape(without_tags).strip()
+
+
+def inject_toc_style(body: str) -> str:
+    """Inject table-of-contents CSS into a full HTML document."""
+
+    match = re.search(r"</head\s*>", body, re.IGNORECASE)
+    if not match:
+        return body
+    return body[: match.start()] + TOC_STYLE + body[match.start() :]
+
+
+def add_table_of_contents(body: str) -> str:
+    """Add a generated table of contents after the first heading."""
+
+    headings = list(HEADING_RE.finditer(body))
+    first_h1 = next((heading for heading in headings if heading.group(1) == "1"), None)
+    if not first_h1:
+        return body
+
+    items: list[str] = []
+    for heading in headings:
+        level = heading.group(1)
+        if heading.start() <= first_h1.start() or level not in {"2", "3"}:
+            continue
+
+        heading_id = get_heading_id(heading.group(2))
+        label = get_heading_label(heading.group(3))
+        if not heading_id or not label:
+            continue
+
+        css_class = f' class="notebook-toc-level-{level}"' if level == "3" else ""
+        href = "#" + quote(heading_id, safe="")
+        items.append(f'    <li{css_class}><a href="{html.escape(href, quote=True)}">{html.escape(label)}</a></li>')
+
+    if not items:
+        return body
+
+    toc = "\n".join(
+        [
+            '<nav class="notebook-toc" aria-label="Table of contents">',
+            "  <h2>Table of contents</h2>",
+            "  <ol>",
+            *items,
+            "  </ol>",
+            "</nav>",
+            "",
+        ]
+    )
+    body = body[: first_h1.end()] + "\n" + toc + body[first_h1.end() :]
+    return inject_toc_style(body)
+
+
+def is_progress_stream_text(text: str) -> bool:
+    """Check whether stream output is a tqdm-style progress update."""
+
+    if "\r" not in text:
+        return False
+
+    stripped = text.lstrip("\r")
+    if stripped.startswith("Backtesting "):
+        return True
+
+    return "%|" in text and "[" in text and "]" in text and ("<" in text or "it/s" in text)
+
+
+def split_progress_stream_text(text: str) -> tuple[list[str | None], bool]:
+    """Split stream text into preserved lines and progress detection status."""
+
+    if "\r" not in text:
+        return [text], False
+
+    chunks = text.split("\r")
+    parts: list[str | None] = [chunks[0]] if chunks[0] else []
+    progress_seen = False
+
+    for chunk in chunks[1:]:
+        lines = chunk.splitlines(keepends=True)
+        first_line = lines[0] if lines else ""
+        candidate = "\r" + first_line
+        if first_line and is_progress_stream_text(candidate):
+            if not progress_seen:
+                parts.append(None)
+            progress_seen = True
+            if lines[1:]:
+                parts.append("".join(lines[1:]))
+        elif chunk:
+            parts.append("\r" + chunk)
+
+    return parts, progress_seen
+
+
+def new_stream_output(name: str, text: str) -> NotebookNode:
+    """Create a notebook stream output."""
+
+    return NotebookNode(
+        {
+            "output_type": "stream",
+            "name": name,
+            "text": text,
+        }
+    )
+
+
+def clean_progress_outputs(notebook: NotebookNode) -> NotebookNode:
+    """Collapse repeated progress bar outputs for static previews."""
+
+    cleaned = copy.deepcopy(notebook)
+
+    for cell in cleaned.cells:
+        if cell.cell_type != "code":
+            continue
+
+        outputs = cell.get("outputs", [])
+        if not outputs:
+            continue
+
+        new_outputs: list[NotebookNode] = []
+        progress_seen = False
+        progress_message_inserted = False
+        progress_stream_name = "stderr"
+
+        for output in outputs:
+            if output.get("output_type") != "stream":
+                new_outputs.append(output)
+                continue
+
+            text = output.get("text", "")
+            if isinstance(text, list):
+                text = "".join(text)
+
+            stream_parts, output_has_progress = split_progress_stream_text(text)
+            if not output_has_progress:
+                new_outputs.append(output)
+                continue
+
+            progress_seen = True
+            progress_stream_name = output.get("name", progress_stream_name)
+
+            for part in stream_parts:
+                if part is None:
+                    if not progress_message_inserted:
+                        new_outputs.append(new_stream_output(progress_stream_name, PROGRESS_OUTPUT_MESSAGE))
+                        progress_message_inserted = True
+                elif part:
+                    new_outputs.append(new_stream_output(output.get("name", "stdout"), part))
+
+        if progress_seen:
+            cell["outputs"] = new_outputs
+
+    return cleaned
+
+
 def render_notebook(notebook_path: Path) -> str:
     """Render a notebook to HTML without executing it."""
 
     notebook = nbformat.read(notebook_path, as_version=4)
+    notebook = clean_progress_outputs(notebook)
     exporter = HTMLExporter()
     body, _resources = exporter.from_notebook_node(notebook)
-    return body
+    return add_table_of_contents(body)
+
 
 
 def render_index() -> str:

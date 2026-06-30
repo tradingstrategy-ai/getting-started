@@ -44,6 +44,12 @@ TQDM_LOGGABLE_FORCE=stdout poetry run jupyter execute my-notebook.ipynb --inplac
 
 This forces terminal progress output so the optimiser progress bar is visible from the calling terminal. Do not rely on notebook widgets alone.
 
+### Previewing notebooks
+
+Always use the repository static notebook preview server for browser previews. Do not start `jupyter notebook`, `jupyter lab`, or another live kernel server just to preview saved notebook outputs.
+
+Follow the [notebook server instructions](.claude/docs/notebook-server.md) for the exact commands, authentication details, Tailscale URL generation, and shutdown instructions.
+
 ### Multiple agents and kernels
 
 If multiple agents are running notebooks concurrently:
