@@ -39,17 +39,8 @@ Based on this we create a new notebook.
 - Update the notebook title and description in the first cell to reflect the new variant.
 - In the first cell, include the name of the notebook this variant is based on.
 - If the notebook heading contains research findings or other inherited results, remove them because they belong to the old notebook, not the new one.
+- If the trading universe was re-created or changed, and this was done by LLM agent with a prompt, include the comment and ruels that re-created the trading universe in the Markdown cell heading the trading universe code
 
-If there is a heatmap and the variant changes the optimiser target, remember to update it:
-
-```
-from tradeexecutor.analysis.grid_search_parameters import analyse_parameter_pair_heatmaps
-
-figs = analyse_parameter_pair_heatmaps(df, analysis_metric="Calmar")
-for fig in figs:
-    fig.show()
-
-```
 
 ### 2.b) Optimiser iterations
 
