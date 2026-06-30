@@ -73,6 +73,10 @@ We must have a worktree, branch and Github PR open.
 - Create a new PR comment that is titled with the notebook name
 - Include the summary of the results 
 - Include the equity curve and other charts extracted from the 
+- Include the notebook viewer URL from the static notebook server.
+  - Get it with `poetry run notebook-static-server --port 8765 --url-for <notebook-path>`.
+  - The server must be running from the repository root where the notebook was generated.
+  - These URLs are internal tailnet URLs. Do not expose the server through a public unauthenticated tunnel.
 
 Mention the Github PR comment link in the chat.
 
@@ -80,6 +84,12 @@ Mention the Github PR comment link in the chat.
 
 - Post the same results to LLM chat as you posted to Github
 - If the chat supports images, add the equity curve chart as a chat message
+- Include the notebook viewer URL.
+- If the static notebook server is not running, tell the user how to start it:
+
+```
+setsid poetry run notebook-static-server --port 8765 > /tmp/notebook-static-server.log 2>&1 & echo $! > /tmp/notebook-static-server.pid
+```
 
 ## 7. Verification
 
@@ -89,3 +99,4 @@ Check that Github PR comment correctly contains
 - Equity curve(s)
 - Key metrics table
 - All images render correctly
+- Notebook viewer URL renders the completed notebook
