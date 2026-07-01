@@ -108,6 +108,44 @@ poetry run notebook-static-server --port 8765 --public-base-url http://127.0.0.1
 
 Tailscale URLs are internal links. They are useful in chat and internal PR comments, but external GitHub reviewers cannot open them unless they are on the same tailnet.
 
+## Verify the notebook is served
+
+Always verify the exact per-notebook URL before reporting it. Starting the server is not proof the notebook is reachable: another server from a different (sometimes deleted) checkout can already hold the port and answer requests, so the index page loads but the specific notebook returns `404`.
+
+After starting the server and deriving the URL with `--url-for`, fetch the notebook path itself and confirm both the HTTP status and that the rendered HTML actually contains the notebook's own title.
+
+First check the status code:
+
+```shell
+curl -s -o /dev/null -w "%{http_code}\n" -u viewer:viewer \
+  "http://127.0.0.1:8765/view/scratchpad/xchain2/08-backtest-capped-waterfall.ipynb"
+```
+
+Interpret the status code:
+
+- `200` — the server answered. Continue to the title check below.
+- `401` — Basic Auth failed. Use the `viewer:viewer` credentials.
+- `404` — the notebook is not found on the server answering this port. This usually means a stale server from another checkout owns the port. Do not report the URL.
+
+A `200` alone is not enough: a stale or misconfigured server can return `200` with the wrong notebook, an error page, or empty output. Confirm the response body contains the notebook's own title (its first Markdown heading), so you know the correct notebook is served:
+
+```shell
+curl -s -u viewer:viewer \
+  "http://127.0.0.1:8765/view/scratchpad/xchain2/08-backtest-capped-waterfall.ipynb" \
+  | rg -q "Cross-chain master vault CCTP backtest" && echo "title OK" || echo "WRONG CONTENT"
+```
+
+Use the target notebook's actual first heading as the search string. Only report the URL when the status is `200` **and** the title check prints `title OK`. If it prints `WRONG CONTENT`, treat it like a `404`: find which checkout owns the port before doing anything else.
+
+If you get `404`, confirm which checkout owns the port before doing anything else:
+
+```shell
+ss -ltnp | rg ':8765'                      # find the listening PID
+ls -l /proc/<pid>/cwd                       # show that server's working directory
+```
+
+If the working directory is a different or deleted checkout, do not kill it blindly (it may belong to another agent). Instead start your server on a free port with `--port` and re-derive the URL there, then re-run both the status-code and title checks until the status is `200` and the title check prints `title OK`.
+
 Do not expose this server through a public unauthenticated tunnel. If you use Omnara Live Preview, keep the preview access-controlled and remember that rendered notebook HTML is trusted internal content, not sanitised public content.
 
 ## Omnara
