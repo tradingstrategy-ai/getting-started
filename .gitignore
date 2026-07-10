@@ -33,3 +33,6 @@ tmp/
 # Dotenv
 # May contain secrets
 .env
+
+# Produced by Codex when it runs notebooks using jupyter
+*.log
