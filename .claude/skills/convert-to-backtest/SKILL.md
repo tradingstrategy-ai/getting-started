@@ -174,7 +174,7 @@ A Python script [build_backtest_notebook.py](build_backtest_notebook.py) (in the
    - No `float()` casts around parameter values that are now native Python types
    - No dynamic dispatch for parameters that are now fixed values
    - All chart rendering cells reference `chart_renderer`
-   - Test run: `poetry run jupyter execute {output-notebook}.ipynb --inplace --timeout=900`
+   - Test run with the observable runner: `poetry run jupyter-execute-agent {output-notebook}.ipynb --timeout=900`. See [notebook-execution.md](../../docs/notebook-execution.md).
 
 7. **Verify results match the optimiser's best pick**: After running the notebook, compare the backtest metrics (CAGR, Sharpe, max drawdown) with the optimiser's best result. The values should match exactly or near-exactly:
    - **CAGR**: Should match to within 1% absolute (e.g. 40.8% vs 40.8%).

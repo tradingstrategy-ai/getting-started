@@ -48,7 +48,9 @@ If the original notebook uses an optimiser (e.g. `perform_optimisation` with an 
 
 ## 3. Execute notebook
 
-Run the notebook using as described in CLAUDE.md using a subagent.
+Run the notebook with the observable `jupyter-execute-agent` runner as described
+in CLAUDE.md, using a subagent — `poetry run jupyter-execute-agent {notebook}.ipynb`
+(see [notebook-execution.md](../../docs/notebook-execution.md)).
 If there are any bugs, make sure subagent fixed them and rerun the notebook again.
 
 ## 4. Analysis

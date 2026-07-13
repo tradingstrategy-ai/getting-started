@@ -16,17 +16,27 @@ When adding or updating a skill, edit the files under `.claude/skills/` and keep
 
 ## Running notebooks
 
-You can test if a notebook runs from the command line with `jupyter` command.
+The preferred way to run a notebook from the command line is the observable
+`jupyter-execute-agent` runner. It keeps the Jupyter-kernel execution model but
+streams notebook- and cell-level progress, live cell output previews, and live
+`tqdm` progress text, and saves the notebook after every completed cell so a
+crash still leaves you every output up to the failing cell. Read
+[notebook-execution.md](.claude/docs/notebook-execution.md) for the full command
+reference.
 
 Example:
 
 ```shell
-poetry run jupyter execute my-notebook.ipynb --inplace --timeout=900
+poetry run jupyter-execute-agent my-notebook.ipynb
 ```
 
-- `--inplace` overwrites the notebook with executed results (cell outputs)
-- `--timeout=900` sets a 15 minute per-cell execution timeout (use `-1` to disable for long-running optimisers)
+- Saves in place after every completed code cell by default (use `--output PATH` to write elsewhere, `--no-save-every-cell` to save only at the end)
+- Add `--timeout=900` for a 15 minute per-cell timeout; omit it for long-running optimisers
+- Applies a 24 GiB kernel memory cap where the OS shell supports it
 
+Plain `poetry run jupyter execute my-notebook.ipynb --inplace` still works as a
+non-observable fallback, but prefer `jupyter-execute-agent` for anything an agent
+needs to watch.
 
 Never use `ipython` command as it does not work with multiprocessing.
 
@@ -39,7 +49,7 @@ When running multiple notebooks with subagents, use max 3 agents to avoid exhaus
 All notebooks use [`tqdm_loggable`](https://github.com/tradingstrategy-ai/tqdm-loggable). Always use `TQDM_LOGGABLE_FORCE=stdout` and keep the command in the foreground:
 
 ```shell
-TQDM_LOGGABLE_FORCE=stdout poetry run jupyter execute my-notebook.ipynb --inplace --timeout=900
+TQDM_LOGGABLE_FORCE=stdout poetry run jupyter-execute-agent my-notebook.ipynb
 ```
 
 This forces terminal progress output so the optimiser progress bar is visible from the calling terminal. Do not rely on notebook widgets alone.
@@ -55,11 +65,11 @@ Follow the [notebook server instructions](.claude/docs/notebook-server.md) for t
 If multiple agents are running notebooks concurrently:
 
 - Never kill all `ipykernel` processes broadly
-- Identify the exact `jupyter execute ... my-notebook.ipynb` parent process first, then match its child kernel by PID/start time
+- Identify the exact `jupyter-execute-agent ... my-notebook.ipynb` parent process first, then match its child kernel by PID/start time
 - If kernel ownership is ambiguous, do not kill any — prefer leaving a stale kernel over killing another agent's live backtest
 
 ```shell
-ps -Ao pid,ppid,%cpu,etime,command | rg 'jupyter-execute|ipykernel|ipykernel_launcher'
+ps -Ao pid,ppid,%cpu,etime,command | rg 'jupyter-execute-agent|jupyter-execute|ipykernel|ipykernel_launcher'
 ```
 
 ## Running Python scripts
