@@ -26,6 +26,8 @@ dotenv = "^0.9.9"
 gym = "^0.26.2"
 ipdb = "^0.13.13"
 ipython = "<8"
+jupyter-client = "^8.6"  # Required by jupyter-execute-agent to manage the memory-capped notebook kernel
+nbclient = "^0.10"  # Required by jupyter-execute-agent for cell-by-cell observable notebook execution
 nbconvert = "^7.16.6"  # Required by notebook-static-server to render saved notebooks to HTML
 nbformat = "^5.10.4"  # Required by notebook-static-server to read .ipynb files
 parquet-cli = "^1.3"
@@ -43,6 +45,8 @@ pytest = "^7.0"
 
 [tool.poetry.scripts]
 notebook-static-server = "getting_started.notebook_static_server:main"
+# Preferred observable notebook runner for long research/backtest notebooks.
+jupyter-execute-agent = "getting_started.jupyter_execute_agent.cli:main"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"

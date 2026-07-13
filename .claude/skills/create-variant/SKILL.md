@@ -45,7 +45,7 @@ If the original notebook uses an optimiser (e.g. `perform_optimisation` with an 
 
 ## Verification
 
-After the notebook is created, run it with `jupyter execute` as instructions in CLAUDE.md. Fix any bugs and issues you may have created.
+After the notebook is created, run it with the observable `jupyter-execute-agent` runner as instructed in CLAUDE.md — `poetry run jupyter-execute-agent {output-notebook}.ipynb` (see [notebook-execution.md](../../docs/notebook-execution.md)). Fix any bugs and issues you may have created.
 
 ## Analysis
 

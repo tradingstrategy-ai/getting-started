@@ -121,7 +121,7 @@ Convert a single backtesting notebook into an optimiser notebook that optimises 
    - `create_trading_universe()` and `decide_trades()` are unchanged from the backtest
    - Optimiser cell uses `perform_optimisation` with `prepare_optimiser_parameters(Parameters)`
    - All output cells match the reference optimiser structure
-   - Test run: `poetry run jupyter execute {output-notebook}.ipynb --inplace --timeout=-1`
+   - Test run with the observable runner: `poetry run jupyter-execute-agent {output-notebook}.ipynb` (omit `--timeout` for long optimisers). See [notebook-execution.md](../../docs/notebook-execution.md).
 
 ## Cell-by-cell mapping
 
