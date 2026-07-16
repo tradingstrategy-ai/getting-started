@@ -36,3 +36,6 @@ tmp/
 
 # Produced by Codex when it runs notebooks using jupyter
 *.log
+
+# Local Codex worktree metadata
+.claude/worktrees/
