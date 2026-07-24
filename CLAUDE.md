@@ -80,6 +80,19 @@ When running a Python script use `poetry run python` command instead of plain `p
 poetry run python scripts/logos/post-process-logo.py
 ```
 
+## Market reference prices
+
+- When a notebook or strategy needs a BTC (or other Binance-listed) reference price series — e.g. to compute vault beta to BTC and the residuals of that regression — use `tradingstrategy.binance.price.fetch_binance_price()`
+- It fetches candles incrementally and caches them in `~/.tradingstrategy/binance-price.duckdb`, so repeated notebook runs cost one small HTTP request
+- Do not fetch reference prices from DEX pair candles or with ad hoc HTTP calls in notebooks
+
+```python
+from tradingstrategy.binance.price import fetch_binance_price
+
+btc_df = fetch_binance_price()  # BTCUSDT daily by default
+btc_returns = btc_df["close"].pct_change()
+```
+
 ## Formatting code
 
 Don't format code.
@@ -111,6 +124,10 @@ Don't format code.
 
 - Whenever possible, prefer table output instead of print(). Use Pandas DataFrame and notebook's built-in display() function to render tabular data.
 - For vault selection workflows, read `.claude/docs/vault-selection.md` before editing vault universe lists or recommending vault candidates.
+
+## Vault backtests
+
+- We check for performance, management, entry/exit fees but vaults do not usually have these. Do not assume any slippage on vaults: deposits and redemptions fill at NAV (share price), and performance fees are typically internalised in the share price series.
 
 ## Editing files
 
