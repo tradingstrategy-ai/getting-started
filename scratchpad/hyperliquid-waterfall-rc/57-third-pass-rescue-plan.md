@@ -6,7 +6,27 @@
   NB36 composite". This document establishes *why* that happened, separates genuine negative
   results from artefacts of the test protocol, and specifies a third pass that can actually
   answer the question.
-- **Status**: analysis complete, redesign proposed, nothing executed.
+- **Status**: analysis complete, redesign proposed and **executed** in
+  `../hyperliquid-vault-model/` (Stages A-D).
+
+> ## Correction (2026-08-05, after executing Stage B)
+>
+> **Finding 1 below is wrong and is retained only for the record.** Stage B
+> (`../hyperliquid-vault-model/02-hl-model-initial-b.ipynb`) proved that
+> `close_wide[T]` matches the **end-of-day-T** price in 99.7% of cells. Daily bars are
+> left-labelled, so a panel read at decision cycle `T` carries ~24 hours of future
+> information.
+>
+> The audit below verified the **framework indicator path** (`get_indicator_value()`,
+> `index = -1`), which is correctly aligned - but NB41's panel variant does not use that
+> path. It indexes the panel directly at the decision date and therefore had look-ahead the
+> framework did not. Correctly aligned, the panel-composite is *worse* than the anchor
+> (ΔSharpe −0.218), and 121.5% of its apparent edge was look-ahead.
+>
+> **NB45 was right to disqualify it, and right for the right reason.** The +1 day lag removed
+> genuine look-ahead rather than over-correcting a 1.6 hour latency. Findings 2-5 below still
+> stand, with Finding 2 refined in Stage A: the detection floor is not a single number but
+> scales with each variant's tracking error.
 
 ---
 

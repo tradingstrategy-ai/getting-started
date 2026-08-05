@@ -1,0 +1,16 @@
+{
+  "anchor_ann_vol": 0.16388926120908595,
+  "anchor_lag1_autocorr": -0.00819138061753274,
+  "sharpe_inflation_from_smoothing": -0.017723864388981214,
+  "n_nominal": 342,
+  "n_eff": 342.0,
+  "n_eff_cross_sectional": 214.9833740831296,
+  "informative_day_frac": 0.6286063569682152,
+  "regime_split": "2026-04-01",
+  "empirical_mde_dsharpe": 0.06304051618132558,
+  "mde_coeff": 12.354891990894547,
+  "mde_rule": "min_detectable_dSharpe = mde_coeff * annualised_tracking_error",
+  "old_threshold_dsharpe": 0.15,
+  "backtest_start": "2025-08-01",
+  "backtest_end": "2026-07-10"
+}
