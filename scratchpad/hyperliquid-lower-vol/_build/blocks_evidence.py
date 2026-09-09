@@ -299,6 +299,19 @@ def evidence_composite(
     return cagr_weight * cagr_component + (1.0 - cagr_weight) * sortino_component
 
 
+#: Per-cycle core/satellite sleeve composition, keyed by decision timestamp (NB18). NOT the same
+#: as `state.visualisation.calculations`: the trade-executor framework itself writes to that dict
+#: (e.g. `unallocatable_signals`) later in the same cycle, after `alpha_model.normalise_weights()`
+#: - which is exactly when this data is captured - and `add_calculations()` overwrites the whole
+#: value for a timestamp rather than merging, so a framework write silently clobbers ours. Found
+#: by direct inspection: `state.visualisation.calculations` held only `{'unallocatable_signals':
+#: []}` at every timestamp after a core/satellite run, never the sleeve data this dict was meant
+#: to carry. A separate, framework-untouched dict avoids the collision entirely. Cleared and
+#: snapshotted once per `run_variant()` call by the calling notebook cell (see NB18), since it is
+#: shared across every run in a kernel session the same way `MASKED_VAULTS` is.
+SLEEVE_LOG: dict = {}
+
+
 @indicators.define()
 def inverse_vol_early(
     close: pd.Series,
@@ -423,10 +436,11 @@ CELL14_REPLACEMENTS_EVIDENCE = {
     "        pair_by_id = {pid: pair for pid, pair, _signal in candidates}\n"
     "\n"
     "        # Reserve currently-held, hold-protected positions to their PREVIOUS sleeve first, so\n"
-    "        # the sleeve split cannot itself evict a position minimum_hold_days protects.\n"
-    "        prev_calc = state.visualisation.calculations.get(\n"
-    "            max(state.visualisation.calculations) if state.visualisation.calculations else None, {}\n"
-    "        ) or {}\n"
+    "        # the sleeve split cannot itself evict a position minimum_hold_days protects. Reads\n"
+    "        # SLEEVE_LOG (this module's own per-cycle record), not state.visualisation.calculations -\n"
+    "        # the trade-executor framework writes to that dict too, later in the same cycle, and\n"
+    "        # overwrites rather than merges, so a framework write would silently erase this.\n"
+    "        prev_calc = SLEEVE_LOG.get(max(SLEEVE_LOG) if SLEEVE_LOG else None, {}) or {}\n"
     "        prev_core_ids = set(prev_calc.get('core_ids', []))\n"
     "        protected_core = {pid for pid in hold_protected_ids if pid in prev_core_ids}\n"
     "        protected_satellite = {pid for pid in hold_protected_ids if pid not in prev_core_ids}\n"
@@ -495,12 +509,15 @@ CELL14_REPLACEMENTS_EVIDENCE = {
     "            alpha_model.signals[pid].normalised_weight\n"
     "            for pid in core_ids if pid in alpha_model.signals\n"
     "        )\n"
-    "        state.visualisation.add_calculations(timestamp, {\n"
+    "        # SLEEVE_LOG, not state.visualisation.add_calculations() - see the definition of\n"
+    "        # SLEEVE_LOG for why: the framework's own later write to the same dict/timestamp would\n"
+    "        # silently clobber this.\n"
+    "        SLEEVE_LOG[timestamp] = {\n"
     "            'core_ids': list(core_ids),\n"
     "            'satellite_ids': list(satellite_ids),\n"
     "            'core_fraction_target': core_fraction,\n"
     "            'core_fraction_realised': float(core_realised),\n"
-    "        })\n"
+    "        }\n"
     "\n"
     "    alpha_model.update_old_weights(state.portfolio, ignore_credit=False)\n"
     "    alpha_model.calculate_target_positions(position_manager)\n",
