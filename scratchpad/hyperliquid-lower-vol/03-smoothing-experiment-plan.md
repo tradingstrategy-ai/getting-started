@@ -1,9 +1,17 @@
 # Equity-curve smoothing plan: allocate to steady vaults, not to single-event BTC beta
 
-- **Status**: REVISED after an independent Codex CLI review (see
-  [03-smoothing-experiment-plan-codex-review.md](03-smoothing-experiment-plan-codex-review.md)),
-  then extended with implementation snippets so each notebook can be handed to another agent.
-  Ready for execution.
+- **Status**: EXECUTED (NB03a-NB09, NB11). Outcome: every lever tested was REJECTed on the
+  development window, and the one apparent lead (NB09's event-concentration penalty) failed the
+  NB11 plateau check. NB08 and NB10 were not built - both were gated out by NB03b's precision-at-6
+  screen before a backtest was spent on them. The anchor's own hold-out run (2026-07-01 to
+  2026-09-08) confirms the track's premise: CAGR falls from 48.76% to 18.59% and Martin ratio from
+  34.77 to 9.45 exactly where the BTC-beta pumpers this track targeted actually appear, and a fresh
+  hold-out deployment converges to the same closing basket as the full-window backtest and the live
+  `hyper-ai` executor. See [11-backtest-closeout.ipynb](11-backtest-closeout.ipynb) for the full
+  verdict table and recommended next steps. Below is the original design, revised after an
+  independent Codex CLI review (see
+  [03-smoothing-experiment-plan-codex-review.md](03-smoothing-experiment-plan-codex-review.md))
+  and extended with implementation snippets before execution.
 - **Baseline to beat**: [02-better-format.ipynb](02-better-format.ipynb), re-run as the anchor in every
   notebook because vault data is downloaded fresh each run.
 - **Inputs**: the waterfall-rc allocation research (NB40-NB51, NB77-NB79, NB83-NB84, NB88), the NB57
