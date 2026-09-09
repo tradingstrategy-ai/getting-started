@@ -1,6 +1,31 @@
 # Equity-curve smoothing plan: allocate to steady vaults, not to single-event BTC beta
 
-- **Status**: EXECUTED (NB03a-NB09, NB11). Outcome: every lever tested was REJECTed on the
+- **Status**: EXECUTED (NB03a-NB09, NB11, NB12), then **re-run on the full window**.
+
+> ## Amendment (2026-09-09): the development/hold-out split is retired
+>
+> Every notebook now runs the full **2026-01-01 to 2026-09-08** window, matching
+> [01-initial.ipynb](01-initial.ipynb) and [02-better-format.ipynb](02-better-format.ipynb). The
+> design below reserved 2026-07-01 to 2026-09-08 as a hold-out, opened once in NB11; that
+> reservation no longer holds and **the track carries no out-of-sample claim**. Results are
+> in-sample throughout. The formerly-reserved period is still reported as a `late_*` sub-period so
+> its deterioration stays visible, and NB11 still runs it as a fresh deployment, but it can only
+> describe the deterioration now, not validate against it.
+>
+> Two verdicts changed as a result, and both moved against the candidate:
+>
+> - The vol-matched rule passed at N = 25, 30 and 35 on the shorter window, which is a plateau. On
+>   the full window only 30 and 35 pass, with 30 sitting 15 Martin points above both neighbours -
+>   a spike. It then fails leave-one-vault-out. **A plateau is only as stable as the window it is
+>   computed on**, which is the sharpest methodological finding the track produced.
+> - `min_tvl_usd = 25,000` cleared all five constraints on the shorter window and misses the CAGR
+>   floor on the full one.
+>
+> The binding constraint also changed: the CAGR floor is now the most commonly failed (13 of 22
+> variants) where the ulcer index was before, because the later period is where the strategy earns
+> least.
+
+- **Original status**: EXECUTED (NB03a-NB09, NB11). Outcome: every lever tested was REJECTed on the
   development window, and the one apparent lead (NB09's event-concentration penalty) failed the
   NB11 plateau check. NB08 and NB10 were not built - both were gated out by NB03b's precision-at-6
   screen before a backtest was spent on them. The anchor's own hold-out run (2026-07-01 to

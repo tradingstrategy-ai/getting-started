@@ -11,12 +11,16 @@ from tradeexecutor.visual.equity_curve import calculate_equity_curve, calculate_
 from tradeexecutor.statistics.key_metric import calculate_cagr, calculate_sharpe, calculate_sortino
 
 #: Shared harness for the hyperliquid-lower-vol smoothing track (03-smoothing-experiment-plan.md).
-#: `Parameters.backtest_start` / `backtest_end` are already pinned to the development window in
-#: the Parameters cell above; the hold-out (2026-07-01 to 2026-09-08) is opened only in NB11.
-DEV_START = pd.Timestamp(Parameters.backtest_start)
-DEV_END = pd.Timestamp(Parameters.backtest_end)
+#: Every notebook runs the full 2026-01-01 to 2026-09-08 window. The development/hold-out split
+#: this track was originally built on has been retired, so results are in-sample throughout.
+WINDOW_START = pd.Timestamp(Parameters.backtest_start)
+WINDOW_END = pd.Timestamp(Parameters.backtest_end)
+DEV_START, DEV_END = WINDOW_START, WINDOW_END      # retained: older cells refer to these names
 REGIME_BREAK = pd.Timestamp("2026-04-01")  # NB57: polling density jumps here
-HOLDOUT_START, HOLDOUT_END = pd.Timestamp("2026-07-01"), pd.Timestamp("2026-09-09")
+#: The formerly-reserved late period. Still reported as a sub-period so the deterioration NB03a
+#: predicted stays visible, but it is no longer out of sample.
+LATE_START, LATE_END = pd.Timestamp("2026-07-01"), pd.Timestamp("2026-09-09")
+HOLDOUT_START, HOLDOUT_END = LATE_START, LATE_END   # retained for compatibility
 
 
 @contextlib.contextmanager
@@ -252,7 +256,12 @@ def panel(label: str, state_, equity_, returns_, anchor_cycle_returns=None) -> p
     out["mean_invested"] = mean_invested_fraction(state_)
     out["luck_ratio"] = luck_ratio(rc)
     out["top5_gross_share"] = top5_gross_profit_share(state_)
-    for regime, sl in (("sparse", slice(DEV_START, REGIME_BREAK - pd.Timedelta(days=1))), ("dense", slice(REGIME_BREAK, DEV_END))):
+    segments = (
+        ("sparse", slice(WINDOW_START, REGIME_BREAK - pd.Timedelta(days=1))),   # NB57 sparse polling
+        ("dense", slice(REGIME_BREAK, LATE_START - pd.Timedelta(days=1))),      # dense polling, pre-July
+        ("late", slice(LATE_START, LATE_END)),                                  # the formerly-reserved period
+    )
+    for regime, sl in segments:
         e = equity_.loc[sl]
         out[f"{regime}_cagr"] = cagr_of(e) if len(e) > 10 else float("nan")
         out[f"{regime}_ulcer"] = ulcer_index(e) if len(e) > 10 else float("nan")
@@ -294,7 +303,7 @@ anchor_panel = panel("anchor", anchor_state, anchor_equity, anchor_returns)
 state, equity, returns = anchor_state, anchor_equity, anchor_returns
 positions = [p for p in state.portfolio.get_all_positions() if not p.is_credit_supply()]
 max_dd = float((equity / equity.cummax() - 1.0).min())
-print(f"Anchor (development window {DEV_START.date()} to {DEV_END.date()}):")
+print(f"Anchor (full window {WINDOW_START.date()} to {(WINDOW_END - pd.Timedelta(days=1)).date()}):")
 print(f"Final equity: ${equity.iloc[-1]:,.0f}  (start ${Parameters.initial_cash:,.0f})")
 print(f"Max drawdown: {max_dd*100:.1f}%   distinct positions: {len(positions)}   trades: {len(list(state.portfolio.get_all_trades()))}")
 display(anchor_panel.to_frame().T)

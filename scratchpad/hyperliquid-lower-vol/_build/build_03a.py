@@ -132,14 +132,15 @@ if len(audit_df):
     print(f"  every contributing poll was WRITTEN at or before the cycle:  {written_ok}")
     print()
     if observed_ok and not written_ok:
-        lag_days = (audit_df["last written_at"].max() - audit_df["last poll in that bar"].max()).days
+        lag = audit_df["last written_at"].max() - audit_df["last poll in that bar"].max()
+        lag_hours = lag.total_seconds() / 3600
         print(f"Observation timing is correct - this is the alignment NB57's correction turned on,")
         print(f"and the framework path (`get_indicator_value`, index=-1) satisfies it. Reading the")
         print(f"bar labelled at the decision date instead would not, since that bar stays open until")
         print(f"the following day.")
         print()
-        print(f"`written_at` sits about {lag_days} days after the poll, which is far too long to be a")
-        print(f"live write lag: these rows were rewritten in bulk by a later repair pass (the feed")
+        print(f"`written_at` sits about {lag_hours:.0f} hours after the poll, past the decision cycle:")
+        print(f"these rows were rewritten by a later repair pass (the feed")
         print(f"carries a `hypercore_repair_status` column). So this archive cannot be used to prove")
         print(f"point-in-time availability - only observation-time alignment, which it does confirm.")
         print(f"A strict live-parity claim would need the original write timestamps, which the")
@@ -230,7 +231,7 @@ lo, hi = _block_bootstrap_ci(rc - rc.mean(), block=block_cycles)
 half_width_bps = (hi - lo) / 2 * 1e4
 mde_sharpe = (half_width_bps / 1e4) / rc.std() * np.sqrt(periods_per_year)
 power_df = pd.DataFrame([
-    ("Decision cycles in the development window", len(rc)),
+    ("Decision cycles in the backtest window", len(rc)),
     ("Cycle spacing (days)", spacing_days),
     ("Volatility per cycle", rc.std()),
     ("Annualised volatility", rc.std() * np.sqrt(periods_per_year)),

@@ -36,9 +36,14 @@ def cell6(notebook_id: str, dev_window: bool = True, extra_replacements: dict | 
     if dev_window:
         src = src.replace(
             "backtest_end = datetime.datetime(2026, 9, 9)",
-            "#: Development window end (exclusive). The hold-out (2026-07-01 to 2026-09-08) is\n"
-            "    #: reserved and opened only in NB11 (03-smoothing-experiment-plan.md).\n"
-            "    backtest_end = datetime.datetime(2026, 7, 1)",
+            "#: Exclusive end boundary, so the last traded day is 2026-09-08 - the same full window\n"
+            "    #: as 01-initial.ipynb and 02-better-format.ipynb.\n"
+            "    #:\n"
+            "    #: This track originally ran on a 2026-01-01 to 2026-06-30 development window with\n"
+            "    #: 2026-07-01 to 2026-09-08 reserved as a hold-out. That split has been retired: every\n"
+            "    #: notebook now runs the full window. The consequence is that results are in-sample\n"
+            "    #: throughout and the track no longer carries an out-of-sample claim.\n"
+            "    backtest_end = datetime.datetime(2026, 9, 9)",
         )
     for old, new in (extra_replacements or {}).items():
         assert old in src, f"cell6 replacement anchor not found: {old[:80]!r}"

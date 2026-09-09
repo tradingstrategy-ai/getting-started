@@ -3,16 +3,16 @@ sys.path.insert(0, ".")
 from builder import md, code, common_prefix_cells, common_suffix_cells, harness_cell, \
     integrity_and_audit_cells, write_notebook, TRACK_DIR
 
-HEADING = """# NB11 - combination, hold-out and close-out
+HEADING = """# NB11 - combination, late-period check and close-out
 
 Closes out the [03-smoothing-experiment-plan.md](03-smoothing-experiment-plan.md) track.
 Every structural lever (NB04 vol target, NB05 pool cap, NB06 breadth/concentration, NB07 sizing)
-and both consistency-selection legs (NB09) were REJECTed on the development window; the only
+and the consistency-selection legs (NB09) were REJECTed; the only
 lead the track produced is NB09's single-point event-concentration penalty diagnostic
 (`lambda=0.5`), which improved CAGR, ulcer index and Martin ratio simultaneously but has not been
 checked for a plateau. This notebook does three things: checks that plateau, opens the reserved
-hold-out once to test the lead where it was never expected to matter on the development window,
-and compares against the live book and the full-window candidate
+late period where NB03a predicted the problem actually lives, and compares against the live
+book and the full-window candidate
 ([02-better-format.ipynb](02-better-format.ipynb)) as a labelled case study rather than a gate.
 
 **Based on:** [09-backtest-consistency-selection.ipynb](09-backtest-consistency-selection.ipynb).
@@ -24,7 +24,7 @@ cleared the full adoption bar - every structural and sizing lever was REJECTed, 
 consistency-selection legs collapsed. The only candidate worth carrying forward is the
 event-concentration penalty, which is Provisional at best (a single lambda, no plateau, no
 leave-one-vault-out). This notebook's first step is therefore to check whether it is a genuine
-plateau or a spike (NB79's rule) before deciding whether it earns the hold-out at all.
+plateau or a spike (NB79's rule) before deciding whether it is carried any further.
 
 ## Key new insights and what did we learn from this experiment?
 
@@ -79,7 +79,7 @@ placebo reached the same beta at far better return. But the control also did som
 was not supposed to do. It satisfied every adoption constraint, at three contiguous settings, which
 is a plateau rather than the spike pattern that disqualified the event-concentration penalty.
 
-It is re-run here so this notebook's hold-out decision rests on figures computed in the same
+It is re-run here so this notebook's decision rests on figures computed in the same
 kernel, and so the leave-one-vault-out check the adoption rule requires is applied to it.
 """))
 cells.append(code("""vol_rows = [anchor_panel]
@@ -118,76 +118,51 @@ else:
     vol_winner_label, vol_winner_drop, vol_lovo_survives = None, None, False
 """))
 
-cells.append(md("""# Step 2: hold-out
+cells.append(md("""# Step 2: the late period, 2026-07-01 to 2026-09-08
 
-Opened once. `strategy_universe` was loaded only through the development window's
-`Parameters.backtest_end`, so it holds no July-September candle data; a second universe is built
-here, identical in every criterion, but with price data extended through the hold-out end. The
-anchor and, if step 1 found a plateau, the event-concentration penalty at `lambda=0.5` are each run
-**fresh** on 2026-07-01 to 2026-09-08 - no January-June positions carried forward, a genuinely new
-deployment, per the plan. `required_history_period` still lets indicators see the full prior
-history. Regime-split columns in the panel are not meaningful for this window (it sits entirely
-inside NB03a's "dense" polling regime and after `REGIME_BREAK`) and are reported as produced
-without further comment.
+**This is no longer a hold-out.** The track originally reserved this period and opened it once,
+here. Every notebook now runs the full window, so this period is inside the data every variant was
+selected on, and the figures below carry no out-of-sample claim. It is kept as a **sub-period
+segment** because NB03a predicted the BTC-beta episode the track targets falls here, and that
+prediction is worth checking even in sample.
+
+The anchor and any candidate that cleared the development checks are each run **fresh** on this
+period - no earlier positions carried forward - so the comparison is like for like. The universe
+already covers the full window, so no second universe is needed.
 """))
-cells.append(code("""HOLDOUT_KWARGS = dict(backtest_start=HOLDOUT_START.to_pydatetime(), backtest_end=HOLDOUT_END.to_pydatetime())
+cells.append(code("""LATE_KWARGS = dict(backtest_start=LATE_START.to_pydatetime(), backtest_end=LATE_END.to_pydatetime())
 
-# Rebuild the universe with price data through the hold-out end. `create_trading_universe` and its
-# inputs are already defined by the "Trading universe" cell above; only `backtest_end` changes.
-with parameter_overrides(backtest_end=HOLDOUT_END.to_pydatetime()):
-    holdout_load_parameters = StrategyParameters.from_class(Parameters)
-    holdout_universe_input = CreateTradingUniverseInput(
-        execution_context=notebook_execution_context,
-        client=client,
-        timestamp=None,
-        parameters=holdout_load_parameters,
-        universe_options=UniverseOptions.from_strategy_parameters_class(Parameters, notebook_execution_context),
-        execution_model=None,
-    )
-    holdout_strategy_universe = create_trading_universe(holdout_universe_input)
+anchor_late_state, anchor_late_equity, anchor_late_returns = run_variant("anchor_late", **LATE_KWARGS)
+anchor_late_panel = panel("anchor_late", anchor_late_state, anchor_late_equity, anchor_late_returns)
+anchor_late_cycle_returns = cycle_returns(anchor_late_equity)[0]
 
-# `run_variant` closes over the notebook-global `strategy_universe` by name, resolved at call
-# time, so swapping the global here is enough to point every hold-out call at the extended
-# universe without touching `run_variant` itself.
-_dev_strategy_universe = strategy_universe
-strategy_universe = holdout_strategy_universe
-
-anchor_ho_state, anchor_ho_equity, anchor_ho_returns = run_variant("anchor_holdout", **HOLDOUT_KWARGS)
-anchor_ho_panel = panel("anchor_holdout", anchor_ho_state, anchor_ho_equity, anchor_ho_returns)
-
-holdout_rows = [anchor_ho_panel]
-anchor_ho_cycle_returns = cycle_returns(anchor_ho_equity)[0]
-candidate_ho_state = None
+late_rows = [anchor_late_panel]
+candidate_late_state = None
 
 if is_plateau:
-    s, e, r = run_variant("event_concentration_0.5_holdout", event_concentration_lambda=0.5, **HOLDOUT_KWARGS)
-    holdout_rows.append(panel("event_concentration_0.5_holdout", s, e, r, anchor_ho_cycle_returns))
-    candidate_ho_state = s
+    s, e, r = run_variant("event_concentration_0.5_late", event_concentration_lambda=0.5, **LATE_KWARGS)
+    late_rows.append(panel("event_concentration_0.5_late", s, e, r, anchor_late_cycle_returns))
+    candidate_late_state = s
 else:
-    print("The event-concentration penalty is a spike, not a plateau, so it is not carried to the "
-          "hold-out.")
+    print("The event-concentration penalty is a spike, not a plateau, so it is not carried forward.")
 
 if vol_winner_label and vol_lovo_survives:
-    s, e, r = run_variant(f"{vol_winner_label}_holdout",
-                          vol_matched_drop_count=vol_winner_drop, **HOLDOUT_KWARGS)
-    holdout_rows.append(panel(f"{vol_winner_label}_holdout", s, e, r, anchor_ho_cycle_returns))
-    candidate_ho_state = s
-    print(f"{vol_winner_label} cleared the plateau and leave-one-vault-out checks, so it is carried "
-          f"to the hold-out - the only configuration in this track to get there.")
+    s, e, r = run_variant(f"{vol_winner_label}_late", vol_matched_drop_count=vol_winner_drop, **LATE_KWARGS)
+    late_rows.append(panel(f"{vol_winner_label}_late", s, e, r, anchor_late_cycle_returns))
+    candidate_late_state = s
+    print(f"{vol_winner_label} cleared both the plateau and leave-one-vault-out checks, so it is "
+          f"carried into the late-period comparison.")
 elif vol_winner_label:
-    print(f"{vol_winner_label} passed on the development window but failed leave-one-vault-out, so "
-          f"it is not carried to the hold-out.")
+    print(f"{vol_winner_label} passed the constraints on the full window but failed "
+          f"leave-one-vault-out, so it is not carried into the late-period comparison.")
 
-display(pd.DataFrame(holdout_rows))
-
-# Restore the development-window universe for anything below that might still reference it.
-strategy_universe = _dev_strategy_universe
+display(pd.DataFrame(late_rows))
 """))
 
 cells.append(md("""# Step 3: live-book and full-window case study
 
 Diagnostic only, per the plan (fitting a rule to avoid these specific names would be outcome
-fitting - NB79 and NB44 both warn against exactly this). Compares the hold-out runs' final basket
+fitting - NB79 and NB44 both warn against exactly this). Compares the late-period runs' final basket
 against [02-better-format.ipynb](02-better-format.ipynb)'s full-window closing basket (Citadel,
 AceVault Hyper01, DOEZOE, Octavious Maximus, Mad Scientists, Sequoia HyperStable - the anchor
 configuration run to 2026-09-08) and against the live `hyper-ai` book snapshot from
@@ -224,19 +199,19 @@ KNOWN_PUMPERS = {
 LIVE_BOOK_NAMES = ["Citadel", "DOEZOE", "Gucky_4coin", "Mad Scientists", "Octavious Maximus", "Sequoia HyperStable Yield Optimizer"]
 KNOWN_STEADY_DROPPED = ["22Cap", "HYPErQuant"]   # PR #60: dropped within days despite low beta and low vol
 
-anchor_ho_addresses = closing_basket_addresses(anchor_ho_state)
-print("Anchor, hold-out-only closing basket:", basket_names(anchor_ho_state))
-anchor_pumpers = {name for addr, name in KNOWN_PUMPERS.items() if addr in anchor_ho_addresses}
+anchor_late_addresses = closing_basket_addresses(anchor_late_state)
+print("Anchor, late-period closing basket:", basket_names(anchor_late_state))
+anchor_pumpers = {name for addr, name in KNOWN_PUMPERS.items() if addr in anchor_late_addresses}
 print(f"  of which known BTC-beta pumpers: {sorted(anchor_pumpers) or 'none'} "
       f"({len(anchor_pumpers)} of {len(KNOWN_PUMPERS)})")
 
-if candidate_ho_state is not None:
-    candidate_addresses = closing_basket_addresses(candidate_ho_state)
-    print("Candidate, hold-out-only closing basket:", basket_names(candidate_ho_state))
-    dropped = {name for addr, name in KNOWN_PUMPERS.items() if addr in anchor_ho_addresses and addr not in candidate_addresses}
+if candidate_late_state is not None:
+    candidate_addresses = closing_basket_addresses(candidate_late_state)
+    print("Candidate, late-period closing basket:", basket_names(candidate_late_state))
+    dropped = {name for addr, name in KNOWN_PUMPERS.items() if addr in anchor_late_addresses and addr not in candidate_addresses}
     print(f"  pumpers the candidate dropped that the anchor held: {sorted(dropped) or 'none'}")
 else:
-    print("  (no candidate reached the hold-out, so there is nothing to compare against)")
+    print("  (no candidate cleared its checks, so there is nothing to compare against)")
 
 print()
 print("For reference, not re-run here:")
