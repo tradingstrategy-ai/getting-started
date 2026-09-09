@@ -55,6 +55,12 @@ def run_variant(name: str, masked: set = frozenset(), **overrides):
         )
         MASKED_VAULTS.clear()
         MASKED_VAULTS.update(a.lower() for a in masked)
+        # `refresh_vault_redemption_accounting` mutates `sell_tax` on the shared universe's pair
+        # objects during a run, so without this reset the second and later backtests in a kernel
+        # start from the previous run's leftover fees and sit on a different mark-to-market path.
+        # Verified in _build/verify-anchor-parity.ipynb: without it, run 1 and run 2 of identical
+        # code differ by $428 of intermediate equity.
+        apply_vault_redemption_capital_fee(strategy_universe, Parameters.vault_redemption_capital_fee)
         try:
             result = run_backtest_inline(
                 name=name,
@@ -77,11 +83,41 @@ def run_variant(name: str, masked: set = frozenset(), **overrides):
 
 
 def daily(returns_: pd.Series) -> pd.Series:
+    """Daily-resampled returns, kept only for paired bootstrap differences against the anchor.
+
+    NOTE: the strategy runs on a 2-day cycle, so this inserts a structural zero on every
+    off-cycle day. That is harmless for a paired difference between two runs on the same clock,
+    but it is NOT a valid basis for volatility, Sharpe, beta or time-in-market - see
+    `cycle_returns()` and `_build/verify-anchor-parity.ipynb`.
+    """
     return returns_.resample("1D").sum(min_count=1).fillna(0.0)
 
 
 def weekly(returns_: pd.Series) -> pd.Series:
     return returns_.resample("1W").sum(min_count=1).fillna(0.0)
+
+
+def cycle_returns(equity_: pd.Series) -> tuple:
+    """Returns on the strategy's own decision clock, plus the implied periods per year.
+
+    The equity curve carries one point per strategy cycle (2 days here), so this is the
+    natural sampling basis. Resampling it to daily and zero-filling understates volatility and
+    attenuates any regression against a daily benchmark.
+    """
+    r = equity_.pct_change().dropna()
+    spacings = [(b - a).days for a, b in zip(equity_.index, equity_.index[1:])]
+    spacing_days = float(np.median(spacings)) if spacings else 1.0
+    return r, 365.0 / max(spacing_days, 1e-9)
+
+
+def mean_invested_fraction(state_) -> float:
+    """Mean share of equity actually deployed into positions, from the portfolio statistics."""
+    values = [
+        1.0 - float(s.free_cash or 0.0) / float(s.total_equity)
+        for s in state_.stats.portfolio
+        if s.total_equity
+    ]
+    return float(np.mean(values)) if values else float("nan")
 
 
 def ulcer_index(equity_: pd.Series) -> float:
@@ -94,28 +130,51 @@ def cagr_of(equity_: pd.Series) -> float:
     return float((equity_.iloc[-1] / equity_.iloc[0]) ** (365.0 / max(days, 1)) - 1.0)
 
 
-def invested_basket_beta(state_, returns_daily: pd.Series, window: int = 90) -> tuple:
-    """90d rolling BTC beta of the invested part of the book, cash excluded.
+def invested_basket_beta(state_, equity_) -> tuple:
+    """BTC beta of the invested part of the book, on the strategy's own cycle clock.
 
-    Divides the portfolio return by the prior day's invested fraction so that holding cash does
-    not mechanically lower the beta (NB42 found the |beta| filter's apparent benefit was mostly
-    generic de-risking; measuring the invested basket alone keeps that distinction visible).
-    Returns (mean absolute beta, mean R-squared) over the window series.
+    Two corrections over a naive daily regression, both verified in
+    `_build/verify-anchor-parity.ipynb`:
+
+    - BTC returns are compounded over each strategy cycle rather than compared day by day. The
+      equity curve only moves every 2 days, so regressing it against daily BTC returns with the
+      off-cycle days zero-filled attenuated beta by about 3.1x and R-squared by about 7.8x.
+    - Returns are divided by the prior cycle's invested fraction, so holding cash does not
+      mechanically lower the beta (NB42 found the |beta| filter's apparent benefit was mostly
+      generic de-risking; measuring the invested basket keeps that distinction visible).
+
+    A single full-window regression is used rather than a rolling mean of window betas: the
+    development window carries only ~91 cycles and the hold-out ~35, too few for a 90-day
+    rolling window (which returned all-NaN on the hold-out before this fix).
+
+    :return:
+        ``(absolute beta, R-squared)``, or ``(nan, nan)`` when there is too little overlap.
     """
+    r, _ = cycle_returns(equity_)
+
     rows = {}
     for s in state_.stats.portfolio:
-        ts = pd.Timestamp(s.calculated_at).normalize()
+        ts = pd.Timestamp(s.calculated_at)
         rows[ts] = 1.0 - float(s.free_cash or 0.0) / float(s.total_equity) if s.total_equity else np.nan
-    invested_fraction = pd.Series(rows).sort_index()
-    invested_fraction = invested_fraction[~invested_fraction.index.duplicated()].reindex(returns_daily.index).ffill()
-    usable = invested_fraction.shift(1) > 0.2
-    invested_return = (returns_daily / invested_fraction.shift(1)).where(usable)
-    btc = _btc_daily_returns_for(returns_daily.index)
-    cov = invested_return.rolling(window, min_periods=window).cov(btc)
-    var = btc.rolling(window, min_periods=window).var()
-    beta = cov / var.replace(0.0, np.nan)
-    corr = invested_return.rolling(window, min_periods=window).corr(btc)
-    return float(beta.abs().mean()), float((corr ** 2).mean())
+    invested = pd.Series(rows).sort_index()
+    invested = invested[~invested.index.duplicated()].reindex(r.index).ffill()
+    usable = invested.shift(1) > 0.2
+    y = (r / invested.shift(1)).where(usable)
+
+    btc_daily = _btc_daily_returns_for(
+        pd.date_range(equity_.index[0] - pd.Timedelta(days=7), equity_.index[-1], freq="1D")
+    )
+    compounded = []
+    for a, b in zip(equity_.index, equity_.index[1:]):
+        window = btc_daily.loc[(btc_daily.index > a) & (btc_daily.index <= b)]
+        compounded.append(float((1.0 + window).prod() - 1.0) if len(window) else np.nan)
+    x = pd.Series(compounded, index=equity_.index[1:])
+
+    joined = pd.concat([y.rename("y"), x.rename("x")], axis=1).dropna()
+    if len(joined) < 10 or joined["x"].var() == 0:
+        return float("nan"), float("nan")
+    beta = joined["y"].cov(joined["x"]) / joined["x"].var()
+    return float(abs(beta)), float(joined["y"].corr(joined["x"]) ** 2)
 
 
 def luck_ratio(returns_daily: pd.Series, n: int = 5, draws: int = 500, seed: int = 0) -> float:
@@ -125,7 +184,13 @@ def luck_ratio(returns_daily: pd.Series, n: int = 5, draws: int = 500, seed: int
     without_best = total(r.drop(r.nlargest(n).index))
     rng = np.random.default_rng(seed)
     nulls = [total(r.drop(pd.Index(rng.choice(r.index, size=n, replace=False)))) for _ in range(draws)]
-    return without_best / float(np.median(nulls))
+    median_null = float(np.median(nulls))
+    # The ratio is only interpretable when both legs are positive; with opposite signs it
+    # produces a negative number that reads like a score but is not one (the NB11 hold-out's
+    # -2.37 was this case).
+    if median_null <= 0 or without_best <= 0:
+        return float("nan")
+    return without_best / median_null
 
 
 def top5_gross_profit_share(state_) -> float:
@@ -164,39 +229,60 @@ def block_bootstrap_ci(diff: pd.Series, block: int = 20, draws: int = 2000, seed
 
 
 def panel(label: str, state_, equity_, returns_, anchor_returns_daily=None) -> pd.Series:
-    """The constraint and robustness panel for one run, on daily/weekly returns and both regimes."""
-    rd = daily(returns_)
+    """The constraint and robustness panel for one run, on the strategy's own clock.
+
+    Volatility, Sharpe, Sortino and beta are computed on cycle returns rather than zero-filled
+    daily ones, and `mean_invested` reports actual deployment rather than the share of days on
+    which the 2-day clock happened to tick.
+    """
+    rc, periods_per_year = cycle_returns(equity_)
     out = {"label": label}
-    for tag, r in (("daily", rd), ("weekly", weekly(returns_))):
-        periods = 365 if tag == "daily" else 52
-        out[f"{tag}_sharpe"] = float(calculate_sharpe(r, periods=periods))
-        out[f"{tag}_sortino"] = float(calculate_sortino(r, periods=periods))
-        out[f"{tag}_vol"] = float(r.std() * np.sqrt(periods))
+    out["cycle_sharpe"] = float(calculate_sharpe(rc, periods=periods_per_year))
+    out["cycle_sortino"] = float(calculate_sortino(rc, periods=periods_per_year))
+    out["cycle_vol"] = float(rc.std() * np.sqrt(periods_per_year))
+    rw = weekly(returns_)
+    out["weekly_sharpe"] = float(calculate_sharpe(rw, periods=52))
+    out["weekly_sortino"] = float(calculate_sortino(rw, periods=52))
+    out["weekly_vol"] = float(rw.std() * np.sqrt(52))
     out["cagr"] = cagr_of(equity_)
     out["ulcer"] = ulcer_index(equity_)
     out["martin"] = out["cagr"] / out["ulcer"] if out["ulcer"] > 0 else float("nan")
     out["max_dd"] = float((equity_ / equity_.cummax() - 1.0).min())
-    out["abs_invested_beta"], out["beta_r2"] = invested_basket_beta(state_, rd)
-    out["time_in_market"] = float((rd != 0).mean())
-    out["luck_ratio"] = luck_ratio(rd)
+    out["abs_invested_beta"], out["beta_r2"] = invested_basket_beta(state_, equity_)
+    out["mean_invested"] = mean_invested_fraction(state_)
+    out["luck_ratio"] = luck_ratio(rc)
     out["top5_gross_share"] = top5_gross_profit_share(state_)
     for regime, sl in (("sparse", slice(DEV_START, REGIME_BREAK - pd.Timedelta(days=1))), ("dense", slice(REGIME_BREAK, DEV_END))):
         e = equity_.loc[sl]
         out[f"{regime}_cagr"] = cagr_of(e) if len(e) > 10 else float("nan")
         out[f"{regime}_ulcer"] = ulcer_index(e) if len(e) > 10 else float("nan")
     if anchor_returns_daily is not None:
+        # Paired difference against the anchor. The daily basis is legitimate here even though
+        # it carries structural zeros on off-cycle days: both series share the same clock, so
+        # the zeros cancel in the difference. It is only invalid for level statistics such as
+        # volatility or beta, which is why those use `cycle_returns()` above.
+        rd = daily(returns_)
         lo, hi = block_bootstrap_ci(rd - anchor_returns_daily.reindex(rd.index).fillna(0.0))
         out["diff_ci_lo_bps"], out["diff_ci_hi_bps"] = lo * 1e4, hi * 1e4
     return pd.Series(out)
 
 
 def passes_constraints(row: pd.Series, anchor: pd.Series) -> bool:
+    """The five pre-registered constraints from 03-smoothing-experiment-plan.md.
+
+    The deployment floor keeps the plan's literal pre-registered 0.45 threshold. Note that it
+    was calibrated against a metric that turned out to measure cycle cadence (~0.50) rather than
+    deployment; measured correctly the anchor deploys ~0.97, so the floor is more permissive
+    relative to the anchor than the plan's wording implies. It is left at the pre-registered
+    number rather than re-tuned after the fact, and `mean_invested` is reported for every row so
+    a cash-overlay result stays visible.
+    """
     return bool(
         row["cagr"] >= 0.30
-        and row["daily_vol"] <= anchor["daily_vol"]
+        and row["cycle_vol"] <= anchor["cycle_vol"]
         and row["ulcer"] < anchor["ulcer"]
         and row["abs_invested_beta"] < anchor["abs_invested_beta"]
-        and row["time_in_market"] >= 0.45
+        and row["mean_invested"] >= 0.45
     )
 
 

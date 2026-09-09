@@ -483,10 +483,20 @@ def decide_trades(input: StrategyInput) -> list[TradeExecution]:
     vol_scale = 1.0
     target_vol = getattr(parameters, 'target_portfolio_vol', None)
     if target_vol and weight_by_id:
+        # Apply the concentration ceiling before estimating ex-ante vol. `weight_by_id` holds raw
+        # sizing weights; `alpha_model.normalise_weights()` below caps each at
+        # `max_concentration_pct` and renormalises, so the raw weights can overstate how much of
+        # the book a single volatile vault actually gets.
         total_weight = sum(weight_by_id.values()) or 1.0
+        concentration_cap = float(parameters.max_concentration_pct)
+        capped_weights = {
+            pid: min(weight / total_weight, concentration_cap)
+            for pid, weight in weight_by_id.items()
+        }
+        capped_total = sum(capped_weights.values()) or 1.0
         ex_ante_daily_vol = sum(
-            (weight_by_id[pid] / total_weight) / max(inv_vol_by_id.get(pid, 0.0), 1e-9)
-            for pid in weight_by_id
+            (capped_weights[pid] / capped_total) / max(inv_vol_by_id.get(pid, 0.0), 1e-9)
+            for pid in capped_weights
             if inv_vol_by_id.get(pid, 0.0) > 0
         )
         ex_ante_annual_vol = ex_ante_daily_vol * math.sqrt(365.0)

@@ -100,7 +100,30 @@ def integrity_and_audit_cells():
     return [base_cell(17), base_cell(18), base_cell(19), base_cell(20)]
 
 
+PLACEHOLDER = "_To be filled in after the run._"
+
+
 def write_notebook(cells, out_path: Path):
+    """Write the notebook, preserving a heading that already carries written-up findings.
+
+    Headings are filled in after a run, by hand, from the actual results; the build scripts only
+    carry the placeholder template. Rebuilding a notebook to re-run it would otherwise silently
+    reset its findings back to placeholders - which happened once, after the harness fixes, and
+    cost a full rewrite of seven headings. So: if the existing notebook's heading has no
+    placeholder left and the incoming one does, keep the existing heading.
+    """
+    if out_path.exists() and cells and cells[0]["cell_type"] == "markdown":
+        try:
+            existing = json.load(open(out_path))
+            existing_heading = "".join(existing["cells"][0]["source"])
+            incoming_heading = "".join(cells[0]["source"])
+            if PLACEHOLDER not in existing_heading and PLACEHOLDER in incoming_heading:
+                cells = list(cells)
+                cells[0] = {"cell_type": "markdown", "metadata": {}, "source": existing_heading.splitlines(keepends=True)}
+                print(f"  (kept the existing written-up heading for {out_path.name})")
+        except (KeyError, IndexError, ValueError):
+            pass
+
     out = {"cells": cells, "metadata": BASE.get("metadata", {}), "nbformat": 4, "nbformat_minor": 5}
     json.dump(out, open(out_path, "w"), indent=1)
     print(f"wrote {out_path} with {len(cells)} cells")

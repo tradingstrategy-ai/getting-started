@@ -60,6 +60,10 @@ for flag in ("target_portfolio_vol", "high_beta_group_cap", "event_concentration
 
 
 def run(fn, name):
+    # Mirrors the fix now in `run_variant`: reset the sell_tax that
+    # `refresh_vault_redemption_accounting` mutates on the shared universe, so each run starts
+    # from the same state. Without this, run 1 and run 2 of identical code differed by $428.
+    apply_vault_redemption_capital_fee(strategy_universe, Parameters.vault_redemption_capital_fee)
     result = run_backtest_inline(
         name=name,
         engine_version="0.5",
@@ -113,12 +117,11 @@ print(f"         enhanced       vs original run 2 : ${max_equity_gap(enhanced_ru
 print()
 control_gap = max_equity_gap(original_a, original_b)
 if control_gap > 1e-6:
-    print("Consecutive runs of the SAME decide_trades differ, so backtests in one kernel are not")
-    print("independent - `refresh_vault_redemption_accounting` mutates `sell_tax` on the shared")
-    print("strategy_universe pair objects. Any original-vs-enhanced equity gap is confounded by")
-    print("run order; the trade-by-trade fingerprint comparison below is the reliable test.")
+    print("FAIL: consecutive runs of the SAME decide_trades still differ - the sell_tax reset in")
+    print("run_variant is not sufficient and backtests in one kernel remain order-dependent.")
 else:
-    print("Consecutive runs are independent, so the original-vs-enhanced gap is a real difference.")
+    print("PASS: consecutive runs of identical code are now bit-identical, so the sell_tax reset")
+    print("makes backtests in one kernel independent. Any original-vs-enhanced gap below is real.")
 
 equity_diff = (enhanced_run["equity"] - original_run["equity"]).abs()
 

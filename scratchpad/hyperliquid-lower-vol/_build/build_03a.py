@@ -168,14 +168,27 @@ def _block_bootstrap_ci(diff, block=20, draws=2000, seed=0):
     return float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
 
 
-rd = returns.resample("1D").sum(min_count=1).fillna(0.0)
-lo, hi = _block_bootstrap_ci(rd - rd.mean())
+# The strategy runs on a 2-day cycle, so its equity curve carries one point every 2 days.
+# Resampling that to daily and zero-filling would insert a structural zero on every off-cycle
+# day, understating volatility and distorting the detectable effect, so the power calculation
+# is done on the strategy's own cycle clock.
+rc = equity.pct_change().dropna()
+spacings = [(b - a).days for a, b in zip(equity.index, equity.index[1:])]
+spacing_days = float(np.median(spacings)) if spacings else 1.0
+periods_per_year = 365.0 / max(spacing_days, 1e-9)
+
+# A 20-day block on a daily clock is 10 cycles on a 2-day clock.
+block_cycles = max(int(round(20 / spacing_days)), 2)
+lo, hi = _block_bootstrap_ci(rc - rc.mean(), block=block_cycles)
 half_width_bps = (hi - lo) / 2 * 1e4
-mde_sharpe = (half_width_bps / 1e4) / rd.std() * np.sqrt(365)
+mde_sharpe = (half_width_bps / 1e4) / rc.std() * np.sqrt(periods_per_year)
 power_df = pd.DataFrame([
-    ("Development window trading days", len(rd)),
-    ("Daily volatility", rd.std()),
-    ("Bootstrap half-width (bps/day)", half_width_bps),
+    ("Decision cycles in the development window", len(rc)),
+    ("Cycle spacing (days)", spacing_days),
+    ("Volatility per cycle", rc.std()),
+    ("Annualised volatility", rc.std() * np.sqrt(periods_per_year)),
+    ("Bootstrap block length (cycles)", block_cycles),
+    ("Bootstrap half-width (bps/cycle)", half_width_bps),
     ("Minimum detectable Sharpe difference", mde_sharpe),
 ], columns=["Metric", "Value"])
 display(power_df)
