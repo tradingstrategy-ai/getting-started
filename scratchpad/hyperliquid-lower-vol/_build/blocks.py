@@ -235,6 +235,29 @@ def cagr_min_sortino_weight(
 
 
 @indicators.define(
+    dependencies=(cagr_score, positive_window_share),
+    source=IndicatorSource.dependencies_only_per_pair,
+)
+def cagr_positive_window_weight(
+    pair: TradingPairIdentifier,
+    dependency_resolver: IndicatorDependencyResolver,
+    cagr_lookback_days: int = 360,
+    cagr_weight: float = 0.6,
+) -> pd.Series:
+    """`cagr_weight x CAGR score + (1 - cagr_weight) x share of positive rolling 30d windows` (NB09).
+
+    `positive_window_share` cleared the NB03b precision-at-6 gate with the largest margin of any
+    feature tested, so it is tried as a second consistency leg alongside `cagr_min_sortino_weight`
+    rather than assumed inferior to it.
+    """
+    cagr_component = dependency_resolver.get_indicator_data(
+        'cagr_score', pair=pair, parameters={'cagr_lookback_days': cagr_lookback_days},
+    )
+    consistency = dependency_resolver.get_indicator_data('positive_window_share', pair=pair)
+    return cagr_weight * cagr_component + (1.0 - cagr_weight) * consistency
+
+
+@indicators.define(
     dependencies=(residual_cagr_score, sortino_score),
     source=IndicatorSource.dependencies_only_per_pair,
 )
