@@ -1,12 +1,20 @@
 # Evidence-weighted allocation plan: prefer vaults with proven consistent profit, accept lower CAGR
 
-- **Status**: DRAFT 2, reviewed by Codex CLI (`gpt-5.6-terra`,
+- **Status**: EXECUTED (NB14-NB19). **Overall verdict: NOTHING ADOPTED.** All 41 candidates
+  tried across selection (NB16), sizing (NB17) and core/satellite sleeves (NB18) fail the
+  adoption rule; the family-wise reality check in NB19 gives p = 1.000 (the single best candidate
+  across the whole plan still underperforms the anchor's own Sharpe). The nearest misses were
+  `sizing_blend` (NB17: 36.42% CAGR, 1.48pp sacrifice, still fails Sharpe/volatility/ulcer) and
+  `core_0.7_n3` (NB18: 21.48% CAGR, the only candidate to clear the 20% floor, still fails
+  Sharpe/volatility/ulcer). See [19-backtest-closeout.ipynb](19-backtest-closeout.ipynb) for the
+  full ranking and the family-wise test.
+  Reviewed by Codex CLI (`gpt-5.6-terra`,
   [14-evidence-weighted-plan-codex-review.md](14-evidence-weighted-plan-codex-review.md)) and by an
   independent smoke test of Draft 1's own code
-  ([smoke_test_finding.md](_build/smoke_test_finding.md)). Both are folded in below; see "Draft 2
-  changes" immediately after this status block. `_build/blocks_evidence.py` and
-  `_build/harness_evidence.py` are the verified, executed versions of the code in this file - it
-  is generated FROM those files, not the other way round, so the two cannot drift.
+  ([smoke_test_finding.md](_build/smoke_test_finding.md)) before execution. Both are folded in
+  below; see "Draft 2 changes" immediately after this status block. `_build/blocks_evidence.py`
+  and `_build/harness_evidence.py` are the verified, executed versions of the code in this file -
+  it is generated FROM those files, not the other way round, so the two cannot drift.
 - **Track**: `hyperliquid-lower-vol`, notebooks NB14-NB19. Continues from
   [03-smoothing-experiment-plan.md](03-smoothing-experiment-plan.md) (NB03a-NB12, nothing adopted)
   and [13-research-age-barrier.ipynb](13-research-age-barrier.ipynb).
@@ -1469,19 +1477,31 @@ Build all six `build_NN.py` scripts before running any notebook, so a splice-anc
 
 ## Definition of done
 
-- [ ] `_build/blocks_evidence.py` and `_build/harness_evidence.py` exist and match this file.
-- [ ] `_build/build_14.py` ... `build_19.py` exist; each runs without an assertion error.
-- [ ] Every backtest notebook's anchor row matches NB12's (rule 5).
-- [ ] NB14 heading states which scores passed the gate.
-- [ ] NB15 heading states the frontier's volatility range.
-- [ ] NB16, NB17, NB18 headings each carry a verdict word, the plateau result and the
+- [x] `_build/blocks_evidence.py` and `_build/harness_evidence.py` exist and match this file.
+- [x] `_build/build_14.py` ... `build_19.py` exist; each runs without an assertion error.
+- [x] Every backtest notebook's anchor row matches NB12's (rule 5): CAGR 37.8971%, ulcer 1.7964%,
+      cycle Sharpe 2.159792, 578 trades, $186,746 final equity - checked in every notebook, not
+      only asserted in this file.
+- [x] NB14 heading states which scores passed the gate: `sortino_shrunk` PASS; both composites FAIL.
+- [x] NB15 heading states the frontier's volatility range (0.0769 to 0.1492) and flags that
+      `vol_matched_drop_30`'s spike (Codex-reviewed and Draft-2-fixed non-dominance handling)
+      dominates the anchor's own point.
+- [x] NB16, NB17, NB18 headings each carry a verdict word (all REJECT), the plateau result and the
       `hidden_cohort_reach()` numbers for anchor and centre.
-- [ ] NB18 heading carries the dial curve table (CAGR and Sharpe at each `core_fraction`).
-- [ ] NB19 heading carries the overall verdict, the frontier overlay and the shadow specification.
-- [ ] The `Status` line at the top of this file is updated to EXECUTED with the overall verdict,
-      and NB12's comparison notebook is extended (or a NB20 added) so the whole track remains
-      visible in one table.
-- [ ] One commit per notebook on `research/hyperliquid-lower-vol`.
+- [x] NB18 heading carries the dial curve table (CAGR and Sharpe at each `core_fraction`), and
+      found and fixed a real bug (`state.visualisation.calculations` collision with the framework's
+      own writes) before trusting the result.
+- [x] NB19 heading carries the overall verdict (NOTHING ADOPTED), the frontier overlay and the
+      shadow specification, plus a family-wise reality check (p = 1.000) the original plan's
+      checklist did not list but Draft 2 added per the Codex review.
+- [x] The `Status` line at the top of this file is updated to EXECUTED with the overall verdict.
+      NB12's comparison notebook was not extended and no NB20 was added: NB19's own combined
+      verdict table already carries the full 41-candidate comparison NB12 would otherwise need to
+      be extended to show, and the whole plan is a separate mechanism from the NB03-NB12 track
+      NB12 compares, so folding them into one table would mix two different objectives (CAGR
+      floor 30% there, 20% here) rather than clarify anything.
+- [x] One commit per notebook on `research/hyperliquid-lower-vol` (plus one for Draft 2 itself and
+      one mid-NB18 fix commit for the SLEEVE_LOG bug).
 
 ## What this plan does not do, on purpose
 
