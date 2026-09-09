@@ -50,17 +50,26 @@ cells.append(md("""# Sizing-family sweep
 on top of the incumbent `inverse_variance` sizing rather than replacing it, since it acts on the
 already-sized weights.
 """))
-cells.append(code("""rows = [anchor_panel]
+cells.append(code("""anchor_cycle_returns, _ = cycle_returns(anchor_equity)
+rows = [anchor_panel]
 
 s, e, r = run_variant("inverse_ulcer", weighting_method="inverse_ulcer", sizing_risk_indicator="ulcer_index_180")
-rows.append(panel("inverse_ulcer", s, e, r, daily(anchor_returns)))
+rows.append(panel("inverse_ulcer", s, e, r, anchor_cycle_returns))
 
 s, e, r = run_variant("inverse_downside", weighting_method="inverse_downside", sizing_risk_indicator="downside_deviation_90")
-rows.append(panel("inverse_downside", s, e, r, daily(anchor_returns)))
+rows.append(panel("inverse_downside", s, e, r, anchor_cycle_returns))
+
+# The plan's third sizing family: equal-risk-contribution weights with a residual-correlation cap.
+# The first version of this notebook substituted a beta-group cap for it, which turned out to be a
+# no-op; this is the family actually specified.
+for corr_cap in (0.40, 0.60, 0.80):
+    label = f"risk_contribution_corr_{corr_cap}"
+    s, e, r = run_variant(label, weighting_method="risk_contribution", residual_correlation_cap=corr_cap)
+    rows.append(panel(label, s, e, r, anchor_cycle_returns))
 
 for group_cap in (0.25, 0.40, 0.50):
     s, e, r = run_variant(f"beta_group_cap_{group_cap}", high_beta_group_cap=group_cap)
-    rows.append(panel(f"beta_group_cap_{group_cap}", s, e, r, daily(anchor_returns)))
+    rows.append(panel(f"beta_group_cap_{group_cap}", s, e, r, anchor_cycle_returns))
 
 sweep_df = pd.DataFrame(rows).set_index("label")
 sweep_df["passes"] = [
@@ -89,9 +98,14 @@ if len(passing):
         winner_overrides = dict(weighting_method="inverse_downside", sizing_risk_indicator="downside_deviation_90")
     elif winner_label.startswith("beta_group_cap_"):
         winner_overrides = dict(high_beta_group_cap=float(winner_label.replace("beta_group_cap_", "")))
+    elif winner_label.startswith("risk_contribution_corr_"):
+        winner_overrides = dict(
+            weighting_method="risk_contribution",
+            residual_correlation_cap=float(winner_label.replace("risk_contribution_corr_", "")),
+        )
 
     s, e, r = run_variant(f"{winner_label}_without_top_vault", masked={worst_vault}, **winner_overrides)
-    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, daily(anchor_returns))
+    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, anchor_cycle_returns)
     display(pd.DataFrame([sweep_df.loc[winner_label].drop("passes"), lovo_panel]))
     print(f"Leave-one-vault-out (excluding {worst_vault}): still passes constraints = {passes_constraints(lovo_panel, anchor_panel)}")
 else:

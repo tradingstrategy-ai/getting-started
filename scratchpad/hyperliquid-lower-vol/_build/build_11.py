@@ -51,10 +51,11 @@ cells.append(md("""# Step 1: is the event-concentration penalty a plateau or a s
 NB79's rule: a variant is only believed if adjacent parameter values also beat the anchor.
 NB09 tested only `lambda=0.5`; this fills in 0.25, 0.75 and 1.0 around it.
 """))
-cells.append(code("""rows = [anchor_panel]
+cells.append(code("""anchor_cycle_returns, _ = cycle_returns(anchor_equity)
+rows = [anchor_panel]
 for lam in (0.25, 0.5, 0.75, 1.0):
     s, e, r = run_variant(f"event_concentration_{lam}", event_concentration_lambda=lam)
-    rows.append(panel(f"event_concentration_{lam}", s, e, r, daily(anchor_returns)))
+    rows.append(panel(f"event_concentration_{lam}", s, e, r, anchor_cycle_returns))
 
 plateau_df = pd.DataFrame(rows).set_index("label")
 plateau_df["passes"] = [
@@ -67,6 +68,54 @@ beats_anchor_on_martin = plateau_df["martin"] > anchor_panel["martin"]
 is_plateau = beats_anchor_on_martin.loc[["event_concentration_0.25", "event_concentration_0.5", "event_concentration_0.75"]].all()
 print(f"Beats anchor's Martin ratio at each lambda: {beats_anchor_on_martin.to_dict()}")
 print(f"Plateau across 0.25/0.5/0.75 (the NB79 test): {is_plateau}")
+"""))
+
+cells.append(md("""## Step 1b: the vol-matched control, which turned out to be the track's only candidate
+
+NB09 added the vol-matched placebo the plan had pre-registered as a *control* - drop the N
+highest-volatility candidates each cycle, with no view on quality at all - to test whether the
+consistency legs' beta reduction was selection skill or generic de-risking. It was generic: the
+placebo reached the same beta at far better return. But the control also did something the control
+was not supposed to do. It satisfied every adoption constraint, at three contiguous settings, which
+is a plateau rather than the spike pattern that disqualified the event-concentration penalty.
+
+It is re-run here so this notebook's hold-out decision rests on figures computed in the same
+kernel, and so the leave-one-vault-out check the adoption rule requires is applied to it.
+"""))
+cells.append(code("""vol_rows = [anchor_panel]
+for drop in (20, 25, 30, 35, 40):
+    label = f"vol_matched_drop_{drop}"
+    s, e, r = run_variant(label, vol_matched_drop_count=drop)
+    vol_rows.append(panel(label, s, e, r, anchor_cycle_returns))
+
+vol_df = pd.DataFrame(vol_rows).set_index("label")
+vol_df["passes"] = [
+    passes_constraints(row, anchor_panel) if label != "anchor" else True
+    for label, row in vol_df.iterrows()
+]
+display(vol_df)
+
+vol_passing = vol_df.index[(vol_df["passes"]) & (vol_df.index != "anchor")].tolist()
+vol_is_plateau = len(vol_passing) >= 3
+print(f"Settings satisfying every constraint: {vol_passing or 'none'}")
+print(f"Plateau (three or more contiguous settings): {vol_is_plateau}")
+
+if vol_passing:
+    vol_winner_label = vol_df.loc[vol_passing, "martin"].idxmax()
+    vol_winner_drop = int(vol_winner_label.replace("vol_matched_drop_", ""))
+    print(f"Winner by Martin ratio: {vol_winner_label} "
+          f"({vol_df.loc[vol_winner_label, 'martin']:.2f} vs anchor {anchor_panel['martin']:.2f})")
+
+    # Leave-one-vault-out, by full re-simulation with the largest contributor unavailable.
+    worst_vault = largest_contributing_vault(anchor_state)
+    s, e, r = run_variant(f"{vol_winner_label}_without_top_vault",
+                          vol_matched_drop_count=vol_winner_drop, masked={worst_vault})
+    vol_lovo = panel(f"{vol_winner_label}_without_top_vault", s, e, r, anchor_cycle_returns)
+    display(pd.DataFrame([vol_df.loc[vol_winner_label].drop("passes"), vol_lovo]))
+    vol_lovo_survives = passes_constraints(vol_lovo, anchor_panel)
+    print(f"Leave-one-vault-out (excluding {worst_vault}): still passes = {vol_lovo_survives}")
+else:
+    vol_winner_label, vol_winner_drop, vol_lovo_survives = None, None, False
 """))
 
 cells.append(md("""# Step 2: hold-out
@@ -107,16 +156,27 @@ anchor_ho_state, anchor_ho_equity, anchor_ho_returns = run_variant("anchor_holdo
 anchor_ho_panel = panel("anchor_holdout", anchor_ho_state, anchor_ho_equity, anchor_ho_returns)
 
 holdout_rows = [anchor_ho_panel]
+anchor_ho_cycle_returns = cycle_returns(anchor_ho_equity)[0]
+candidate_ho_state = None
+
 if is_plateau:
     s, e, r = run_variant("event_concentration_0.5_holdout", event_concentration_lambda=0.5, **HOLDOUT_KWARGS)
-    candidate_ho_panel = panel("event_concentration_0.5_holdout", s, e, r, daily(anchor_ho_returns))
-    holdout_rows.append(candidate_ho_panel)
+    holdout_rows.append(panel("event_concentration_0.5_holdout", s, e, r, anchor_ho_cycle_returns))
     candidate_ho_state = s
 else:
-    candidate_ho_panel = None
-    candidate_ho_state = None
-    print("Step 1 did not find a plateau; the event-concentration penalty is not carried to the hold-out. "
-          "Only the anchor's hold-out figures are reported, for reference against the development window.")
+    print("The event-concentration penalty is a spike, not a plateau, so it is not carried to the "
+          "hold-out.")
+
+if vol_winner_label and vol_lovo_survives:
+    s, e, r = run_variant(f"{vol_winner_label}_holdout",
+                          vol_matched_drop_count=vol_winner_drop, **HOLDOUT_KWARGS)
+    holdout_rows.append(panel(f"{vol_winner_label}_holdout", s, e, r, anchor_ho_cycle_returns))
+    candidate_ho_state = s
+    print(f"{vol_winner_label} cleared the plateau and leave-one-vault-out checks, so it is carried "
+          f"to the hold-out - the only configuration in this track to get there.")
+elif vol_winner_label:
+    print(f"{vol_winner_label} passed on the development window but failed leave-one-vault-out, so "
+          f"it is not carried to the hold-out.")
 
 display(pd.DataFrame(holdout_rows))
 
@@ -134,40 +194,94 @@ configuration run to 2026-09-08) and against the live `hyper-ai` book snapshot f
 [PR #60](https://github.com/tradingstrategy-ai/getting-started/pull/60) (open: Octavious, Sequoia,
 Citadel, Gucky_4coin, Mad Scientists, DOEZOE).
 """))
-cells.append(code("""def closing_basket(state_) -> list[str]:
-    return sorted({
-        p.pair.base.token_symbol
+cells.append(code("""#: Pool addresses, not token symbols. The feed truncates vault names to ten characters
+#: ("Octavious ", "AceVault H"), so a set comparison against full names silently matches nothing -
+#: the first version of this cell would have reported every pumper as dropped.
+def closing_basket_addresses(state_) -> set:
+    return {
+        str(p.pair.pool_address).lower()
         for p in state_.portfolio.get_open_positions()
         if not p.pair.is_credit_supply()
-    })
+    }
 
-FULL_WINDOW_BASKET = {"Citadel", "AceVault Hyper01", "DOEZOE", "Octavious Maximus", "Mad Scientists", "Sequoia HyperStable Yield Optimizer"}
-LIVE_BOOK_BASKET = {"Octavious Maximus", "Sequoia HyperStable Yield Optimizer", "Citadel", "Gucky_4coin", "Mad Scientists", "DOEZOE"}
-KNOWN_PUMPERS = {"Octavious Maximus", "DOEZOE", "Sequoia HyperStable Yield Optimizer"}
-KNOWN_STEADY_DROPPED = {"22Cap", "HYPErQuant"}   # NB07/live-book note: dropped within days despite low beta, low vol
 
-print("Anchor, hold-out-only closing basket:", closing_basket(anchor_ho_state))
+def basket_names(state_) -> list[str]:
+    return sorted(
+        p.pair.base.token_symbol.strip()
+        for p in state_.portfolio.get_open_positions()
+        if not p.pair.is_credit_supply()
+    )
+
+
+FULL_WINDOW_NAMES = ["AceVault Hyper01", "Citadel", "DOEZOE", "Mad Scientists", "Octavious Maximus", "Sequoia HyperStable Yield Optimizer"]
+
+#: The three BTC-beta pumpers that motivated this track, keyed by pool address (PR #60).
+KNOWN_PUMPERS = {
+    "0x45c42fbd450b5506f8dc819d46036630fe75b81e": "Octavious Maximus",
+    "0xcae0d1558b70b92ee9fd0acb20cb639c8c28ae69": "DOEZOE",
+    "0xebc9865942ab666a57976a7768594b29133cbf53": "Sequoia HyperStable Yield Optimizer",
+}
+LIVE_BOOK_NAMES = ["Citadel", "DOEZOE", "Gucky_4coin", "Mad Scientists", "Octavious Maximus", "Sequoia HyperStable Yield Optimizer"]
+KNOWN_STEADY_DROPPED = ["22Cap", "HYPErQuant"]   # PR #60: dropped within days despite low beta and low vol
+
+anchor_ho_addresses = closing_basket_addresses(anchor_ho_state)
+print("Anchor, hold-out-only closing basket:", basket_names(anchor_ho_state))
+anchor_pumpers = {name for addr, name in KNOWN_PUMPERS.items() if addr in anchor_ho_addresses}
+print(f"  of which known BTC-beta pumpers: {sorted(anchor_pumpers) or 'none'} "
+      f"({len(anchor_pumpers)} of {len(KNOWN_PUMPERS)})")
+
 if candidate_ho_state is not None:
-    print("Candidate (event-concentration 0.5), hold-out-only closing basket:", closing_basket(candidate_ho_state))
-    dropped_pumpers = KNOWN_PUMPERS - set(closing_basket(candidate_ho_state))
-    print(f"Known BTC-beta pumpers dropped by the candidate vs the anchor's hold-out basket: {dropped_pumpers or 'none'}")
+    candidate_addresses = closing_basket_addresses(candidate_ho_state)
+    print("Candidate, hold-out-only closing basket:", basket_names(candidate_ho_state))
+    dropped = {name for addr, name in KNOWN_PUMPERS.items() if addr in anchor_ho_addresses and addr not in candidate_addresses}
+    print(f"  pumpers the candidate dropped that the anchor held: {sorted(dropped) or 'none'}")
+else:
+    print("  (no candidate reached the hold-out, so there is nothing to compare against)")
+
 print()
-print("For reference (not re-run here): 02-better-format.ipynb full-window basket:", sorted(FULL_WINDOW_BASKET))
-print("For reference (not re-run here): live hyper-ai book snapshot (PR #60):", sorted(LIVE_BOOK_BASKET))
-print("Known steady vaults the live book dropped within days (PR #60 assessment):", sorted(KNOWN_STEADY_DROPPED))
+print("For reference, not re-run here:")
+print("  02-better-format.ipynb full-window basket:", sorted(FULL_WINDOW_NAMES))
+print("  live hyper-ai book snapshot (PR #60):     ", LIVE_BOOK_NAMES)
+print("  steady vaults the live book dropped fast: ", KNOWN_STEADY_DROPPED)
 """))
 
 cells.append(md("""# Verdict table across the track
+
+The event-concentration row is derived from step 1 above rather than asserted, so this table
+cannot drift out of step with the plateau result computed in the same notebook.
 """))
-cells.append(code("""verdict_df = pd.DataFrame([
-    {"notebook": "NB04 vol target", "lever": "structural", "verdict": "REJECT", "note": "No target passes; already-low-beta anchor has no beta to remove on this window"},
-    {"notebook": "NB05 pool cap", "lever": "structural", "verdict": "REJECT", "note": "Tightening the cap worsens both CAGR and ulcer via forced substitution into thinner vaults"},
-    {"notebook": "NB06 breadth/concentration", "lever": "structural", "verdict": "REJECT", "note": "Breadth collapses CAGR; 25% concentration a near-miss on beta alone"},
-    {"notebook": "NB07 sizing", "lever": "sizing", "verdict": "REJECT", "note": "inverse_ulcer/inverse_downside worsen CAGR and ulcer; beta-group cap mostly a no-op"},
-    {"notebook": "NB08 event-concentration penalty", "lever": "selection (penalty)", "verdict": "PROVISIONAL / lead", "note": "Best single result in the track; not a checked plateau until this notebook"},
-    {"notebook": "NB09 min_window_sortino", "lever": "selection", "verdict": "REJECT", "note": "Collapses in the sparse regime; screen result did not survive the full backtest"},
-    {"notebook": "NB09 positive_window_share", "lever": "selection", "verdict": "REJECT", "note": "Same failure mode, less severe"},
-    {"notebook": "NB10 residual CAGR leg", "lever": "selection", "verdict": "NOT BUILT", "note": "Failed NB03b's gate (loses in the sparse regime), confirming NB47"},
+cells.append(code("""event_verdict = "ADOPT" if is_plateau else "REJECT (spike, not a plateau)"
+best_lambda = plateau_df.loc[plateau_df.index != "anchor", "martin"].idxmax()
+event_note = (
+    f"Best at {best_lambda} (Martin {plateau_df.loc[best_lambda, 'martin']:.1f} vs anchor "
+    f"{anchor_panel['martin']:.1f}), but neighbours fall below the anchor - the NB79 spike pattern"
+    if not is_plateau else
+    f"Plateau confirmed around {best_lambda}"
+)
+
+verdict_df = pd.DataFrame([
+    {"notebook": "NB04 vol target", "lever": "structural", "verdict": "REJECT",
+     "note": "Every target lowers Martin ratio; lower volatility is bought by holding cash (deployment 61-85% vs 97.5%)"},
+    {"notebook": "NB05 pool cap / TVL floor", "lever": "structural", "verdict": "REJECT",
+     "note": "Tighter caps and higher TVL floors both cost CAGR through forced substitution into thinner vaults"},
+    {"notebook": "NB06 breadth", "lever": "structural", "verdict": "REJECT",
+     "note": "Genuinely cuts beta (0.071 -> 0.017) but collapses CAGR to 4-18%"},
+    {"notebook": "NB06 concentration", "lever": "structural", "verdict": "REJECT",
+     "note": "25% raises CAGR but also beta (0.071 -> 0.099); 20% worse on every axis"},
+    {"notebook": "NB07 drawdown sizing", "lever": "sizing", "verdict": "REJECT",
+     "note": "inverse_ulcer / inverse_downside worsen CAGR, ulcer and beta together"},
+    {"notebook": "NB07 risk contribution", "lever": "sizing", "verdict": "see notebook",
+     "note": "Equal-risk-contribution with a residual-correlation cap, the family the plan specified"},
+    {"notebook": "NB07 beta-group cap", "lever": "sizing", "verdict": "NO-OP",
+     "note": "Identical to the anchor at every threshold - never binds in this window, so untested rather than rejected"},
+    {"notebook": "NB08 event-concentration penalty", "lever": "selection (penalty)", "verdict": event_verdict,
+     "note": event_note},
+    {"notebook": "NB09 consistency legs", "lever": "selection", "verdict": "REJECT",
+     "note": "Cut beta hardest of anything tested but collapse in the sparse regime; screen did not survive the backtest"},
+    {"notebook": "NB09 vol-matched placebo", "lever": "control", "verdict": "see notebook",
+     "note": "Pre-registered NB42 control: does dropping high-volatility names reproduce the selection legs' beta cut?"},
+    {"notebook": "NB10 residual CAGR leg", "lever": "selection", "verdict": "NOT BUILT",
+     "note": "Failed NB03b's gate at live parity as well as at the original alignment, confirming NB47"},
 ])
 display(verdict_df)
 """))

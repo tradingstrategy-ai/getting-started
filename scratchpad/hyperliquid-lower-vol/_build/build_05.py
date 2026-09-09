@@ -65,16 +65,28 @@ def capacity_signals(state_) -> dict:
         capped_counts.append(text.count("capped_by_pool_size"))
     return {
         "mean_discarded_liquidity_usd": float(np.mean(discarded)) if discarded else float("nan"),
-        "mean_capped_by_pool_size_flags": float(np.mean(capped_counts)) if capped_counts else float("nan"),
+        "share_of_cycles_with_pool_cap_flag": float(np.mean(capped_counts)) if capped_counts else float("nan"),
     }
 
 
+anchor_cycle_returns, _ = cycle_returns(anchor_equity)
 rows = [anchor_panel]
 capacity_rows = {"anchor": capacity_signals(anchor_state)}
 for cap in (0.15, 0.10, 0.05):
     s, e, r = run_variant(f"pool_cap_{cap}", per_position_cap_of_pool_pct=cap)
-    rows.append(panel(f"pool_cap_{cap}", s, e, r, daily(anchor_returns)))
+    rows.append(panel(f"pool_cap_{cap}", s, e, r, anchor_cycle_returns))
     capacity_rows[f"pool_cap_{cap}"] = capacity_signals(s)
+
+# The plan also asked for a minimum vault-TVL-to-position rule, which the first version of this
+# notebook omitted. Raising `min_tvl_usd` is the direct form of it: rather than capping the
+# position taken in a tiny vault, it makes the vault ineligible altogether, which is what NB84
+# actually recommended. `min_tvl_usd` is an indicator parameter, so each value recomputes the
+# inclusion criteria.
+for floor in (25_000, 50_000, 100_000):
+    label = f"min_tvl_{floor}"
+    s, e, r = run_variant(label, min_tvl_usd=floor)
+    rows.append(panel(label, s, e, r, anchor_cycle_returns))
+    capacity_rows[label] = capacity_signals(s)
 
 sweep_df = pd.DataFrame(rows).set_index("label")
 sweep_df["passes"] = [
@@ -89,17 +101,21 @@ cells.append(md("## Winner and leave-one-vault-out\n"))
 cells.append(code("""passing = sweep_df[(sweep_df["passes"]) & (sweep_df.index != "anchor")]
 if len(passing):
     winner_label = passing["martin"].idxmax()
-    winner_cap = float(winner_label.replace("pool_cap_", ""))
+    winner_overrides = (
+        {"min_tvl_usd": int(winner_label.replace("min_tvl_", ""))}
+        if winner_label.startswith("min_tvl_")
+        else {"per_position_cap_of_pool_pct": float(winner_label.replace("pool_cap_", ""))}
+    )
     print(f"Winner: {winner_label} (Martin {passing.loc[winner_label, 'martin']:.3f} vs anchor {anchor_panel['martin']:.3f})")
 
     worst_vault = largest_contributing_vault(anchor_state)
-    s, e, r = run_variant(f"{winner_label}_without_top_vault", per_position_cap_of_pool_pct=winner_cap, masked={worst_vault})
-    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, daily(anchor_returns))
+    s, e, r = run_variant(f"{winner_label}_without_top_vault", masked={worst_vault}, **winner_overrides)
+    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, anchor_cycle_returns)
     display(pd.DataFrame([sweep_df.loc[winner_label].drop("passes"), lovo_panel]))
     print(f"Leave-one-vault-out (excluding {worst_vault}): still passes constraints = {passes_constraints(lovo_panel, anchor_panel)}")
 else:
     winner_label = None
-    print("No per_position_cap_of_pool_pct value satisfies the adoption constraints; the baseline 33% cap is kept as the anchor for later notebooks, noted as a known capacity-realism gap.")
+    print("Neither a tighter pool cap nor a higher TVL floor satisfies the adoption constraints; the baseline 33% cap and 7,500 TVL floor are kept, noted as a known capacity-realism gap.")
 """))
 
 write_notebook(cells, TRACK_DIR / "05-backtest-pool-cap.ipynb")

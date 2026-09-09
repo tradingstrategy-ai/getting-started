@@ -437,6 +437,89 @@ def cagr_min_sortino_weight(
     return cagr_weight * cagr_component + (1.0 - cagr_weight) * consistency
 
 
+#: Annualised downside deviation at or above this level scores 0; zero downside scores 1.
+DOWNSIDE_SCORE_CAP = 1.0
+
+
+@indicators.define()
+def downside_score(close: pd.Series, downside_window_days: int = 90) -> pd.Series:
+    """Bounded [0, 1] score that rewards *low* downside deviation.
+
+    `downside_deviation_90` is a risk measure where lower is better, so it cannot be blended into
+    the composite directly - the composite's other legs are all higher-is-better scores bounded to
+    [0, 1]. This inverts and bounds it on the same scale.
+    """
+    r = close.pct_change()
+    w = int(downside_window_days)
+    dd = ((r.clip(upper=0.0) ** 2).rolling(w, min_periods=w).mean()) ** 0.5
+    annualised = dd * (TRADING_DAYS_PER_YEAR ** 0.5)
+    return (1.0 - (annualised / DOWNSIDE_SCORE_CAP)).clip(lower=0.0, upper=1.0)
+
+
+@indicators.define()
+def drawdown_recovery_days(close: pd.Series, ulcer_window_days: int = 180) -> pd.Series:
+    """Days since the vault last set a trailing-window high - how long it stays under water.
+
+    NB57 Stage C listed recovery speed as a feature the chain had never tested. A vault that
+    grinds back to its high quickly is steadier than one that sits under water for months, and
+    unlike Sharpe this is not flattered by a stale mark that simply fails to print a new low.
+    """
+    w = int(ulcer_window_days)
+    rolling_max = close.rolling(w, min_periods=1).max()
+    at_high = close >= rolling_max
+    days = []
+    since = 0
+    for flag in at_high.to_numpy():
+        since = 0 if flag else since + 1
+        days.append(float(since))
+    return pd.Series(days, index=close.index)
+
+
+@indicators.define(dependencies=(tvl,), source=IndicatorSource.dependencies_only_per_pair)
+def tvl_growth(
+    pair: TradingPairIdentifier,
+    dependency_resolver: IndicatorDependencyResolver,
+    consistency_span_days: int = 180,
+) -> pd.Series:
+    """Trailing TVL growth: outside money arriving is independent of the share-price series.
+
+    NB57 Stage C's argument for these features is that they do not inherit NAV staleness. NB44
+    and NB50 rejected *flow* as a selection signal, but TVL trajectory as a quality proxy - rather
+    than a contrarian penalty - has not been tested.
+    """
+    series = dependency_resolver.get_indicator_data("tvl", pair=pair)
+    if series is None or len(series) == 0:
+        return pd.Series(dtype="float64")
+    daily = series.resample("1D").last().ffill()
+    return daily / daily.shift(int(consistency_span_days)) - 1.0
+
+
+@indicators.define(
+    dependencies=(cagr_score, downside_score),
+    source=IndicatorSource.dependencies_only_per_pair,
+)
+def cagr_downside_weight(
+    pair: TradingPairIdentifier,
+    dependency_resolver: IndicatorDependencyResolver,
+    cagr_lookback_days: int = 360,
+    downside_window_days: int = 90,
+    cagr_weight: float = 0.6,
+) -> pd.Series:
+    """`cagr_weight x CAGR score + (1 - cagr_weight) x downside score` (NB09).
+
+    Added after the NB03b screen was re-run at live parity: `downside_deviation_90` clears the
+    precision-at-6 gate once the one-bar look-ahead is removed, so it earns a selection backtest
+    that the original (look-ahead-contaminated) screen denied it.
+    """
+    cagr_component = dependency_resolver.get_indicator_data(
+        "cagr_score", pair=pair, parameters={"cagr_lookback_days": cagr_lookback_days},
+    )
+    downside_component = dependency_resolver.get_indicator_data(
+        "downside_score", pair=pair, parameters={"downside_window_days": downside_window_days},
+    )
+    return cagr_weight * cagr_component + (1.0 - cagr_weight) * downside_component
+
+
 @indicators.define(
     dependencies=(cagr_score, positive_window_share),
     source=IndicatorSource.dependencies_only_per_pair,

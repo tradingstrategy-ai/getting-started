@@ -228,7 +228,7 @@ def block_bootstrap_ci(diff: pd.Series, block: int = 20, draws: int = 2000, seed
     return float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
 
 
-def panel(label: str, state_, equity_, returns_, anchor_returns_daily=None) -> pd.Series:
+def panel(label: str, state_, equity_, returns_, anchor_cycle_returns=None) -> pd.Series:
     """The constraint and robustness panel for one run, on the strategy's own clock.
 
     Volatility, Sharpe, Sortino and beta are computed on cycle returns rather than zero-filled
@@ -256,13 +256,12 @@ def panel(label: str, state_, equity_, returns_, anchor_returns_daily=None) -> p
         e = equity_.loc[sl]
         out[f"{regime}_cagr"] = cagr_of(e) if len(e) > 10 else float("nan")
         out[f"{regime}_ulcer"] = ulcer_index(e) if len(e) > 10 else float("nan")
-    if anchor_returns_daily is not None:
-        # Paired difference against the anchor. The daily basis is legitimate here even though
-        # it carries structural zeros on off-cycle days: both series share the same clock, so
-        # the zeros cancel in the difference. It is only invalid for level statistics such as
-        # volatility or beta, which is why those use `cycle_returns()` above.
-        rd = daily(returns_)
-        lo, hi = block_bootstrap_ci(rd - anchor_returns_daily.reindex(rd.index).fillna(0.0))
+    if anchor_cycle_returns is not None:
+        # Paired difference against the anchor, on the strategy's own clock. A 20-day block on a
+        # daily clock is 10 cycles here; using cycle returns keeps the block length meaningful and
+        # avoids resampling a series that is half structural zeros.
+        paired = rc - anchor_cycle_returns.reindex(rc.index).fillna(0.0)
+        lo, hi = block_bootstrap_ci(paired, block=10)
         out["diff_ci_lo_bps"], out["diff_ci_hi_bps"] = lo * 1e4, hi * 1e4
     return pd.Series(out)
 

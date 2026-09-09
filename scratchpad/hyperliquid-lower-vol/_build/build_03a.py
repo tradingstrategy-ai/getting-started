@@ -17,8 +17,9 @@ reserved and is not opened until [NB11](03-smoothing-experiment-plan.md).
 
 1. **Staleness flags.** Share of zero-return vault-days by month, to confirm the NB57 polling-regime
    break (sparse January-March, dense from April) on this track's freshly downloaded data.
-2. **Availability audit.** Confirms the new `btc_beta` indicator is read through the framework's
-   live-parity path (`get_indicator_value(..., index=-1)`), not a direct panel index.
+2. **Availability audit.** Checks against the raw poll data that every observation contributing
+   to the bar the strategy reads was recorded before the decision cycle - the property NB57's
+   correction turned on - rather than restating the framework's documented semantics.
 3. **Baseline attribution by vault beta.** Every position in the anchor run, bucketed by its
    90-day BTC beta at entry, to see how much of the anchor's return is the single-event BTC beta
    this track exists to reduce.
@@ -83,30 +84,75 @@ Confirms the new indicator is read through `StrategyInputIndicators.get_indicato
 path, rather than indexed directly out of a pandas panel at the decision date - the mistake NB57's
 correction found in NB41's panel variant.
 """))
-cells.append(code("""sample_pair = strategy_universe.get_pair_by_id(next(iter(pair_ids)))
-full_series = indicator_data.get_indicator_series("btc_beta", pair=sample_pair, unlimited=True)
+cells.append(code("""from pathlib import Path
 
-# Pick a mid-window decision timestamp actually used by the backtest.
+# The audit that matters: does the daily bar the framework reads at a decision cycle contain only
+# polls recorded before that cycle? NB57 established the alignment analytically; this checks it
+# against the raw poll data for a sample of vaults rather than restating the docstring.
+raw_path = Path("~/.cache/tradingstrategy/vaults/downloads/vault-prices.parquet").expanduser()
+raw_polls = pd.read_parquet(raw_path, columns=["chain", "address", "written_at"])
+raw_polls = raw_polls[raw_polls["chain"] == ChainId.hypercore.value].copy()
+raw_polls["address"] = raw_polls["address"].str.lower()
+
 decision_timestamps = sorted(s.calculated_at for s in state.stats.portfolio)
 sample_ts = pd.Timestamp(decision_timestamps[len(decision_timestamps) // 2])
-
-# What `decide_trades` actually saw for this pair at this cycle, if it was tradable that day.
-# There is no direct hook to re-call `get_indicator_value` outside `decide_trades`, so the audit
-# instead confirms the framework's own documented semantics: `get_indicator_value` shifts by one
-# full bar, i.e. it returns the value timestamped `sample_ts - 1 bar`, never `sample_ts` itself.
 one_bar = Parameters.candle_time_bucket.to_timedelta()
-value_at_prior_bar = full_series.asof(sample_ts - one_bar)
-value_at_same_bar = full_series.asof(sample_ts)
+bar_read = sample_ts - one_bar          # the bar `get_indicator_value(index=-1)` returns
 
-audit_df = pd.DataFrame([
-    ("Decision timestamp", sample_ts),
-    ("btc_beta value framework would use (T-1 bar)", value_at_prior_bar),
-    ("btc_beta value at T (would be look-ahead if used)", value_at_same_bar),
-    ("Values differ (audit is discriminating)", value_at_prior_bar != value_at_same_bar),
-], columns=["Check", "Value"])
+audit_rows = []
+sample_addresses = [
+    str(p_.pair.pool_address).lower()
+    for p_ in state.portfolio.get_all_positions()
+    if p_.pair.is_vault()
+][:5]
+for address in sample_addresses:
+    polls = raw_polls[raw_polls["address"] == address]
+    # Polls that fall inside the bar the strategy reads: [bar_read, bar_read + 1 bar)
+    in_bar = polls[(polls.index >= bar_read) & (polls.index < bar_read + one_bar)]
+    if not len(in_bar):
+        continue
+    last_poll = in_bar.index.max()
+    last_written = pd.Timestamp(in_bar["written_at"].max())
+    audit_rows.append({
+        "vault": address[:10],
+        "bar read at cycle": bar_read,
+        "last poll in that bar": last_poll,
+        "last written_at": last_written,
+        "poll <= decision time": last_poll <= sample_ts,
+        "written <= decision time": last_written <= sample_ts,
+    })
+
+audit_df = pd.DataFrame(audit_rows)
 display(audit_df)
-print("All indicators in this track are read via `indicators.get_indicator_value(name, pair=pair)` "
-      "inside decide_trades, which is this T-1-bar path by construction (NB57).")
+if len(audit_df):
+    observed_ok = bool(audit_df["poll <= decision time"].all())
+    written_ok = bool(audit_df["written <= decision time"].all())
+    print(f"Decision cycle {sample_ts}, reading the bar labelled {bar_read.date()}:")
+    print(f"  every contributing poll was OBSERVED at or before the cycle: {observed_ok}")
+    print(f"  every contributing poll was WRITTEN at or before the cycle:  {written_ok}")
+    print()
+    if observed_ok and not written_ok:
+        lag_days = (audit_df["last written_at"].max() - audit_df["last poll in that bar"].max()).days
+        print(f"Observation timing is correct - this is the alignment NB57's correction turned on,")
+        print(f"and the framework path (`get_indicator_value`, index=-1) satisfies it. Reading the")
+        print(f"bar labelled at the decision date instead would not, since that bar stays open until")
+        print(f"the following day.")
+        print()
+        print(f"`written_at` sits about {lag_days} days after the poll, which is far too long to be a")
+        print(f"live write lag: these rows were rewritten in bulk by a later repair pass (the feed")
+        print(f"carries a `hypercore_repair_status` column). So this archive cannot be used to prove")
+        print(f"point-in-time availability - only observation-time alignment, which it does confirm.")
+        print(f"A strict live-parity claim would need the original write timestamps, which the")
+        print(f"repaired dataset no longer preserves. Noted as a limitation of the data, not of the")
+        print(f"strategy code.")
+    elif observed_ok and written_ok:
+        print("Both conditions hold: the bar the strategy reads was fully observed and recorded")
+        print("before the decision cycle.")
+    else:
+        print("Observation timing FAILS: the bar the strategy reads contains polls timestamped")
+        print("after the decision cycle. That would be a genuine look-ahead and needs fixing.")
+else:
+    print("No polls found inside the sampled bar for the sampled vaults; audit inconclusive.")
 """))
 
 cells.append(md("""# 3. Baseline attribution by vault beta
@@ -124,7 +170,8 @@ for position in state.portfolio.get_all_positions():
         continue
     entry_at = min(t.executed_at for t in buys)
     beta_series = indicator_data.get_indicator_series("btc_beta", pair=position.pair, unlimited=True)
-    entry_beta = beta_series.asof(pd.Timestamp(entry_at))
+    # Read one bar back, matching what `decide_trades` saw when it chose this vault (NB57).
+    entry_beta = beta_series.asof(pd.Timestamp(entry_at) - Parameters.candle_time_bucket.to_timedelta())
     rows.append({
         "vault": position.pair.base.token_symbol,
         "entry_beta": float(entry_beta) if entry_beta == entry_beta else float("nan"),

@@ -46,10 +46,11 @@ cells.append(md("""# Step 1: breadth
 33%. NB68 found a reproducible hole at 7, so this checks for a plateau rather than trusting a
 single point.
 """))
-cells.append(code("""step1_rows = [anchor_panel]
+cells.append(code("""anchor_cycle_returns, _ = cycle_returns(anchor_equity)
+step1_rows = [anchor_panel]
 for n in (8, 10):
     s, e, r = run_variant(f"assets_{n}", max_assets_in_portfolio=n)
-    step1_rows.append(panel(f"assets_{n}", s, e, r, daily(anchor_returns)))
+    step1_rows.append(panel(f"assets_{n}", s, e, r, anchor_cycle_returns))
 
 step1_df = pd.DataFrame(step1_rows).set_index("label")
 step1_df["passes"] = [
@@ -78,7 +79,7 @@ for conc in concentrations:
         step2_rows.append(duplicate)
         continue
     s, e, r = run_variant(label, max_assets_in_portfolio=best_n, max_concentration_pct=conc)
-    step2_rows.append(panel(label, s, e, r, daily(anchor_returns)))
+    step2_rows.append(panel(label, s, e, r, anchor_cycle_returns))
 
 step2_df = pd.DataFrame(step2_rows).set_index("label")
 step2_df["passes"] = [passes_constraints(row, anchor_panel) for _, row in step2_df.iterrows()]
@@ -94,7 +95,7 @@ if len(passing):
 
     worst_vault = largest_contributing_vault(anchor_state)
     s, e, r = run_variant(f"{winner_label}_without_top_vault", max_assets_in_portfolio=best_n, max_concentration_pct=winner_conc, masked={worst_vault})
-    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, daily(anchor_returns))
+    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, anchor_cycle_returns)
     display(pd.DataFrame([step2_df.loc[winner_label].drop("passes"), lovo_panel]))
     print(f"Leave-one-vault-out (excluding {worst_vault}): still passes constraints = {passes_constraints(lovo_panel, anchor_panel)}")
 else:

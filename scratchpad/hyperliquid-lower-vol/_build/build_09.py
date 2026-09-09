@@ -57,19 +57,26 @@ cells.append(md("""# Consistency-selection sweep
 Both features that cleared NB03b's gate, each run strict (candidates missing the required
 history are dropped) and permissive (admitted at signal 0, as a diagnostic).
 """))
-cells.append(code("""rows = [anchor_panel]
+cells.append(code("""anchor_cycle_returns, _ = cycle_returns(anchor_equity)
+rows = [anchor_panel]
 
 s, e, r = run_variant("min_sortino_strict", selection_score_indicator="cagr_min_sortino_weight", require_scored_candidates=True)
-rows.append(panel("min_sortino_strict", s, e, r, daily(anchor_returns)))
+rows.append(panel("min_sortino_strict", s, e, r, anchor_cycle_returns))
 
 s, e, r = run_variant("min_sortino_permissive", selection_score_indicator="cagr_min_sortino_weight", require_scored_candidates=False)
-rows.append(panel("min_sortino_permissive", s, e, r, daily(anchor_returns)))
+rows.append(panel("min_sortino_permissive", s, e, r, anchor_cycle_returns))
 
 s, e, r = run_variant("positive_window_strict", selection_score_indicator="cagr_positive_window_weight", require_scored_candidates=True)
-rows.append(panel("positive_window_strict", s, e, r, daily(anchor_returns)))
+rows.append(panel("positive_window_strict", s, e, r, anchor_cycle_returns))
 
 s, e, r = run_variant("positive_window_permissive", selection_score_indicator="cagr_positive_window_weight", require_scored_candidates=False)
-rows.append(panel("positive_window_permissive", s, e, r, daily(anchor_returns)))
+rows.append(panel("positive_window_permissive", s, e, r, anchor_cycle_returns))
+
+# `downside_deviation_90` clears the precision-at-6 gate once NB03b is read at live parity; the
+# original, look-ahead-contaminated screen denied it a backtest. `cagr_downside_weight` blends the
+# bounded inverse-downside score into the composite in place of the Sortino leg.
+s, e, r = run_variant("downside_strict", selection_score_indicator="cagr_downside_weight", require_scored_candidates=True)
+rows.append(panel("downside_strict", s, e, r, anchor_cycle_returns))
 
 sweep_df = pd.DataFrame(rows).set_index("label")
 sweep_df["passes"] = [
@@ -77,6 +84,53 @@ sweep_df["passes"] = [
     for label, row in sweep_df.iterrows()
 ]
 display(sweep_df)
+"""))
+
+cells.append(md("""# Pre-registered control: the vol-matched placebo
+
+The plan requires a vol-matched placebo for **any** selection change - NB42's control, which
+overturned that notebook's apparent BTC-neutrality edge by showing two thirds of it was generic
+de-risking. The first version of this notebook omitted it. Every selection leg above lowers BTC
+beta substantially; this asks whether simply dropping the highest-volatility candidates each cycle,
+with no view on quality at all, achieves the same risk reduction. If it does, the selection legs'
+beta reduction is not selection skill.
+"""))
+cells.append(code("""placebo_rows = [anchor_panel]
+# Finer than the original three points: the first pass found drop=25 satisfying every adoption
+# constraint, between a no-op at 10 and a clearly worse 50, so this resolves whether that is a
+# plateau or the spike pattern NB79 warns about.
+for drop in (10, 15, 20, 25, 30, 35, 50):
+    label = f"vol_matched_drop_{drop}"
+    s, e, r = run_variant(label, vol_matched_drop_count=drop)
+    placebo_rows.append(panel(label, s, e, r, anchor_cycle_returns))
+
+placebo_df = pd.DataFrame(placebo_rows).set_index("label")
+display(placebo_df[["cagr", "ulcer", "martin", "cycle_vol", "abs_invested_beta", "mean_invested"]])
+
+selection_betas = sweep_df.loc[
+    [i for i in sweep_df.index if i != "anchor"], "abs_invested_beta"
+]
+print(f"Selection legs reached beta {selection_betas.min():.4f} to {selection_betas.max():.4f}")
+print(f"Vol-matched placebos reached beta "
+      f"{placebo_df.loc[placebo_df.index != 'anchor', 'abs_invested_beta'].min():.4f} to "
+      f"{placebo_df.loc[placebo_df.index != 'anchor', 'abs_invested_beta'].max():.4f}, "
+      f"against the anchor's {anchor_panel['abs_invested_beta']:.4f}")
+print("If the placebo range covers the selection legs' range, their beta reduction is generic")
+print("de-risking rather than selection skill (NB42's finding, re-tested here).")
+
+placebo_df["passes"] = [
+    passes_constraints(row, anchor_panel) if label != "anchor" else True
+    for label, row in placebo_df.iterrows()
+]
+passing_placebos = placebo_df.index[(placebo_df["passes"]) & (placebo_df.index != "anchor")].tolist()
+print()
+print(f"Placebo settings satisfying every adoption constraint: {passing_placebos or 'none'}")
+if passing_placebos:
+    counts = [int(l.replace("vol_matched_drop_", "")) for l in passing_placebos]
+    contiguous = sorted(counts) == list(range(min(counts), max(counts) + 1, 5))
+    print(f"Contiguous run across the swept grid (the NB79 plateau test): {contiguous and len(counts) >= 2}")
+    print("A control that was meant to be a null is the only thing in this track to clear the bar.")
+    print("Whether that is a plateau or a spike decides how much weight it can carry.")
 """))
 
 cells.append(md("""# Deferred NB08 diagnostic: the residual-event-concentration penalty in isolation
@@ -87,7 +141,7 @@ pre-registered strength (`lambda=0.5`) rather than the full sweep NB08 would hav
 screen already gives a strong prior that this will not help.
 """))
 cells.append(code("""s, e, r = run_variant("event_concentration_penalty_0.5", event_concentration_lambda=0.5)
-diagnostic_panel = panel("event_concentration_penalty_0.5", s, e, r, daily(anchor_returns))
+diagnostic_panel = panel("event_concentration_penalty_0.5", s, e, r, anchor_cycle_returns)
 display(pd.DataFrame([anchor_panel, diagnostic_panel]))
 print(f"Passes constraints: {passes_constraints(diagnostic_panel, anchor_panel)}")
 """))
@@ -96,15 +150,21 @@ cells.append(md("## Winner and leave-one-vault-out\n"))
 cells.append(code("""passing = sweep_df[(sweep_df["passes"]) & (sweep_df.index != "anchor")]
 if len(passing):
     winner_label = passing["martin"].idxmax()
+    if "min_sortino" in winner_label:
+        score_indicator = "cagr_min_sortino_weight"
+    elif "positive_window" in winner_label:
+        score_indicator = "cagr_positive_window_weight"
+    else:
+        score_indicator = "cagr_downside_weight"
     winner_overrides = dict(
-        selection_score_indicator="cagr_min_sortino_weight" if "min_sortino" in winner_label else "cagr_positive_window_weight",
+        selection_score_indicator=score_indicator,
         require_scored_candidates="strict" in winner_label,
     )
     print(f"Winner: {winner_label} (Martin {passing.loc[winner_label, 'martin']:.3f} vs anchor {anchor_panel['martin']:.3f})")
 
     worst_vault = largest_contributing_vault(anchor_state)
     s, e, r = run_variant(f"{winner_label}_without_top_vault", masked={worst_vault}, **winner_overrides)
-    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, daily(anchor_returns))
+    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, anchor_cycle_returns)
     display(pd.DataFrame([sweep_df.loc[winner_label].drop("passes"), lovo_panel]))
     print(f"Leave-one-vault-out (excluding {worst_vault}): still passes constraints = {passes_constraints(lovo_panel, anchor_panel)}")
 else:

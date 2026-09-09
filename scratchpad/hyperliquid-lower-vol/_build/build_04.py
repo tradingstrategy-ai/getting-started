@@ -54,10 +54,11 @@ cells.append(md("""# Volatility-target sweep
 Target annualised portfolio volatility at 10%, 12.5%, 15% (about the anchor's own 15.5%), 17.5%
 and 20%.
 """))
-cells.append(code("""rows = [anchor_panel]
+cells.append(code("""anchor_cycle_returns, _ = cycle_returns(anchor_equity)
+rows = [anchor_panel]
 for target in (0.10, 0.125, 0.15, 0.175, 0.20):
     s, e, r = run_variant(f"target_vol_{target}", target_portfolio_vol=target)
-    rows.append(panel(f"target_vol_{target}", s, e, r, daily(anchor_returns)))
+    rows.append(panel(f"target_vol_{target}", s, e, r, anchor_cycle_returns))
 
 sweep_df = pd.DataFrame(rows).set_index("label")
 sweep_df["passes"] = [
@@ -76,7 +77,7 @@ if len(passing):
 
     worst_vault = largest_contributing_vault(anchor_state)
     s, e, r = run_variant(f"{winner_label}_without_top_vault", target_portfolio_vol=winner_target, masked={worst_vault})
-    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, daily(anchor_returns))
+    lovo_panel = panel(f"{winner_label}_without_top_vault", s, e, r, anchor_cycle_returns)
     lovo_df = pd.DataFrame([sweep_df.loc[winner_label], lovo_panel]).drop(columns=["passes"], errors="ignore")
     display(lovo_df)
     lovo_survives = bool(lovo_panel["passes"] if "passes" in lovo_panel else passes_constraints(lovo_panel, anchor_panel))

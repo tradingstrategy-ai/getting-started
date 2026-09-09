@@ -209,6 +209,15 @@ class Parameters:
     gain_to_pain_tilt = 0.0
     #: NB09: if True, a vault with a NaN composite is dropped from candidates instead of scored 0.
     require_scored_candidates = False
+    #: NB07 (plan item): equal-risk-contribution sizing accounts for how correlated the selected
+    #: vaults are, not just how volatile each one is. Vaults whose mean absolute correlation to the
+    #: rest of the basket exceeds this cap are shrunk further.
+    residual_correlation_cap = 0.60
+    #: NB09 control: drop this many of the highest-volatility candidates each cycle before ranking.
+    #: The pre-registered vol-matched placebo (NB42's control): if dropping names purely by
+    #: volatility reproduces a selection change's risk reduction, that change is generic
+    #: de-risking rather than selection skill. `0` disables it (anchor behaviour).
+    vol_matched_drop_count = 0
     #: NB10: shrink `btc_beta` toward zero before building the residual CAGR leg (estimation-noise
     #: control). `1.0` is full beta (anchor behaviour for the residual variant).
     beta_shrink = 1.0

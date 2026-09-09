@@ -20,6 +20,8 @@ def compute_sizing_weights(
     fresh_by_id: dict[int, float] | None = None,
     min_fresh: float = 0.0,
     floor_fraction: float = 0.0,
+    corr_by_id: dict[int, float] | None = None,
+    correlation_cap: float = 0.0,
 ) -> dict[int, float]:
     """Turn per-vault statistics into portfolio sizing weights.
 
@@ -88,6 +90,29 @@ def compute_sizing_weights(
         if sum(blended.values()) <= 0:
             return inv_vol
         return blended
+
+    if method == 'risk_contribution':
+        # Equal-risk-contribution sizing. Inverse-vol sizes on each vault's own sigma alone and
+        # is therefore blind to two vaults being the same trade; this divides additionally by the
+        # square root of each vault's summed absolute correlation to the rest of the basket, so a
+        # vault that moves with everything else earns a smaller slot than an equally volatile one
+        # that does not. `corr_by_id` carries the row sums, computed in `decide_trades`.
+        corr_map = corr_by_id or {}
+        weights = {}
+        for pair_id in selected_pair_ids:
+            inv_sigma = inv_vol.get(pair_id, 0.0)
+            row_sum = float(corr_map.get(pair_id, 1.0))
+            weights[pair_id] = inv_sigma / math.sqrt(max(row_sum, 1e-6))
+        # Residual-correlation cap: a vault whose mean absolute correlation to the rest exceeds
+        # the cap is shrunk in proportion to the excess, rather than vetoed (NB79: vetoes fail).
+        n_others = max(len(selected_pair_ids) - 1, 1)
+        for pair_id in selected_pair_ids:
+            mean_corr = (float(corr_map.get(pair_id, 1.0)) - 1.0) / n_others
+            if mean_corr > correlation_cap > 0:
+                weights[pair_id] *= max(correlation_cap / mean_corr, 0.0)
+        if sum(weights.values()) <= 0:
+            return {pair_id: 1.0 for pair_id in selected_pair_ids}
+        return weights
 
     if method in ('inverse_ulcer', 'inverse_downside'):
         # NB07: size by 1/risk rather than 1/variance, where risk is a drawdown-based measure
@@ -397,6 +422,19 @@ def decide_trades(input: StrategyInput) -> list[TradeExecution]:
     if not candidates:
         return []
 
+    # NB09 control (NB42's vol-matched placebo, pre-registered in the plan): drop the N
+    # highest-volatility candidates before ranking. If dropping names purely by volatility
+    # reproduces a selection change's risk reduction, that change is generic de-risking rather
+    # than selection skill. `inv_vol` is 1/sigma, so the highest-volatility names are those with
+    # the smallest inv_vol.
+    vol_matched_drop = int(getattr(parameters, 'vol_matched_drop_count', 0) or 0)
+    if vol_matched_drop > 0 and len(candidates) > vol_matched_drop:
+        by_vol = sorted(candidates, key=lambda item: inv_vol_by_id.get(item[0], 0.0))
+        dropped_ids = {item[0] for item in by_vol[:vol_matched_drop]}
+        candidates = [item for item in candidates if item[0] not in dropped_ids]
+        if not candidates:
+            return []
+
     # Rank by composite (selection), but SIZE by inverse volatility (linear weighting).
     ordered = sorted(candidates, key=lambda item: (-item[2], item[0]))
 
@@ -437,6 +475,27 @@ def decide_trades(input: StrategyInput) -> list[TradeExecution]:
     # Sizing. Selection above ranked on the composite score; this decides how much each chosen
     # vault gets. Weights are computed over the selected set so softmax and blend can normalise
     # across exactly the vaults that will be held.
+    # Correlation row sums for `risk_contribution` sizing. Computed only when that method is
+    # active, since it reads raw candles for the selected pairs on every cycle.
+    corr_by_id = {}
+    if str(parameters.weighting_method) == 'risk_contribution' and selected:
+        lookback = int(parameters.inverse_vol_window)
+        window_start = timestamp - datetime.timedelta(days=lookback)
+        candle_close = strategy_universe.data_universe.candles.df['close']
+        return_frame = {}
+        for pair_id, _pair, _signal in selected:
+            try:
+                series = candle_close.xs(pair_id, level='pair_id').sort_index()
+            except KeyError:
+                continue
+            window = series.loc[window_start:timestamp]
+            if len(window) > 10:
+                return_frame[pair_id] = window.pct_change().dropna()
+        if len(return_frame) >= 2:
+            correlations = pd.DataFrame(return_frame).corr().abs().fillna(0.0)
+            for pair_id in correlations.index:
+                corr_by_id[pair_id] = float(correlations.loc[pair_id].sum())
+
     weight_by_id = compute_sizing_weights(
         [pair_id for pair_id, _pair, _signal in selected],
         inv_vol_by_id,
@@ -448,6 +507,8 @@ def decide_trades(input: StrategyInput) -> list[TradeExecution]:
         fresh_by_id=fresh_by_id,
         min_fresh=float(getattr(parameters, 'min_fresh_observations', 0.0)),
         floor_fraction=float(getattr(parameters, 'weight_floor_fraction', 0.0)),
+        corr_by_id=corr_by_id,
+        correlation_cap=float(getattr(parameters, 'residual_correlation_cap', 0.0)),
     )
 
     # NB07: cap the combined weight share of vaults whose |beta| exceeds the threshold, shrinking
@@ -567,6 +628,7 @@ def decide_trades(input: StrategyInput) -> list[TradeExecution]:
             Sharpe lookback days: {parameters.sharpe_lookback_days}
             CAGR weight (blend): {parameters.cagr_weight}
             Vol target scale: {vol_scale:.4f} (allocation {allocation_pct:.4f})
+            Vol-matched candidates dropped: {vol_matched_drop}
             Total equity: {portfolio.get_total_equity():,.2f} USD
             Cash: {position_manager.get_current_cash():,.2f} USD
             Redeemable capital: {redeemable_capital:,.2f} USD
