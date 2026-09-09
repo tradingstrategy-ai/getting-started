@@ -1,6 +1,6 @@
 # Equity-curve smoothing plan: allocate to steady vaults, not to single-event BTC beta
 
-- **Status**: EXECUTED (NB03a-NB09, NB11, NB12), then **re-run on the full window**.
+- **Status**: EXECUTED (NB03a-NB09, NB11, NB12), then **re-run on the full window**; NB13 added as an out-of-plan audit of the inclusion rules.
 
 > ## Amendment (2026-09-09): the development/hold-out split is retired
 >
@@ -24,6 +24,29 @@
 > The binding constraint also changed: the CAGR floor is now the most commonly failed (13 of 22
 > variants) where the ulcer index was before, because the later period is where the strategy earns
 > least.
+
+> ## Addendum (2026-09-09): NB13, the age barrier
+>
+> [13-research-age-barrier.ipynb](13-research-age-barrier.ipynb) answers a question outside the
+> original plan: are high-Sharpe vaults being excluded by an inclusion rule rather than by rank,
+> particularly vaults launched after 2026-04-01?
+>
+> **Finding.** The strategy has no age rule, but `cagr_lookback_days = 360` acts as one:
+> **225 of 336 vaults in the trading universe (67%) can never be scored**, an unscored vault
+> ranks at signal 0 and never wins a basket slot, and across all 96 anchor positions the youngest
+> vault ever bought was **361 days old at entry**. Every one of the 43 post-April launches sits
+> behind this barrier.
+>
+> **Verdict: no change warranted.** The hidden cohort's median life Sharpe is -0.43 against the
+> scorable cohort's +0.14. At tradable size only 2 of 32 hidden vaults have a Sharpe resolvable at
+> `t > 2`, and the single post-April name that qualifies (Stratwise Multi-Asset Public, Sharpe 7.67)
+> earns 27.2% CAGR - below the track's own 30% floor. A decision-aligned screen of the minimal fix,
+> shortening the CAGR leg to 90 days, loses the dense regime by 4.00 pp of mean 30-day forward
+> return and fails the both-regimes gate. No NB14 follows.
+>
+> The barrier is nonetheless **undocumented and larger than anyone intended**, and it interacts with
+> `inverse_vol_window = 90`, which would zero the weight of any young vault that did get selected.
+> If the universe's age mix shifts, this is the first thing to re-measure.
 
 - **Original status**: EXECUTED (NB03a-NB09, NB11). Outcome: every lever tested was REJECTed on the
   development window, and the one apparent lead (NB09's event-concentration penalty) failed the
