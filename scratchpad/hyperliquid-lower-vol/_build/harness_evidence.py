@@ -4,6 +4,10 @@
 #:
 #: The seven pre-registered constraints of adoption rule v2. Do not edit the numbers here; if one
 #: is badly placed, say so in the notebook's Robustness section.
+#: Never truncate the `failed` column: the first write-ups of NB17-NB19 under-reported failed
+#: constraints because pandas elided the column at 50 characters and the text was read as complete.
+pd.set_option("display.max_colwidth", None)
+
 CAGR_FLOOR_V2 = 0.20
 #: Review 3(c): strictly beating the anchor's Sharpe is both too strict an adoption bar (nothing
 #: in NB12 cleared it robustly) and too weak a statistical claim (a marginal win can be noise).

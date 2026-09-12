@@ -210,15 +210,74 @@ leave-one-vault-out, late period), the following protocol applies before any liv
 """)
 '''))
 
-cells.append(md("""# Overall verdict
+cells.append(md("""# Cross-check against the source notebooks
+
+The family-best rows must reproduce what NB16, NB17 and NB18 reported themselves; otherwise this
+notebook is comparing against a different snapshot. Expected values are the source notebooks'
+own verdict-table figures.
 """))
-cells.append(code('''winner = None
-for label in vt.index:
-    if label == "anchor":
+cells.append(code('''EXPECTED_FROM_SOURCE = {
+    "sortino_shrunk__t_cap_4": ("NB16", 0.489856),
+    "sizing_blend": ("NB17", 2.048546),
+    "core_0.7_n3": ("NB18", 1.170063),
+}
+all_match = True
+for label, (source, expected_sharpe) in EXPECTED_FROM_SOURCE.items():
+    actual = float(vt.loc[label, "cycle_sharpe"])
+    ok = abs(actual - expected_sharpe) < 1e-5
+    all_match &= ok
+    print(f"{label:28s} {source}: expected cycle Sharpe {expected_sharpe:.6f}, got {actual:.6f}, match={ok}")
+print(f"Every family-best figure matches its source notebook: {all_match}")
+'''))
+
+cells.append(md("""# Overall verdict
+
+ADOPT requires, per the plan: gate eligibility (NB14's gate passed for the score, or the core
+mechanism re-examined here as an independent candidate), all seven constraints, `late_ok`, every
+plateau neighbour passing v2, and a full leave-one-vault-out re-simulation passing v2. The first
+version of this cell checked only the constraints and `late_ok` - harmless while nothing passes,
+but not the pre-registered rule, so it is completed here.
+"""))
+cells.append(code('''#: Which centres may reach ADOPT from this family, and why the others may not.
+ADOPT_ELIGIBLE = {
+    "sortino_shrunk__centre": "NB14 gate passed",
+    "core_0.7_n4": "core mechanism re-examined here as an independent candidate (plan, NB18 section)",
+}
+NOT_ELIGIBLE = {
+    "evidence_composite_06__centre": "NB14 gate failed - diagnostic only",
+    "evidence_composite_03__centre": "NB14 gate failed - diagnostic only",
+    "sizing_evidence": "layered on a selection that was never adopted (NB16_SELECTION_OVERRIDES = {}) - diagnostic only",
+}
+PLATEAU = {
+    "sortino_shrunk__centre": [f"sortino_shrunk__{n}" for n in ("t_cap_2", "t_cap_4", "prior_30", "prior_90", "min_events_10", "min_events_30")],
+    "core_0.7_n4": ["core_0.5_n4", "core_0.85_n4", "core_0.7_n3", "core_0.7_n5"],
+}
+CENTRE_OVERRIDES = {
+    "sortino_shrunk__centre": dict(require_scored_candidates=True, inverse_vol_min_periods=45, selection_score_indicator="sortino_shrunk_score"),
+    "core_0.7_n4": dict(core_fraction=0.7, core_assets=4, inverse_vol_min_periods=45, core_score_indicator="sortino_shrunk_score"),
+}
+
+winner = None
+for centre, reason in ADOPT_ELIGIBLE.items():
+    row = vt.loc[centre]
+    if not bool(row["passes_v2"]):
+        print(f"{centre}: fails v2 ({row['failed']})")
         continue
-    if bool(vt.loc[label, "passes_v2"]) and bool(vt.loc[label, "late_ok"]):
-        winner = label
-        break
+    if not bool(row["late_ok"]):
+        print(f"{centre}: passes v2 but fails the late period")
+        continue
+    if not bool(vt.loc[PLATEAU[centre], "passes_v2"].all()):
+        print(f"{centre}: passes v2 but its plateau does not hold")
+        continue
+    top_vault = largest_contributing_vault(run_by_label[centre][1])
+    s, e, r, p = run_and_record(f"{centre}__without_top_vault", run_family[centre], masked={top_vault}, **CENTRE_OVERRIDES[centre])
+    if not passes_constraints_v2(p, anchor_panel, frontier):
+        print(f"{centre}: passes v2 and plateau but fails leave-one-vault-out (excluding {top_vault})")
+        continue
+    winner = centre
+    break
+for centre, reason in NOT_ELIGIBLE.items():
+    print(f"{centre}: not ADOPT-eligible from this family - {reason}")
 
 if winner:
     print(f"ADOPT: {winner}")

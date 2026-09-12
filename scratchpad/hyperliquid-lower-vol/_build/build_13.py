@@ -135,8 +135,11 @@ display(reason_table)
 cells.append(md("""# 2. True inception and realised performance, from the raw poll archive
 
 Vault age is taken from the raw Hyperliquid poll archive rather than the metadata `years` field, so
-inception is the first share price actually recorded. Realised statistics are computed on daily
-last-poll marks over each vault's own life, ending at the backtest end date.
+inception is the first share price actually recorded. Realised statistics are computed in event
+time - on the days the mark actually moved, annualised by each vault's own observed event rate -
+over each vault's own life, ending at the backtest end date. (The first version of this notebook
+mixed a stale-inclusive Sharpe with a fresh-only standard error; the independent review caught
+it, and the convention now matches the plan's `sortino_raw_event`.)
 
 These are **hindsight** statistics over a vault's whole life - the right measure for "is there
 anything good behind the barrier", and the wrong measure for "would we have picked it", which is
@@ -144,7 +147,16 @@ what section 6 tests instead.
 """))
 
 cells.append(code('''raw_price_path = Path("~/.cache/tradingstrategy/vaults/downloads/vault-prices.parquet").expanduser()
-life_cache_path = Path("/tmp/hyperliquid-lower-vol-vault-life-stats.parquet")
+#: Cache keyed on the archive snapshot (size and mtime) and the window end, so a stale cache can
+#: never silently serve a newer download - the independent review found the first version had no
+#: such check. The fixed-name copy is what `hidden_cohort_reach()` in NB16-NB19 reads (inception
+#: and age only, which do not depend on the statistics below).
+_archive = raw_price_path.stat()
+life_cache_path = Path(
+    f"/tmp/hyperliquid-lower-vol-vault-life-stats-{_archive.st_size}-{int(_archive.st_mtime)}"
+    f"-{Parameters.backtest_end:%Y%m%d}.parquet"
+)
+legacy_cache_path = Path("/tmp/hyperliquid-lower-vol-vault-life-stats.parquet")
 
 if life_cache_path.exists():
     life = pd.read_parquet(life_cache_path)
@@ -157,6 +169,13 @@ else:
     polls["address"] = polls["address"].astype(str).str.lower()
     polls = polls[polls.index < Parameters.backtest_end]
 
+    # Event-time statistics. NB57: a zero daily return on a Hyperliquid vault mark is almost always
+    # a stale poll, not a flat day, so every ratio below is computed on the subsequence of days the
+    # mark actually moved (`fresh`), and annualised by the vault's own observed event rate rather
+    # than by 365 - an unpolled gap in the sparse regime is one event, not one "daily" return.
+    # The first version of this notebook computed the Sharpe over all calendar days (stale zeros
+    # included) but its standard error over fresh days only, a mixed sample the independent review
+    # correctly rejected; the convention here matches `sortino_raw_event` in blocks_evidence.py.
     life_rows = []
     for address, group in polls.groupby("address", sort=False):
         prices = group["share_price"].astype(float).dropna()
@@ -165,12 +184,13 @@ else:
         if len(daily) < 5:
             continue
         r = daily.pct_change().dropna()
-        if len(r) < 5:
+        fresh = r[r != 0.0]
+        if len(fresh) < 5:
             continue
-        fresh = r[r != 0.0]              # NB57: a zero daily return is a stale mark, not a flat day
         days = (daily.index[-1] - daily.index[0]).days
+        events_per_year = len(fresh) / max(days, 1) * 365.0
         total_return = float(daily.iloc[-1] / daily.iloc[0] - 1.0)
-        downside = float(np.sqrt((r.clip(upper=0.0) ** 2).mean()))
+        downside = float(np.sqrt((fresh.clip(upper=0.0) ** 2).mean()))
         assets = group["total_assets"].astype(float).dropna()
         life_rows.append({
             "address": address,
@@ -178,16 +198,18 @@ else:
             "age_days": days,
             "observed_days": len(daily),
             "fresh_days": len(fresh),
+            "events_per_year": events_per_year,
             "stale_share": 1.0 - len(fresh) / len(r),
-            "down_day_share": float((r < 0).mean()),
+            "down_day_share": float((fresh < 0).mean()),        # share of FRESH events that were down
             "life_cagr": (1.0 + total_return) ** (365.0 / max(days, 1)) - 1.0 if total_return > -1 else -1.0,
-            "life_sharpe": float(r.mean() / r.std() * np.sqrt(365)) if r.std() > 0 else float("nan"),
-            "life_sortino": float(r.mean() / downside * np.sqrt(365)) if downside > 0 else float("nan"),
+            "life_sharpe": float(fresh.mean() / fresh.std() * np.sqrt(events_per_year)) if fresh.std() > 0 else float("nan"),
+            "life_sortino": float(fresh.mean() / downside * np.sqrt(events_per_year)) if downside > 0 else float("nan"),
             "life_max_dd": float((daily / daily.cummax() - 1.0).min()),
             "last_tvl": float(assets.iloc[-1]) if len(assets) else float("nan"),
         })
     life = pd.DataFrame(life_rows).set_index("address")
     life.to_parquet(life_cache_path)
+    life.to_parquet(legacy_cache_path)
 
 print(f"Vaults with a usable price history: {len(life)}")
 
@@ -314,11 +336,13 @@ MIN_FRESH_FOR_STATS = 45
 ANCHOR_CAGR = 0.3790
 
 def add_sharpe_error(frame):
-    """Standard error of a Sharpe estimated on `fresh_days` observations, and the implied t."""
+    """Lo (2002) standard error of the event-time Sharpe, on the same `fresh_days` sample it was
+    estimated from, de-annualised with the vault's own event rate; and the implied t."""
     frame = frame.copy()
     n = frame["fresh_days"].clip(lower=2)
-    per_period = frame["life_sharpe"] / np.sqrt(365.0)
-    frame["sharpe_se"] = np.sqrt((1.0 + per_period ** 2 / 2.0) / n) * np.sqrt(365.0)
+    scale = np.sqrt(frame["events_per_year"])
+    per_event = frame["life_sharpe"] / scale
+    frame["sharpe_se"] = np.sqrt((1.0 + per_event ** 2 / 2.0) / n) * scale
     frame["sharpe_t"] = frame["life_sharpe"] / frame["sharpe_se"]
     return frame
 
@@ -456,7 +480,6 @@ GATE = float(Parameters.gate_threshold)
 ONE_BAR = Parameters.candle_time_bucket.to_timedelta()
 SHORT_CAGR_DAYS = 90
 FORWARD_DAYS = 30
-MIN_FULL_BASKET_DATES = 5
 #: TVL a vault needs before a 1/6 share of a 98%-deployed book fits under the 33% pool cap.
 CAPACITY_TVL = (
     Parameters.initial_cash * Parameters.allocation_pct

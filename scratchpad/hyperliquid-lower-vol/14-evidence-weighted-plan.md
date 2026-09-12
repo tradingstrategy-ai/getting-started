@@ -3,7 +3,9 @@
 - **Status**: EXECUTED (NB14-NB19). **Overall verdict: NOTHING ADOPTED.** All 41 candidates
   tried across selection (NB16), sizing (NB17) and core/satellite sleeves (NB18) fail the
   adoption rule; the family-wise reality check in NB19 gives p = 1.000 (the single best candidate
-  across the whole plan still underperforms the anchor's own Sharpe). The nearest misses were
+  across the whole plan still underperforms the anchor's own Sharpe - and the test has essentially
+  no power on this window: its null 95th percentile is a +2.68 Sharpe improvement, so it can only
+  prevent overclaiming, not resolve a modest real effect). The nearest misses were
   `sizing_blend` (NB17: 36.42% CAGR, 1.48pp sacrifice, still fails Sharpe/volatility/ulcer) and
   `core_0.7_n3` (NB18: 21.48% CAGR, the only candidate to clear the 20% floor, still fails
   Sharpe/volatility/ulcer). See [19-backtest-closeout.ipynb](19-backtest-closeout.ipynb) for the
@@ -132,10 +134,10 @@ and [13-research-age-barrier.ipynb](13-research-age-barrier.ipynb), full window.
 
 | Finding | Where | Consequence for this plan |
 |---|---|---|
-| `cagr_lookback_days = 360` acts as an age rule: 225 of 336 universe vaults (67%) can never be scored; the youngest vault the anchor ever bought was 361 days old at entry; all 43 post-2026-04-01 launches are unscorable | NB13 §3 | No re-weighting reaches the target cohort until the fixed window is replaced. Selection change comes first. |
+| `cagr_lookback_days = 360` acts as an age rule: 210 of the 320 universe vaults with at least five real marks (66%) can never be scored; the youngest vault the anchor ever bought was 361 days old at entry; all 36 such post-2026-04-01 launches are unscorable | NB13 §3 | No re-weighting reaches the target cohort until the fixed window is replaced. Selection change comes first. |
 | `inverse_vol` needs 90 observations; under `inverse_variance` a NaN becomes weight 0 | NB13 §3 | A young vault that wins a slot must also be sizeable, so the sizing input needs an early-availability fallback in the same change. |
-| The hidden cohort's median life Sharpe is -0.43 against +0.14 for the scorable cohort; only 2 of 32 hidden vaults at tradable size have a Sharpe resolvable at `t > 2` | NB13 §4 | Admitting young vaults by age alone admits junk. Admission must be by *evidence* - a score that rises with both the Sharpe and the number of observations behind it. |
-| The hidden cohort's high Sharpes are not NB78's no-down-day signature (down-day share 0.337 vs 0.346) - they are statistically unresolved (median `t` 1.22 vs 2.35) | NB13 §5 | A t-statistic, not a raw Sharpe, is the honest measure of "consistent profit" - but see below: a naive one is not enough on its own. |
+| The hidden cohort's median event-time Sharpe is -0.35 against +0.08 for the scorable cohort; only 2 of 32 hidden vaults at tradable size have a Sharpe resolvable at `t > 2` (figures from the post-review re-run, which fixed a mixed-sample defect in the first version's Sharpe error; the counts did not change) | NB13 §4 | Admitting young vaults by age alone admits junk. Admission must be by *evidence* - a score that rises with both the Sharpe and the number of observations behind it. |
+| The hidden cohort's high Sharpes are not NB78's no-down-day signature (down-mark share 0.446 vs 0.393, event time) - they are statistically unresolved (median `t` 1.23 vs 2.54) | NB13 §5 | A t-statistic, not a raw Sharpe, is the honest measure of "consistent profit" - but see below: a naive one is not enough on its own. |
 | A naive Sharpe/Sortino t-statistic, capped without shrinkage, can score a thin-sample pump at its maximum and correlates *negatively* with realised P&L (-0.41 across 75 positions; single worst loss -$28,990 in 6 days) | Draft-1 smoke test, `_build/smoke_test_finding.md` | The admission score needs cross-sectional shrinkage toward a population prior, not only a cap - see "Draft 2 changes" above. |
 | A 90-day CAGR leg loses the dense regime by 4.00 pp of 30-day forward return | NB13 §6 | Shortening the window naively fails. The CAGR leg must be shrunk by evidence, not merely shortened. |
 | Every consistency-selection score built so far (`positive_window_share`, `min_window_sortino`, `downside_score`) made the ulcer index *worse* (2.44%, 2.80%, 2.93% vs 1.80%) | NB12 | Those scores reward the absence of noise, not the presence of profit. They are not retried here. |
@@ -1222,7 +1224,10 @@ vaults are ranked once their record is strong enough - improve Sharpe at a CAGR 
 **Runs.** Sizing unchanged (`inverse_variance`), with the early-availability fallback switched on
 so a selected young vault can be funded. Rebuild the placebo frontier fresh in this notebook too
 (`build_placebo_frontier()` again - a fresh `run_variant()` call, not a value carried over from
-NB15, since every notebook downloads its own snapshot). For **every** score listed in NB14's table
+NB15, so every notebook is compared on whatever data it itself loaded - in this session, every
+notebook served from the same cached 2026-09-09 download, so the runs are same-snapshot rather
+than independent replications; the independent review of NB15 established this). For **every**
+score listed in NB14's table
 (not only the ones that passed the gate - see NB14's gate section above), labelled with the score
 name as a prefix so results from different scores can never collide (Draft 2 fix: Draft 1's
 `"evidence_selection"` label was reused by every score):
@@ -1305,7 +1310,8 @@ explicitly rather than implying the mechanism failed on its merits.
 `**common` dictionary if any score reached ADOPT; otherwise to the empty dict `{}` (anchor
 selection). Print this exact dictionary in the notebook's output (not only in a table) so NB17 and
 NB19 can copy it verbatim - the plan does not track state between notebooks any other way, since
-each notebook re-downloads its own snapshot. NB18 uses `sortino_shrunk_score` for its core sleeve
+each notebook loads its own data (the same cached snapshot throughout this session). NB18 uses
+`sortino_shrunk_score` for its core sleeve
 regardless of NB16's verdict - the sleeve is a different mechanism (see NB18) and the whole-book
 selection's failure does not settle whether the same score works as a *core-only* rule.
 
@@ -1551,3 +1557,14 @@ Build all six `build_NN.py` scripts before running any notebook, so a splice-anc
   NB19. Verified by re-running the exact smoke test that found Draft 1's bug: the correlation moved
   from -0.41 to +0.11 and the same arbitrary run's net P&L moved from -$12,983 to +$13,821 (see
   `_build/verify-plan14-draft2.ipynb`). Full change list under "Draft 2 changes" above.
+- **Post-execution reviews** (2026-09-12). One independent Codex review per executed notebook,
+  NB13-NB19, each cross-checked against the cited cells by a separate agent before being acted
+  on (`*-codex-review.md` beside each notebook). No REJECT verdict and not the overall NOTHING
+  ADOPTED changed. What did: NB13's hindsight Sharpe error mixed samples and was recomputed in
+  event time (counts unchanged, magnitudes restated); NB18's per-sleeve attribution labelled a
+  vault "core" if it had ever been core and was recomputed per cycle; NB17, NB18 and NB19 had
+  under-reported failed constraints from a truncated display column; NB15 and NB19 had described
+  the same cached download as independent snapshots; NB19's adoption logic omitted the plateau and
+  leave-one-vault-out checks this plan requires and its "unambiguous" reading of a no-power test
+  was withdrawn. One review claim (a `drop_n` mislabelling) was checked and found wrong, for the
+  second time.

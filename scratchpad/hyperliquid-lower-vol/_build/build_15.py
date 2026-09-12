@@ -72,10 +72,11 @@ print("placebo_sharpe_at() returns NaN (constraint 7 FAILS) for any candidate ou
 
 cells.append(md("""# Cash overlays, for the chart only
 
-Not part of the placebo frontier and not compared against constraint 7 - shown so the
-volatility-avoidance line (selection-preserving) and the cash line (deployment-reducing) are
-visibly different mechanisms on the same chart. Both are excluded from adoption by constraint 6
-(deployment >= 90%) regardless of where they land here.
+Not part of the placebo frontier - shown so the volatility-avoidance line (selection-preserving)
+and the cash line (deployment-reducing) are visibly different mechanisms on the same chart. They
+still go through `verdict_table()` with the frontier below, so every constraint including 7 is
+evaluated for them like any candidate; constraint 6 (deployment >= 90%) excludes them from
+adoption regardless, and the table shows which others they fail as well.
 """))
 cells.append(code('''runs = [("anchor", anchor_state, anchor_equity, anchor_returns, anchor_panel)]
 
@@ -93,7 +94,17 @@ display(cash_df[["cagr", "cycle_vol", "cycle_sharpe", "ulcer", "mean_invested", 
 
 cells.append(md("""# Verdict table and charts
 """))
-cells.append(code('''all_rows = [anchor_panel] + [frontier.loc[l].drop("role") for l in frontier.index if l != "anchor"] + cash_rows
+cells.append(code('''# A `frontier.loc[label]` Series carries its label in the frame's index, not as a field, and
+# `verdict_table()` sets its index from a "label" field - so restore it, or the placebo rows print
+# as NaN (the first run of this notebook did exactly that).
+placebo_rows = []
+for label in frontier.index:
+    if label == "anchor":
+        continue
+    row = frontier.loc[label].drop("role")
+    row["label"] = label
+    placebo_rows.append(row)
+all_rows = [anchor_panel] + placebo_rows + cash_rows
 vt = verdict_table(all_rows, anchor_panel, frontier)
 vt["role"] = ["CONTROL" if l != "anchor" else "anchor" for l in vt.index]
 display(vt[["cagr", "cycle_sharpe", "cycle_vol", "ulcer", "abs_invested_beta", "mean_invested",

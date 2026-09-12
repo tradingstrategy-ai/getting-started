@@ -197,32 +197,57 @@ fig.update_layout(title="core_0.7_n4: realised vs target core sleeve weight over
 fig.show()
 print(f"Mean realised core weight: {realised.mean():.3f} (target 0.700)")
 
-# Per-sleeve P&L and entry evidence score, from the position records directly.
-all_core_ids = set()
-for c in calc_by_ts.values():
-    all_core_ids.update(c.get("core_ids", []))
+# Per-sleeve P&L, attributed per CYCLE. A vault can migrate between sleeves (the core set overlaps
+# only 2-4 of its 4 names from one cycle to the next), so a position is classified by the sleeve it
+# was in at ENTRY, the cycles it spent in each sleeve are counted, and P&L is also split pro rata
+# by those cycles. The first version of this cell labelled a vault "core" if it had been in the
+# core sleeve in ANY cycle, which mislabels every migrant - caught by the independent review.
+sleeve_at = {ts: (set(c["core_ids"]), set(c["satellite_ids"])) for ts, c in calc_by_ts.items()}
+cycle_ts = sorted(sleeve_at)
+
+def sleeve_on(ts, pid):
+    prior = [t for t in cycle_ts if t <= ts]
+    if not prior:
+        return None
+    core, satellite = sleeve_at[prior[-1]]
+    return "core" if pid in core else ("satellite" if pid in satellite else None)
 
 sleeve_rows = []
 for position in centre_state.portfolio.get_all_positions():
     if position.is_credit_supply():
         continue
-    sleeve = "core" if position.pair.internal_id in all_core_ids else "satellite"
-    buys = [t for t in position.trades.values() if t.is_buy() and t.is_success()]
-    entry_at = pd.Timestamp(min(t.executed_at for t in buys)) if buys else None
-    score_at_entry = float("nan")
-    if entry_at is not None:
-        series = indicator_data.get_indicator_series("sortino_shrunk_score", pair=position.pair, unlimited=True)
-        idx = series.index[series.index <= entry_at - Parameters.candle_time_bucket.to_timedelta()]
-        if len(idx):
-            score_at_entry = float(series.loc[idx[-1]])
+    pid = position.pair.internal_id
+    opened = pd.Timestamp(position.opened_at)
+    closed = pd.Timestamp(position.closed_at) if position.closed_at else pd.Timestamp(Parameters.backtest_end)
+    held = [t for t in cycle_ts if opened <= t < closed]
+    in_core = sum(1 for t in held if pid in sleeve_at[t][0])
+    in_satellite = sum(1 for t in held if pid in sleeve_at[t][1])
+    series = indicator_data.get_indicator_series("sortino_shrunk_score", pair=position.pair, unlimited=True)
+    idx = series.index[series.index <= opened - Parameters.candle_time_bucket.to_timedelta()]
     sleeve_rows.append({
-        "sleeve": sleeve, "vault": position.pair.base.token_symbol,
-        "pnl_usd": float(position.get_total_profit_usd() or 0.0), "score_at_entry": score_at_entry,
+        "sleeve_at_entry": sleeve_on(opened, pid) or "unassigned",
+        "vault": position.pair.base.token_symbol,
+        "pnl_usd": float(position.get_total_profit_usd() or 0.0),
+        "score_at_entry": float(series.loc[idx[-1]]) if len(idx) else float("nan"),
+        "cycles_held": len(held), "cycles_in_core": in_core, "cycles_in_satellite": in_satellite,
+        "migrated": in_core > 0 and in_satellite > 0,
     })
 sleeve_df = pd.DataFrame(sleeve_rows)
-display(sleeve_df.groupby("sleeve").agg(
-    positions=("vault", "count"), total_pnl_usd=("pnl_usd", "sum"), mean_score_at_entry=("score_at_entry", "mean"),
+
+print("By sleeve at entry:")
+display(sleeve_df.groupby("sleeve_at_entry").agg(
+    positions=("vault", "count"), total_pnl_usd=("pnl_usd", "sum"),
+    mean_score_at_entry=("score_at_entry", "mean"), migrated=("migrated", "sum"),
 ))
+print(f"Positions that spent cycles in BOTH sleeves: {int(sleeve_df['migrated'].sum())} of {len(sleeve_df)}")
+
+held_mask = sleeve_df["cycles_held"] > 0
+core_pnl = float((sleeve_df["pnl_usd"] * sleeve_df["cycles_in_core"] / sleeve_df["cycles_held"].where(held_mask)).sum())
+satellite_pnl = float((sleeve_df["pnl_usd"] * sleeve_df["cycles_in_satellite"] / sleeve_df["cycles_held"].where(held_mask)).sum())
+print(f"Cycle-weighted P&L split: core ${core_pnl:,.0f}, satellite ${satellite_pnl:,.0f} "
+      f"(total ${sleeve_df['pnl_usd'].sum():,.0f}; positions with no logged cycle excluded from the split)")
+print(f"Per unit of target capital (core {0.7:.0%}, satellite {0.3:.0%}): "
+      f"core ${core_pnl / 0.7:,.0f}, satellite ${satellite_pnl / 0.3:,.0f}")
 '''))
 
 write_notebook(cells, TRACK_DIR / "18-backtest-core-satellite.ipynb")
