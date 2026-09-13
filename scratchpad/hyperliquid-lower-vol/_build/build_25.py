@@ -138,7 +138,31 @@ comparison["failed"] = [
     failing_constraints_v3(row, anchor_panel, family) for _, row in comparison.iterrows()
 ]
 comparison["late_ok"] = [late_period_ok_v3(row, anchor_panel) for _, row in comparison.iterrows()]
+comparison["late_ulcer_vs_anchor"] = comparison["late_ulcer"] - anchor_panel["late_ulcer"]
+
+
+def observed_control_label(vol):
+    """Which family member `placebo_ref_observed()` actually compares a candidate at `vol` against.
+
+    The harness returns the reference Sharpe but not whose it is, and the whole reading of the
+    `observed control` column depends on which member that turns out to be. Selection logic is
+    reproduced here rather than changed in the harness, and asserted to agree with it below.
+    """
+    at_or_below = family[family["cycle_vol"] <= vol]
+    if not len(at_or_below):
+        at_or_below = family.nsmallest(1, "cycle_vol")
+    return str(at_or_below["cycle_sharpe"].idxmax())
+
+
+comparison["c7_reference"] = [observed_control_label(float(v)) for v in comparison["cycle_vol"]]
+assert all(
+    abs(float(family.loc[ref, "cycle_sharpe"]) - placebo_ref_observed(family, float(vol))) < 1e-12
+    for ref, vol in zip(comparison["c7_reference"], comparison["cycle_vol"])
+), "the reference label does not reproduce placebo_ref_observed()"
+
 print(f"{len(comparison)} rows, {int(comparison['passes_v3'].sum())} passing all seven constraints")
+print("Constraint 7's observed control, per row:")
+display(comparison["c7_reference"].value_counts().rename("rows").to_frame())
 '''))
 
 cells.append(md("""# Combined metrics table
@@ -152,9 +176,26 @@ candidate. `failed` is never truncated.
 Passing every constraint is NOT adoption. A candidate also needs a plateau, a surviving
 leave-one-vault-out and the late period, and NB21 to NB24 evaluate those. Read this table as the
 shape of the results, not as a verdict.
+
+Three columns need reading with care, and each is here so the reader can audit a caveat rather
+than take it on trust:
+
+- **`observed control` in `failed` is not 36 informative failures.** Constraint 7 is applied
+  uniformly to every row, and for the anchor and the twelve drop-family rows that is a
+  self-comparison against the family the constraint is defined on - NB21 records constraint 7 as
+  INAPPLICABLE to them for exactly this reason and reports `passes_1_to_6` instead. `c7_reference`
+  names the member each row is actually measured against, so a row compared against itself is
+  visible rather than implied.
+- **`late_ok` is a composite of two strict inequalities**, `late_cagr > 0` and
+  `late_ulcer < anchor late_ulcer`. The anchor therefore fails it by construction. `late_cagr` and
+  `late_ulcer_vs_anchor` are shown so the margin behind each flag can be seen; some are of the
+  order of 1e-6.
+- **`martin` sorts the table** for continuity with NB12 and the earlier track. It is not part of
+  adoption rule v3 and no conclusion here rests on the ordering.
 """))
 cells.append(code('''TABLE_COLS = ["family", "cagr", "ulcer", "martin", "cycle_vol", "abs_invested_beta",
-              "mean_invested", "max_dd", "cycle_sharpe", "late_ok", "passes_v3", "failed"]
+              "mean_invested", "max_dd", "cycle_sharpe", "late_cagr", "late_ulcer_vs_anchor",
+              "late_ok", "c7_reference", "passes_v3", "failed"]
 table = comparison[TABLE_COLS].sort_values("martin", ascending=False)
 
 styled = (
@@ -162,7 +203,7 @@ styled = (
     .format({
         "cagr": "{:.2%}", "ulcer": "{:.2%}", "martin": "{:.2f}", "cycle_vol": "{:.2%}",
         "abs_invested_beta": "{:.4f}", "mean_invested": "{:.1%}", "max_dd": "{:.2%}",
-        "cycle_sharpe": "{:.2f}",
+        "cycle_sharpe": "{:.2f}", "late_cagr": "{:.2%}", "late_ulcer_vs_anchor": "{:+.2e}",
     })
     .background_gradient(subset=["martin"], cmap="RdYlGn")
     .apply(lambda s: ["font-weight: bold" if i == "anchor" else "" for i in s.index], axis=0)
@@ -226,8 +267,11 @@ the ulcer index in the table above is the root-mean-square of these depths.
 
 Read these against NB20: a vault whose mark goes stale contributes a flat line rather than a real
 recovery, and dropping the eleven cycles where most of the invested book was stale moves the
-anchor's ulcer by 4.4%. The differences between curves that are smaller than that are not
-distinguishable from reporting behaviour.
+ANCHOR'S ulcer by 4.4%. That sensitivity was measured on the anchor alone. It never measured a
+candidate-minus-anchor difference, so it is not an error bar on any curve here and not a
+distinguishability threshold between two curves. It is context, and the honest use of it is as a
+rough sense of scale: a gap of that order between two of these curves is small enough that
+reporting behaviour is a live alternative explanation for it.
 """))
 cells.append(code('''fig = go.Figure()
 for label, curve in equity_by_label.items():
@@ -254,6 +298,10 @@ Return against smoothness. Up and to the left is better: higher CAGR, lower ulce
 dashed lines are the anchor's position, so the top-left quadrant beats it on both axes at once.
 Marker size is invested-basket BTC beta, the plan's second risk goal, so a small marker in the
 top-left quadrant is what the plan was looking for.
+
+The printed list below applies the quadrant as a STRICT arithmetic predicate, and strict
+arithmetic is all it establishes. The margin columns are there because two of the runs it returns
+win by amounts far below anything this notebook can interpret: read the deltas, not the row count.
 """))
 cells.append(code('''plot_df = comparison.reset_index()
 
@@ -286,27 +334,46 @@ fig.show()
 
 better_both = comparison[
     (comparison["cagr"] > anchor_panel["cagr"]) & (comparison["ulcer"] < anchor_panel["ulcer"])
-]
-print("Runs beating the anchor on BOTH return and smoothness:")
-display(better_both[["family", "cagr", "ulcer", "martin", "abs_invested_beta",
-                     "late_ok", "passes_v3", "failed"]]
+].copy()
+better_both["cagr_vs_anchor"] = better_both["cagr"] - anchor_panel["cagr"]
+better_both["ulcer_vs_anchor_rel"] = better_both["ulcer"] / anchor_panel["ulcer"] - 1.0
+print("Runs meeting the strict predicate (CAGR above AND ulcer below the anchor's):")
+display(better_both[["family", "cagr", "cagr_vs_anchor", "ulcer", "ulcer_vs_anchor_rel",
+                     "martin", "abs_invested_beta", "late_ok", "passes_v3", "failed"]]
         if len(better_both) else "  none")
 '''))
 
-cells.append(md("""# Sharpe against volatility, with the observed-control frontier
+cells.append(md("""# Sharpe against volatility, with the observed-control bar
 
-Constraint 7 compares a candidate against the best observed control no noisier than it is. This
-is that comparison drawn: the data-availability drop family as a line, every other run as a point.
-A candidate has to sit 0.10 of a Sharpe above the line at its own volatility.
+Constraint 7 compares a candidate against the BEST observed control no noisier than it is, so as
+a function of volatility the reference is the running maximum of the drop family's Sharpe, not
+the family's own profile. It can never fall as volatility rises, whereas the family's profile
+falls repeatedly. Joining the twelve family points and calling that the bar would understate it
+across the whole 14.9% to 15.4% band where most of the runs sit, so the family is drawn as points
+and the bar is drawn separately: the running maximum, plus the 0.10 margin, as a step.
+
+Which member sets the bar is in the `c7_reference` column of the table above (cell 24): `drop_30`
+for 25 of the 36 rows, `drop_50` for six, `drop_35` for three and `drop_60` for two.
 """))
 cells.append(code('''frontier = family.sort_values("cycle_vol")
+#: `placebo_ref_observed()` takes the maximum Sharpe among members at or below the candidate's
+#: volatility, so the reference as a function of volatility is the RUNNING maximum - a
+#: non-decreasing step. The polyline through the family points is not the bar and is not drawn as
+#: one; a step at `cummax` + the margin is.
+constraint_7_bar = frontier["cycle_sharpe"].cummax() + PLACEBO_MARGIN_V3
 
 fig = go.Figure()
 fig.add_trace(go.Scatter(
-    x=frontier["cycle_vol"], y=frontier["cycle_sharpe"], mode="lines+markers",
-    name="Data-availability drop family", line=dict(color="#1f77b4"),
+    x=frontier["cycle_vol"], y=frontier["cycle_sharpe"], mode="markers",
+    name="Data-availability drop family", marker=dict(color="#1f77b4", size=9),
     text=[f"drop {int(n)}" for n in frontier["drop_n"]],
     hovertemplate="%{text}<br>vol %{x:.2%}<br>Sharpe %{y:.3f}<extra></extra>",
+))
+fig.add_trace(go.Scatter(
+    x=frontier["cycle_vol"], y=constraint_7_bar, mode="lines",
+    name="Constraint 7 bar (best control at or below, +0.10)",
+    line=dict(color="#1f77b4", dash="dash", shape="hv"),
+    hovertemplate="bar %{y:.3f} at vol %{x:.2%}<extra></extra>",
 ))
 for name in ("NB22 joint downside", "NB22 window sensitivity",
              "NB23 Sortino leg swap", "NB23 policy"):
@@ -331,6 +398,12 @@ cells.append(md("""# How each family fails
 One row per family: how many runs it contains, how many pass all seven constraints, and which
 constraint binds most often. The plan's question was whether the families fail in the same way or
 in different ways.
+
+`every failure seen` is the whole inventory, never truncated, and it is the column to read.
+`most common failure` is a single mode and on this data it is usually `observed control`, which
+is the uniformly applied constraint 7 rather than an informative result - the drop family's x12
+is twelve self-comparisons. One constraint is absent from every row: no run breaches the 90%
+deployment floor, and no run was disqualified for a non-finite metric.
 """))
 cells.append(code('''from collections import Counter
 
