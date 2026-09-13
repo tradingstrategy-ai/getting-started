@@ -326,6 +326,19 @@
    -0.050139119421594755,
    -0.0019112266677546008
   ],
+  "independence_decomposition": {
+   "definition": "co-loss LEVEL minus the product of the two marginal down rates over the same both-fresh days; the residual is the co-movement part",
+   "anchor_excess": 5.856276632840504e-05,
+   "centre_excess": 0.011749819227874029,
+   "paired_excess_difference_mean": 0.011691256461545625,
+   "paired_excess_difference_ci": [
+    0.00402800602016578,
+    0.02280721262963586
+   ],
+   "excess_falls": false,
+   "kept_excess": 0.010962020330211668,
+   "incumbent_top_excess": 0.0007825528207622583
+  },
   "screen_kept_vs_incumbent_top": {
    "kept": 0.1849810814293893,
    "incumbent_top": 0.20703441418152338,
@@ -335,8 +348,14 @@
   "pool_reads": 2268,
   "pool_reads_with_no_estimate": 144,
   "share_of_cycles_with_4plus_losers": {
+   "definition": "four or more of however many names the run actually held that cycle; confounded with basket size because the centre holds six less often",
    "anchor": 0.24,
    "centre": 0.2
+  },
+  "share_of_cycles_with_4plus_losers_six_name_cycles_only": {
+   "cycles": 96,
+   "anchor": 0.20833333333333334,
+   "centre": 0.1875
   }
  },
  "part_d_summary": {

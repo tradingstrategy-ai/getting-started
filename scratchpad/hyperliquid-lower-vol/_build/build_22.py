@@ -671,7 +671,7 @@ def pairwise_joint_loss(addresses, end_ts, window_days: int = JOINT_WINDOW,
                 "pairs_total": total_pairs, "addresses_missing": len(addresses) - len(usable)}
     reported = window.notna() & (window != 0.0)
     down = window < 0.0
-    values = []
+    values, benchmarks = [], []
     for i, a in enumerate(usable):
         for b in usable[i + 1:]:
             both = reported[a] & reported[b]
@@ -679,8 +679,18 @@ def pairwise_joint_loss(addresses, end_ts, window_days: int = JOINT_WINDOW,
             if n < min_events:
                 continue
             values.append(float((down[a] & down[b] & both).sum()) / n)
+            # Independence benchmark on EXACTLY the same conditioning set, so the level of the
+            # co-loss statistic can be split into "these names lose less often" and "these names
+            # lose together less often". Both marginals are measured over the same both-fresh
+            # days as the joint count, so `observed - p_a * p_b` is the sample covariance of the
+            # two down indicators over that set - the part that is genuinely co-movement.
+            p_a = float((down[a] & both).sum()) / n
+            p_b = float((down[b] & both).sum()) / n
+            benchmarks.append(p_a * p_b)
     return {
         "mean_pairwise_joint_loss": float(np.mean(values)) if values else float("nan"),
+        "mean_pairwise_independent": float(np.mean(benchmarks)) if benchmarks else float("nan"),
+        "mean_pairwise_excess": float(np.mean(values) - np.mean(benchmarks)) if values else float("nan"),
         "pairs_defined": len(values), "pairs_total": total_pairs,
         "addresses_missing": len(addresses) - len(usable),
     }
@@ -731,11 +741,18 @@ concentration_summary = concentration.groupby("run").agg(
     mean_holdings=("holdings", "mean"),
     mean_pairwise_joint_loss=("mean_pairwise_joint_loss", "mean"),
     median_pairwise_joint_loss=("mean_pairwise_joint_loss", "median"),
+    mean_pairwise_independent=("mean_pairwise_independent", "mean"),
+    mean_pairwise_excess=("mean_pairwise_excess", "mean"),
     dates_with_an_estimate=("mean_pairwise_joint_loss", lambda s: int(s.notna().sum())),
     mean_pairs_defined=("pairs_defined", "mean"),
     mean_pairs_total=("pairs_total", "mean"),
 )
-print("Within-basket pairwise joint-loss concentration of the REALISED holdings:")
+print("Within-basket pairwise joint-loss concentration of the REALISED holdings.")
+print("`mean_pairwise_independent` is the product of the two marginal down rates measured over "
+      "the SAME both-fresh days; `mean_pairwise_excess` is the co-loss LEVEL minus that "
+      "benchmark, i.e. the part that is co-movement rather than each name simply losing less "
+      "often. A screen that only lowers the marginal loss rate lowers the level and leaves the "
+      "excess alone.")
 display(concentration_summary)
 
 anchor_conc = float(concentration_summary.loc["anchor", "mean_pairwise_joint_loss"])
@@ -751,9 +768,26 @@ print(f"within_basket_concentration_falls: {CONCENTRATION_FALLS}")
 paired = concentration.pivot(index="date", columns="run", values="mean_pairwise_joint_loss").dropna()
 paired_difference = paired[CENTRE_LABEL] - paired["anchor"]
 ci_lo, ci_hi = block_bootstrap_ci(paired_difference, block=10)
-print(f"Paired per-date difference over {len(paired_difference)} dates: "
+print(f"Paired per-date difference in the co-loss LEVEL over {len(paired_difference)} dates: "
       f"mean {paired_difference.mean():+.6f}, 95% block-bootstrap CI "
       f"[{ci_lo:+.6f}, {ci_hi:+.6f}] (block 10).")
+
+#: The same paired test on the EXCESS over independence. This is the one that answers the
+#: mechanism's actual claim - "the six holdings lose on the same days" is a statement about
+#: dependence, not about how often each of them loses.
+paired_excess = concentration.pivot(index="date", columns="run", values="mean_pairwise_excess").dropna()
+excess_difference = paired_excess[CENTRE_LABEL] - paired_excess["anchor"]
+ci_lo_excess, ci_hi_excess = block_bootstrap_ci(excess_difference, block=10)
+anchor_excess = float(concentration_summary.loc["anchor", "mean_pairwise_excess"])
+centre_excess = float(concentration_summary.loc[CENTRE_LABEL, "mean_pairwise_excess"])
+print(f"Excess over the independence benchmark - anchor {anchor_excess:+.6f}, {CENTRE_LABEL} "
+      f"{centre_excess:+.6f}.")
+print(f"Paired per-date difference in the EXCESS over {len(excess_difference)} dates: "
+      f"mean {excess_difference.mean():+.6f}, 95% block-bootstrap CI "
+      f"[{ci_lo_excess:+.6f}, {ci_hi_excess:+.6f}] (block 10).")
+EXCESS_FALLS = bool(centre_excess < anchor_excess)
+print(f"within_basket_EXCESS_falls (dependence, not level): {EXCESS_FALLS}. The pre-registered "
+      f"gate is the LEVEL and is unchanged; this is reported beside it, not substituted for it.")
 '''))
 
 cells.append(code('''#: The same measure on the screen's OWN decision, from complement_log: the six it kept against the
@@ -777,6 +811,8 @@ for ts, entry in sorted(centre_log.items()):
         "overlap_with_incumbent_top": len(set(kept) & set(incumbent)),
         "kept_pairwise_joint_loss": kept_result["mean_pairwise_joint_loss"],
         "incumbent_pairwise_joint_loss": incumbent_result["mean_pairwise_joint_loss"],
+        "kept_pairwise_excess": kept_result["mean_pairwise_excess"],
+        "incumbent_pairwise_excess": incumbent_result["mean_pairwise_excess"],
     })
 screen = pd.DataFrame(log_rows).set_index("date")
 display(screen.describe().T)
@@ -794,6 +830,12 @@ print(f"Pool reads with no joint-loss estimate: {MISSING_READS} of {POOL_READS} 
       f"({MISSING_READS / POOL_READS:.2%}).")
 print(f"Mean within-basket pairwise joint loss - kept {KEPT_CONC:.6f}, "
       f"incumbent top six {INCUMBENT_CONC:.6f}, difference {KEPT_CONC - INCUMBENT_CONC:+.6f}.")
+KEPT_EXCESS = float(screen["kept_pairwise_excess"].mean())
+INCUMBENT_EXCESS = float(screen["incumbent_pairwise_excess"].mean())
+print(f"Mean EXCESS over the independence benchmark - kept {KEPT_EXCESS:+.6f}, incumbent top six "
+      f"{INCUMBENT_EXCESS:+.6f}, difference {KEPT_EXCESS - INCUMBENT_EXCESS:+.6f}. The level and "
+      f"the excess do not have to move together, and which of them moved is what decides whether "
+      f"the screen reduced co-movement or only the rate at which the names it holds lose.")
 '''))
 
 cells.append(code('''#: The realised objective: how often four or more of the six holdings lost together over a cycle.
@@ -824,11 +866,50 @@ coloss_summary = coloss.groupby("run").agg(
     mean_unmoved=("unmoved", "mean"),
     share_of_cycles_with_4plus_losers=("four_or_more_losers", "mean"),
 )
-print("Realised co-loss: cycles in which four or more of the six holdings lost together.")
+print("Realised co-loss: cycles in which four or more of the CURRENTLY HELD names lost together.")
+print("Not 'four of six': the centre does not always hold six. The denominator of this flag is "
+      "whatever the run held that cycle, so a cycle with five holdings needs four of five and is "
+      "mechanically less likely to trip the flag than a cycle with six. The unrestricted numbers "
+      "below are therefore confounded with basket size and the restricted ones beside them are "
+      "the comparable pair.")
 display(coloss_summary)
 COLOSS_ANCHOR = float(coloss_summary.loc["anchor", "share_of_cycles_with_4plus_losers"])
 COLOSS_CENTRE = float(coloss_summary.loc[CENTRE_LABEL, "share_of_cycles_with_4plus_losers"])
-print(f"Anchor {COLOSS_ANCHOR:.2%} of cycles against {CENTRE_LABEL} {COLOSS_CENTRE:.2%}.")
+print(f"Unrestricted, four or more of however many were held: anchor {COLOSS_ANCHOR:.2%} of "
+      f"cycles against {CENTRE_LABEL} {COLOSS_CENTRE:.2%}.")
+
+#: The size-controlled version: only cycles on which BOTH runs priced exactly six holdings, so
+#: "four of six" means the same thing on both sides. Restricting on the centre's basket size is
+#: itself a selection on the centre's cycles and is reported as such rather than presented as the
+#: unconditional number.
+priced_by_run = coloss.pivot(index="date", columns="run", values="priced")
+six_both = priced_by_run.index[(priced_by_run["anchor"] == 6) & (priced_by_run[CENTRE_LABEL] == 6)]
+flag_by_run = coloss.pivot(index="date", columns="run", values="four_or_more_losers")
+losers_by_run = coloss.pivot(index="date", columns="run", values="losers")
+COLOSS_SIX_CYCLES = int(len(six_both))
+if COLOSS_SIX_CYCLES:
+    COLOSS_ANCHOR_SIX = float(flag_by_run.loc[six_both, "anchor"].mean())
+    COLOSS_CENTRE_SIX = float(flag_by_run.loc[six_both, CENTRE_LABEL].mean())
+else:
+    COLOSS_ANCHOR_SIX = COLOSS_CENTRE_SIX = float("nan")
+print(f"Restricted to the {COLOSS_SIX_CYCLES} of {len(flag_by_run)} cycles on which BOTH runs "
+      f"priced six holdings: anchor {COLOSS_ANCHOR_SIX:.2%} against {CENTRE_LABEL} "
+      f"{COLOSS_CENTRE_SIX:.2%}.")
+
+#: The per-name loss rate underneath both of those, which is what a four-of-six count is mostly
+#: driven by. If this is what fell, the co-loss flag fell because each holding lost less often,
+#: not because the holdings stopped losing together.
+loss_rate_rows = []
+for label in ("anchor", CENTRE_LABEL):
+    sub = coloss[(coloss["run"] == label) & (coloss["priced"] > 0)]
+    loss_rate_rows.append({
+        "run": label,
+        "per_name_loss_rate_all_cycles": float(sub["losers"].sum() / sub["priced"].sum()),
+        "per_name_loss_rate_six_name_cycles": float(
+            losers_by_run.loc[six_both, label].sum() / (6 * COLOSS_SIX_CYCLES))
+            if COLOSS_SIX_CYCLES else float("nan"),
+    })
+display(pd.DataFrame(loss_rate_rows).set_index("run"))
 '''))
 
 # =============================================================================================
@@ -1224,6 +1305,17 @@ manifest = {
         "falls": CONCENTRATION_FALLS,
         "paired_difference_mean": float(paired_difference.mean()),
         "paired_difference_ci": [float(ci_lo), float(ci_hi)],
+        "independence_decomposition": {
+            "definition": "co-loss LEVEL minus the product of the two marginal down rates over "
+                          "the same both-fresh days; the residual is the co-movement part",
+            "anchor_excess": anchor_excess,
+            "centre_excess": centre_excess,
+            "paired_excess_difference_mean": float(excess_difference.mean()),
+            "paired_excess_difference_ci": [float(ci_lo_excess), float(ci_hi_excess)],
+            "excess_falls": EXCESS_FALLS,
+            "kept_excess": KEPT_EXCESS,
+            "incumbent_top_excess": INCUMBENT_EXCESS,
+        },
         "screen_kept_vs_incumbent_top": {
             "kept": KEPT_CONC, "incumbent_top": INCUMBENT_CONC,
             "difference": KEPT_CONC - INCUMBENT_CONC,
@@ -1232,7 +1324,13 @@ manifest = {
         "pool_reads": POOL_READS,
         "pool_reads_with_no_estimate": MISSING_READS,
         "share_of_cycles_with_4plus_losers": {
+            "definition": "four or more of however many names the run actually held that cycle; "
+                          "confounded with basket size because the centre holds six less often",
             "anchor": COLOSS_ANCHOR, "centre": COLOSS_CENTRE,
+        },
+        "share_of_cycles_with_4plus_losers_six_name_cycles_only": {
+            "cycles": COLOSS_SIX_CYCLES,
+            "anchor": COLOSS_ANCHOR_SIX, "centre": COLOSS_CENTRE_SIX,
         },
     },
     "part_d_summary": {
