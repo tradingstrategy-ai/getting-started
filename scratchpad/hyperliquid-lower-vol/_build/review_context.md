@@ -145,3 +145,39 @@ say so separately from an actual error. If you find nothing wrong in a section, 
 a review that manufactures findings is worse than a short one.
 
 Do not propose new experiments. Review what is here.
+
+## Addendum: what the first review round already found (2026-09-13)
+
+NB20-NB24 have each had an independent review of exactly this kind. Across the five, 41 findings
+were raised: 30 confirmed, 5 rejected on inspection, 5 partial, and 4 more found by the verifying
+agents that the reviewer had missed. Do not re-raise the items below; they are settled.
+
+**Rejected findings, so you do not repeat them.** Two reviewers independently claimed
+`bootstrap_margin_table()` raises an `AttributeError` because `family.loc[...idxmax()]` returns a
+label string. It returns the row as a Series whose `.name` is the label, and both verifying agents
+reproduced that in a REPL. A third claimed a look-ahead in a diagnostic that is symmetric across
+both arms of a comparison and touches no traded result. A fourth was a speculative tie-break
+concern disproved by the observed minimum score being nowhere near the boundary.
+
+**Confirmed and already fixed.** `bootstrap_paired_sharpe_diff()` and `family_wise_joint()` used
+the population standard deviation while the adoption rule's constraint 2 is defined on the sample
+one; both now use `ddof=1` and every notebook was re-run. `joint_loss_frequency` counted a missing
+observation as a reported day; now guarded. That second fix was expected to be inert and was NOT,
+for a reason worth knowing: `rolling(180)` counts 180 ROWS, not 180 calendar days, and most series
+begin recently enough that their own first bar sits inside the trailing window on 2026 decision
+dates. Look for that class of confusion.
+
+**Three headline claims were overturned by review**, which is the standard to hold these two
+notebooks to. NB20's "the effect is entirely post-April" became "the sparse regime is unresolved,
+not null", because its interval is wide enough to contain a larger effect - an absence of power
+read as an absence of effect. NB20's staleness band was demoted from an error bar to context,
+because it perturbs the anchor only and never measured the candidate-minus-anchor difference.
+NB22's "the mechanism worked and the portfolio still lost" was retracted entirely: the fall in
+within-basket co-loss is fully explained by the marginal down rates, and against a matched
+independence benchmark the selected basket co-loses MORE than chance.
+
+**One suspicious result survived.** NB23 measured a defect that provably exists in the code at
+exactly zero occurrences. That is normally a measurement bug. It was not: the reconstruction was
+verified against the cached indicator and a new measurement showed the mask threshold is
+unreachable on this cohort rather than merely unhit. So do not assume a surprising null is an
+error, but do demand that it be shown unreachable rather than merely unobserved.
