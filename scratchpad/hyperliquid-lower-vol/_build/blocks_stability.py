@@ -142,7 +142,11 @@ def joint_loss_frequency(
 
     w = int(joint_loss_window_days)
     cohort_is_down = (cohort_down == 1.0).astype(float)
-    reported = (r != 0.0).astype(float)
+    # `r.abs() > 0`, the track's own idiom, not `r != 0.0`: a NaN is not equal to 0.0, so the
+    # naive form counts a missing observation as a reported day - the same reward-silence class of
+    # bug the docstring above says was fixed. Immaterial on this archive, where the only NaN is
+    # the first row of each series, but wrong.
+    reported = (r.abs() > 0).astype(float)
     observable = cohort_is_down * reported
     own_down = (r < 0).astype(float)
 

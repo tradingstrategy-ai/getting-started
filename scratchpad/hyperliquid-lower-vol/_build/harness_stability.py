@@ -343,8 +343,15 @@ def bootstrap_paired_sharpe_diff(
     if n < block:
         return {"n": n, "observed": float("nan"), "lo": float("nan"), "hi": float("nan"), "block": block}
     values = joined.to_numpy()
+    # ddof=1 throughout, to match `calculate_sharpe()` in `panel()` - which is the statistic the
+    # adoption rule's constraint 2 is actually defined on. Two independent reviews found this
+    # function standardising with the population deviation instead, so every reported "observed
+    # Sharpe difference" sat 1.00402x (= sqrt(125/124) on 125 cycles) away from the difference of
+    # the panel Sharpes printed beside it. It moved no boundary decision, but a diagnostic that
+    # reports a different statistic from the one it is diagnosing is a defect.
     observed = (
-        values[:, 0].mean() / values[:, 0].std() - values[:, 1].mean() / values[:, 1].std()
+        values[:, 0].mean() / values[:, 0].std(ddof=1)
+        - values[:, 1].mean() / values[:, 1].std(ddof=1)
     ) * np.sqrt(periods)
     rng = np.random.default_rng(seed)
     diffs = []
@@ -352,7 +359,7 @@ def bootstrap_paired_sharpe_diff(
         starts = rng.integers(0, n - block + 1, size=int(np.ceil(n / block)))
         index = np.concatenate([np.arange(s, s + block) for s in starts])[:n]
         sample = values[index]
-        c_std, x_std = sample[:, 0].std(), sample[:, 1].std()
+        c_std, x_std = sample[:, 0].std(ddof=1), sample[:, 1].std(ddof=1)
         if c_std <= 0 or x_std <= 0:
             continue
         diffs.append((sample[:, 0].mean() / c_std - sample[:, 1].mean() / x_std) * np.sqrt(periods))
@@ -425,7 +432,9 @@ def family_wise_joint(
     n = len(matrix)
 
     def sharpe(column_values):
-        std = column_values.std()
+        # ddof=1, for the same reason as `bootstrap_paired_sharpe_diff()` above: the observed
+        # improvements this test reports sit beside panel Sharpes computed that way.
+        std = column_values.std(ddof=1)
         return column_values.mean() / std * np.sqrt(periods) if std > 0 else np.nan
 
     observed = {
