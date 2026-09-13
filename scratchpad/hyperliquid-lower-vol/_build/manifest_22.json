@@ -361,7 +361,7 @@
  "part_d_summary": {
   "mean_composite_rank_kept": 7.734126984126984,
   "share_of_kept_slots_from_rank_6_or_worse": 0.6322751322751323,
-  "correlation_joint_loss_with_forward_cycle_return": 0.012823421677855365,
+  "correlation_joint_loss_with_forward_cycle_return": 0.012813956560728009,
   "kept_mean_fresh_marks_in_window": 72.8452380952381,
   "incumbent_mean_fresh_marks_in_window": 77.23941798941799,
   "kept_mean_stale_share": 0.5953042328042328,
@@ -385,7 +385,7 @@
    {
     "explanation": "2. trailing joint loss does not survive one cycle",
     "measure": "correlation of trailing joint loss with the next cycle's return",
-    "value": 0.0128234217,
+    "value": 0.0128139566,
     "supporting": "negative would support the screen; positive or near zero refutes it"
    },
    {
