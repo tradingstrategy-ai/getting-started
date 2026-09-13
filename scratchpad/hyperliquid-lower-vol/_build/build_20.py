@@ -249,6 +249,12 @@ else:
     print(f"Built the mark-quality cache: {len(vault_census)} census rows, "
           f"{len(mark_events)} fresh marks, {len(daily_marks)} vault-days.")
 
+#: Printed on BOTH paths, so the tabulated counts are always in the cell output and never have to
+#: be quoted from a run that happened to miss the cache.
+print(f"Mark-quality tables: {len(vault_census)} census rows over "
+      f"{vault_census['address'].nunique()} archive vaults, {len(mark_events)} fresh marks, "
+      f"{len(daily_marks)} in-window vault-days.")
+
 #: Fail closed: a NaN must never reach a comparison further down.
 assert np.isfinite(mark_events["ret"].to_numpy()).all(), "non-finite fresh return in the event table"
 assert np.isfinite(mark_events["level_before_gap"].to_numpy()).all(), "non-finite pre-gap level"
@@ -263,6 +269,9 @@ print(f"Vaults in the trading universe: {len(tradable_addresses)}")
 print(f"Vaults in the archive with a usable price history: {vault_census['address'].nunique()}")
 print(f"Of those, in the trading universe: "
       f"{vault_census[vault_census['address'].isin(tradable_addresses)]['address'].nunique()}")
+print(f"Tradable-cohort in-window vault-days: "
+      f"{int(daily_marks['address'].isin(tradable_addresses).sum())}; fresh marks in the archive "
+      f"for that cohort: {int(mark_events['address'].isin(tradable_addresses).sum())}")
 '''))
 
 # ---------------------------------------------------------------------------------------------
@@ -814,15 +823,33 @@ fig.show()
 '''))
 
 cells.append(code('''def risk_of(curve: pd.Series) -> dict:
-    """Ulcer and annualised volatility of one equity curve, on its OWN observed spacing."""
+    """Ulcer and annualised volatility of one equity curve.
+
+    Three volatility columns, because once cycles are dropped the surviving points are NOT evenly
+    spaced and the annualisation this track uses everywhere else stops being valid:
+
+    - ``median-spacing clock`` is ``cycle_returns()``'s own factor, ``365 / median spacing``. It is
+      what every other notebook reports, and on a gapped curve it is WRONG: a return measured
+      across a four-day hole is annualised as though it were a two-day return, which inflates the
+      figure mechanically and carries no information about staleness.
+    - ``anchor clock`` fixes the factor at the anchor's own ``PERIODS_PER_YEAR``.
+    - ``spacing-normalised`` divides each return by the square root of its own interval before
+      annualising at ``sqrt(365)``. That is the correct irregular-grid annualisation, and it
+      reduces exactly to the other two when every spacing is the anchor's two days - so the
+      "as measured" row is unchanged and the gapped rows become comparable to it.
+    """
     returns_, periods = cycle_returns(curve)
+    spacings = np.array([(b - a).days for a, b in zip(curve.index, curve.index[1:])], dtype=float)
+    normalised = returns_.to_numpy() / np.sqrt(np.maximum(spacings, 1e-9))
     return {
         "observations": int(len(curve)),
-        "median spacing (days)": float(np.median(
-            [(b - a).days for a, b in zip(curve.index, curve.index[1:])])) if len(curve) > 1 else float("nan"),
+        "median spacing (days)": float(np.median(spacings)) if len(spacings) else float("nan"),
+        "max spacing (days)": float(spacings.max()) if len(spacings) else float("nan"),
         "ulcer": ulcer_index(curve),
-        "cycle vol (own spacing)": float(returns_.std() * np.sqrt(periods)),
+        "cycle vol (median-spacing clock)": float(returns_.std() * np.sqrt(periods)),
         "cycle vol (anchor clock)": float(returns_.std() * np.sqrt(PERIODS_PER_YEAR)),
+        "cycle vol (spacing-normalised)": float(np.std(normalised, ddof=1) * np.sqrt(365.0))
+        if len(normalised) > 1 else float("nan"),
         "cagr": cagr_of(curve),
         "max_dd": float((curve / curve.cummax() - 1.0).min()),
     }
@@ -852,10 +879,25 @@ if len(keep3) >= 10:
 
 sensitivity = pd.DataFrame(sensitivity_rows).set_index("variant")
 sensitivity["ulcer vs as measured"] = sensitivity["ulcer"] / sensitivity.loc["as measured (nothing dropped)", "ulcer"]
-sensitivity["vol vs as measured"] = (
-    sensitivity["cycle vol (own spacing)"] / sensitivity.loc["as measured (nothing dropped)", "cycle vol (own spacing)"]
+sensitivity["vol vs as measured (median-spacing clock)"] = (
+    sensitivity["cycle vol (median-spacing clock)"]
+    / sensitivity.loc["as measured (nothing dropped)", "cycle vol (median-spacing clock)"]
+)
+sensitivity["vol vs as measured (spacing-normalised)"] = (
+    sensitivity["cycle vol (spacing-normalised)"]
+    / sensitivity.loc["as measured (nothing dropped)", "cycle vol (spacing-normalised)"]
 )
 display(sensitivity)
+
+#: How much of the median-spacing-clock volatility rise is pure splicing arithmetic: if the dropped
+#: cycles were replaced by returns of the same per-day variance, widening k of the intervals from
+#: two days to their actual length would raise the naive figure by this much on its own.
+for variant in sensitivity.index[1:]:
+    naive = sensitivity.loc[variant, "vol vs as measured (median-spacing clock)"]
+    honest = sensitivity.loc[variant, "vol vs as measured (spacing-normalised)"]
+    print(f"{variant}: naive vol ratio {naive:.3f}, spacing-normalised vol ratio {honest:.3f} "
+          f"- {(naive - honest) / (naive - 1.0) * 100 if naive != 1.0 else float('nan'):.0f}% of the "
+          f"naive rise is the wider spacing alone.")
 
 print("This is a SENSITIVITY, not a correction. Dropping cycles changes the sample, the spacing "
       "and the drawdown path; none of the rows below the first is an estimate of the anchor's true "
