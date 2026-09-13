@@ -142,7 +142,7 @@
    "family_members_clearing_it": []
   },
   "nb20_ulcer_reading_ceiling": {
-   "statement": "NB20's stale-cycle sensitivity moves the anchor's ulcer +4.4% to +11.1%, between a quarter and three-quarters of the adoption rule's 15% ulcer margin, so a candidate clearing the ulcer constraint by only a few points is not distinguishable from a reporting artefact",
+   "statement": "NB20's stale-cycle sensitivity moves the ANCHOR's ulcer +4.4% to +11.2%, between a quarter and three-quarters of the adoption rule's 15% ulcer margin, and the five runs that clear the ulcer constraint clear it by less than that, so their ulcer improvement cannot be read as clean evidence of a risk reduction. NB20 re-measured the anchor only and did not measure the candidate-minus-anchor difference in reporting bias, so this is a limit on the reading, NOT a demonstration that the improvement IS a reporting artefact",
    "staleness_band_pct": [
     4.4255177020708025,
     11.172344689378754
@@ -155,7 +155,7 @@
     "drop_60",
     "drop_50"
    ],
-   "runs_inside_the_band": [
+   "runs_with_margin_no_larger_than_the_top_of_the_band": [
     "drop_30",
     "drop_35",
     "drop_45",
@@ -191,12 +191,16 @@
    "the data provenance hashes change in a way that alters universe membership, in which case the shadow restarts rather than continues",
    "a code change to decide_trades, the indicator chain or the parameter defaults - the frozen override dictionary and the commit that produced it are the shadow, and editing either starts a new one"
   ],
+  "constraint_7_comparator_in_shadow": "constraint 7 needs an observed control family, not only an anchor, so the shadow runs drop_5 through drop_60 at 5-step spacing alongside the candidate and the anchor, on the same decision dates in the same kernel, from the frozen code commit. The reference is placebo_ref_observed() unchanged: the highest cycle Sharpe among shadow family members whose shadow cycle volatility is at or below the candidate's, plus 0.10. Constraint 7 applies to any candidate that is NOT itself a member of that family; for a family member it is a self-comparison and constraints 1-6 are the operative set, exactly as in this plan. The bar is computed on the shadow window's own family, never carried over from this notebook's 2.847.",
+  "universe_and_provenance_restart_rule": "the four PROVENANCE_PATHS files are hashed at freeze time and at every shadow read. vault-prices.parquet and binance-price.duckdb are expected to change, because they append new candles; that alone never restarts the shadow. vault-metadata.json decides universe membership through deposit-closed status and peak TVL, so a change to it is checked by re-deriving the admitted address set: an identical set continues the shadow and any difference restarts it from the next decision cycle. The frozen metadata file is kept beside the freeze record so this is a diff, not a judgement.",
   "decision_rule_at_90_cycles": [
-   "apply adoption rule v3 to the SHADOW window's own panel, with the shadow anchor as the comparator for constraints 2, 3, 4 and 5",
+   "apply adoption rule v3 to the SHADOW window's own panel, with the shadow anchor as the comparator for constraints 2, 3, 4 and 5, the fixed floors for constraints 1 and 6, and the shadow family for constraint 7 as defined above",
    "require the paired block-bootstrap lower bound of the candidate-minus-anchor cycle Sharpe difference to clear -0.10 at block lengths 5, 10 and 20 (common block indices, seed 0, 1000 draws)",
    "require the ulcer improvement to exceed 15% BY MORE THAN the staleness band measured on the shadow window itself (NB20's method), not merely to exceed 15%",
+   "the staleness band on the shadow window is measured exactly as cell 48 measures it here: NB20's four variants recomputed on the shadow anchor, the band running from the pre-registered >50% stale (5+ d) variant to the largest of the four",
    "a pass is monitoring evidence that the mechanism behaves as backtested. It is not a deployment decision and this plan does not make one."
   ],
+  "what_a_stopping_condition_means": "any stopping condition firing ends the shadow as a REJECT. There is no decision at 90 cycles for a shadow that stopped, and a stopped shadow is not restarted with the same candidate on a later window.",
   "if_more_than_one_candidate_qualifies": "they run side by side against the same anchor. The plan does not rank them and this notebook does not choose between them."
  },
  "shadow_freeze_format": {
@@ -227,7 +231,7 @@
   },
   {
    "lead": "2 - complementary downside selection (NB22, REJECT)",
-   "settled": "That the proxy works and the strategy still fails: within-basket pairwise co-loss falls from 0.2143 to 0.1876, paired difference -0.0267 with a 95% interval of [-0.0501, -0.0019], and four-of-six co-loss cycles fall from 24.0% to 20.0% - while CAGR goes to -17.74%. The mechanism of failure is measured, not guessed: trailing joint-loss frequency correlates +0.013 with the next cycle's return, so the screen spends the composite ranking (mean rank 7.73 of 0-17) on a statistic with no forward information, and handing decide_trades exactly six candidates removes backfill and drops deployment to 92.79%.",
+   "settled": "That the proxy works and the strategy still fails: within-basket pairwise co-loss falls from 0.2143 to 0.1876, paired difference -0.0267 with a 95% interval of [-0.0501, -0.0019], and four-of-six co-loss cycles fall from 24.0% to 20.0% - while CAGR goes to -17.74%. The mechanism of failure is measured, not guessed: trailing joint-loss frequency correlates +0.013 with the next cycle's return over heavily overlapping trailing-window reads, so the screen spends the composite ranking (mean rank 7.73 of 0-17) on a statistic with no measurable forward association in this sample - which is a descriptive result on overlapping observations, not a test that establishes the absence of predictive information. Handing decide_trades exactly six candidates removes backfill and drops deployment to 92.79%.",
    "could_not": "It cannot test the basket-level version of the idea. joint_loss_frequency scores each candidate against the cohort median, never against the other five names chosen, so two vaults that are each complementary to the cohort but identical to each other are invisible to it. A pairwise-greedy basket search needs a co-movement matrix inside decide_trades and remains untested."
   },
   {
@@ -1568,7 +1572,7 @@
   {
    "file": "git HEAD",
    "bytes": NaN,
-   "sha256": "79234f9",
+   "sha256": "1bdd5a4",
    "modified": ""
   }
  ]

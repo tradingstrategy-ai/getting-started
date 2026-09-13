@@ -263,10 +263,18 @@ Every run, not only the centres. Each row's cycle Sharpe and CAGR in *this* kern
 literal frozen in the manifest of the notebook that ran it, at an absolute tolerance of **1e-9** -
 these are the same code path on the same snapshot, so this is a reproduction check, not a
 rounding allowance. Where a label appears in more than one manifest, the strictest (largest)
-difference across them is reported.
+difference across them is reported. Each row's override dictionary is compared as well, so a
+matching number produced by a different configuration would be caught rather than pass.
 
-A mismatch is not silently absorbed. It is printed as a banner, carried into
-`CROSS_CHECK_OK`, written into this notebook's own manifest, and stated in the heading.
+**Scope.** The source manifests froze two metrics per run, so two metrics per run is what can be
+checked. This does not compare states, trades, equity paths, diagnostic logs or the remaining
+panel columns; "reproduces" below means those two metrics and the overrides, nothing wider.
+
+A mismatch is not silently absorbed. It is printed as a banner here, carried into
+`CROSS_CHECK_OK`, written into this notebook's own manifest, and printed as a second banner under
+the verdict in cell 53. It is not raised, so the remaining analysis still completes. Cell 0 is
+static markdown and would not rewrite itself, so the banners rather than the heading are what a
+future reader has to be looking at.
 """.rstrip() + "\n"))
 cells.append(code('''CROSS_CHECK_TOLERANCE = 1e-9
 
@@ -288,13 +296,20 @@ for entry in runs:
         "sharpe_abs_diff": sharpe_diff,
         "expected_cagr": one[1], "actual_cagr": actual_cagr,
         "cagr_abs_diff": cagr_diff,
+        #: The two metrics agreeing is only a reproduction if they were produced by the SAME
+        #: configuration. Comparing the override dictionary this kernel actually ran against the
+        #: one the manifest recorded is what rules out "the right number from the wrong run".
+        "overrides_match": bool(entry["overrides"] == EXPECTED[label]["overrides"]),
         "reproduced": bool(sharpe_diff <= CROSS_CHECK_TOLERANCE and cagr_diff <= CROSS_CHECK_TOLERANCE),
         "finite": bool(np.isfinite(actual_sharpe) and np.isfinite(actual_cagr)),
     })
 cross_check = pd.DataFrame(cross_rows).set_index("label")
 display(cross_check)
 
-failures = cross_check[~cross_check["reproduced"] | ~cross_check["finite"]]
+failures = cross_check[
+    ~cross_check["reproduced"] | ~cross_check["finite"] | ~cross_check["overrides_match"]
+]
+OVERRIDES_MATCH = bool(cross_check["overrides_match"].all())
 CROSS_CHECK_OK = bool(len(failures) == 0 and RUN_INVENTORY_OK and MANIFESTS_AGREE)
 print(f"Worst cycle-Sharpe difference across all {len(cross_check)} runs: "
       f"{cross_check['sharpe_abs_diff'].max():.3e}")
@@ -310,7 +325,11 @@ if len(failures):
 print()
 print(f"Every run reproduced its manifest literal at +/-{CROSS_CHECK_TOLERANCE:g}: "
       f"{bool(len(failures) == 0)}")
-print(f"CROSS_CHECK_OK (reproduction AND run inventory AND cross-manifest agreement): {CROSS_CHECK_OK}")
+print(f"Every run's override dictionary matches the one its manifest recorded: {OVERRIDES_MATCH}")
+print("Scope: this compares the TWO metrics each manifest froze - cycle Sharpe and CAGR - plus")
+print("the override dictionary. It does not compare states, trades, equity paths, diagnostic")
+print("logs or the other panel metrics, none of which the source manifests carry.")
+print(f"CROSS_CHECK_OK (reproduction AND overrides AND run inventory AND cross-manifest agreement): {CROSS_CHECK_OK}")
 '''))
 
 # ---------------------------------------------------------------------------------------------
@@ -417,9 +436,19 @@ for n in FAMILY_CENTRES:
         "masked_centre_run_present": f"drop_{n}__without_top_vault" in run_by_label,
         "manifest_plateau_ok": bool(recorded["plateau_ok"]),
         "agrees_with_manifest": bool(bool(centre_ok and lower_ok and upper_ok) == recorded["plateau_ok"]),
-        "binding_constraints": failing_constraints_v3(
-            run_by_label[f"drop_{n}"]["panel"], anchor_panel, None, skip_placebo=True
-        ) or ("late period" if not centre_ok else ""),
+        #: The COMPLETE reason the centre is not ok, never a prefix of it. The first draft
+        #: appended "late period" only when the 1-6 string was empty, so a centre that failed
+        #: both a constraint and the late period was reported as failing only the constraint -
+        #: the exact under-reporting this track has made three times before.
+        "binding_constraints": ", ".join(
+            part for part in (
+                failing_constraints_v3(
+                    run_by_label[f"drop_{n}"]["panel"], anchor_panel, None, skip_placebo=True
+                ),
+                "" if late_period_ok_v3(run_by_label[f"drop_{n}"]["panel"], anchor_panel)
+                else "late period",
+            ) if part
+        ),
     })
 nb21_plateau = pd.DataFrame(nb21_rows).set_index("n")
 print("Lead 1 (NB21) - the volatility-matched family, constraints 1-6 and the late period:")
@@ -793,9 +822,17 @@ stale window.
 
 Adoption rule v3 requires a **15%** ulcer improvement. The staleness sensitivity spans
 **+4.4% to +11.2%** of the anchor's ulcer (NB20's heading rounds the upper end to +11.1%) -
-between a quarter and three-quarters of that whole decision margin. **A candidate that clears the
-ulcer constraint by only a few percentage points cannot be distinguished from a reporting
-artefact.**
+between a quarter and three-quarters of that whole decision margin. Both quantities are
+percentages of the anchor's measured ulcer, so a margin over the bar and a point on the band are
+directly comparable. **A candidate that clears the ulcer constraint by less than that band is
+wide cannot be read as clean evidence of a risk reduction.**
+
+What this does *not* establish: NB20 re-measured the **anchor** only. It never measured the
+candidate-minus-anchor difference in reporting bias, and it is that difference, not the anchor's
+own level, that would have to move for a candidate's ulcer improvement to be an artefact. The
+band is therefore a limit on how the improvement may be read, not a demonstration that the
+improvement is spurious. Limitation 1 is what makes a differential plausible - the mechanism
+selects on measurement availability - and that is a mechanism, not a measurement.
 
 NB20's own Robustness section is explicit that this is a sensitivity and not a correction: it
 removes observations rather than recovering an unobserved path, and because the archive cannot
@@ -843,7 +880,10 @@ for entry in runs:
         "ulcer_improvement_pct": improvement,
         "clears_the_15pct_bar": bool(improvement >= REQUIRED_ULCER_IMPROVEMENT_PCT),
         "margin_over_the_bar_pp": margin,
-        "inside_the_staleness_band": bool(
+        #: Named for what the test actually is. The comparison is margin <= the TOP of the band,
+        #: so a margin BELOW the band's lower end qualifies too - drop_50's +4.33 pp is below
+        #: +4.4%, not inside +4.4% to +11.2%. "Inside the band" was the wrong word for it.
+        "margin_no_larger_than_the_top_of_the_band": bool(
             improvement >= REQUIRED_ULCER_IMPROVEMENT_PCT and margin <= STALE_BAND_HIGH
         ),
     })
@@ -852,18 +892,27 @@ ulcer_reading = pd.DataFrame(ulcer_rows).set_index("label").sort_values(
 display(ulcer_reading)
 
 clearing = ulcer_reading[ulcer_reading["clears_the_15pct_bar"]]
-affected = ulcer_reading[ulcer_reading["inside_the_staleness_band"]]
+affected = ulcer_reading[ulcer_reading["margin_no_larger_than_the_top_of_the_band"]]
 print(f"Runs clearing the 15% ulcer bar: {list(clearing.index) or 'none'}")
-print(f"Of those, runs whose margin over the bar is INSIDE the staleness band, i.e. not")
-print(f"distinguishable from a reporting artefact: {list(affected.index) or 'none'}")
+print(f"Of those, runs whose margin over the bar is no larger than the TOP of the staleness")
+print(f"band (+{STALE_BAND_HIGH:.1f}%): {list(affected.index) or 'none'}")
 print()
-print("AFFECTED. Lead 1's ulcer improvements are exactly the results this ceiling bites on: every")
-print("run that clears the 15% bar is a family member, and every one of them clears it by a")
-print(f"single-digit margin, the same order as the +{STALE_BAND_LOW:.1f}% to +{STALE_BAND_HIGH:.1f}%"
-      " staleness band. So 'this family")
-print("reduces the ulcer index materially' is not separable from 'this family holds vaults that")
-print("report less often'. The NB21 diagnostic in the previous section reinforces that reading")
-print("rather than relieving it: the mechanism selects on measurement availability.")
+print("AFFECTED. Lead 1's ulcer improvements are the results this ceiling bites on: every run")
+print("that clears the 15% bar is a family member, and every one of them clears it by a")
+print(f"single-digit margin - +{clearing['margin_over_the_bar_pp'].min():.2f} to "
+      f"+{clearing['margin_over_the_bar_pp'].max():.2f} pp of the anchor's ulcer - which is the")
+print(f"same order as the +{STALE_BAND_LOW:.1f}% to +{STALE_BAND_HIGH:.1f}% the anchor's own ulcer")
+print("moves under NB20's staleness variants. Both quantities are percentages of the anchor's")
+print("measured ulcer, so they are on the same scale and the comparison is arithmetically valid.")
+print()
+print("WHAT THAT DOES AND DOES NOT ESTABLISH. NB20 re-measured the ANCHOR only. It did not measure")
+print("the candidate-minus-anchor difference in reporting bias, and it is that difference, not the")
+print("anchor's own level, that would have to move for these improvements to be an artefact. So")
+print("the correct statement is the weaker one: a sensitivity of this size on the anchor alone is")
+print("large enough relative to these margins that the ulcer improvement cannot be read as clean")
+print("evidence of a risk reduction. It is NOT a demonstration that the improvement IS a reporting")
+print("artefact. Limitation 1 - the mechanism selects on measurement availability - is what makes")
+print("a differential plausible, and it is a mechanism, not a measurement.")
 print()
 print("NOT AFFECTED. Leads 2 and 3 are nowhere near the band. Their ulcers are WORSE than the")
 print("anchor's, not better, by a multiple rather than by a few points, so no plausible")
@@ -931,17 +980,46 @@ cells.append(code('''SHADOW_SPECIFICATION = {
         "frozen override dictionary and the commit that produced it are the shadow, and editing "
         "either starts a new one",
     ],
+    "constraint_7_comparator_in_shadow": (
+        "constraint 7 needs an observed control family, not only an anchor, so the shadow runs "
+        "drop_5 through drop_60 at 5-step spacing alongside the candidate and the anchor, on the "
+        "same decision dates in the same kernel, from the frozen code commit. The reference is "
+        "placebo_ref_observed() unchanged: the highest cycle Sharpe among shadow family members "
+        "whose shadow cycle volatility is at or below the candidate's, plus 0.10. Constraint 7 "
+        "applies to any candidate that is NOT itself a member of that family; for a family "
+        "member it is a self-comparison and constraints 1-6 are the operative set, exactly as in "
+        "this plan. The bar is computed on the shadow window's own family, never carried over "
+        "from this notebook's 2.847."
+    ),
+    "universe_and_provenance_restart_rule": (
+        "the four PROVENANCE_PATHS files are hashed at freeze time and at every shadow read. "
+        "vault-prices.parquet and binance-price.duckdb are expected to change, because they "
+        "append new candles; that alone never restarts the shadow. vault-metadata.json decides "
+        "universe membership through deposit-closed status and peak TVL, so a change to it is "
+        "checked by re-deriving the admitted address set: an identical set continues the shadow "
+        "and any difference restarts it from the next decision cycle. The frozen metadata file "
+        "is kept beside the freeze record so this is a diff, not a judgement."
+    ),
     "decision_rule_at_90_cycles": [
         "apply adoption rule v3 to the SHADOW window's own panel, with the shadow anchor as the "
-        "comparator for constraints 2, 3, 4 and 5",
+        "comparator for constraints 2, 3, 4 and 5, the fixed floors for constraints 1 and 6, and "
+        "the shadow family for constraint 7 as defined above",
         "require the paired block-bootstrap lower bound of the candidate-minus-anchor cycle "
         "Sharpe difference to clear -0.10 at block lengths 5, 10 and 20 (common block indices, "
         "seed 0, 1000 draws)",
         "require the ulcer improvement to exceed 15% BY MORE THAN the staleness band measured on "
         "the shadow window itself (NB20's method), not merely to exceed 15%",
+        "the staleness band on the shadow window is measured exactly as cell 48 measures it here: "
+        "NB20's four variants recomputed on the shadow anchor, the band running from the "
+        "pre-registered >50% stale (5+ d) variant to the largest of the four",
         "a pass is monitoring evidence that the mechanism behaves as backtested. It is not a "
         "deployment decision and this plan does not make one.",
     ],
+    "what_a_stopping_condition_means": (
+        "any stopping condition firing ends the shadow as a REJECT. There is no decision at 90 "
+        "cycles for a shadow that stopped, and a stopped shadow is not restarted with the same "
+        "candidate on a later window."
+    ),
     "if_more_than_one_candidate_qualifies": (
         "they run side by side against the same anchor. The plan does not rank them and this "
         "notebook does not choose between them."
@@ -1018,12 +1096,22 @@ lead_rows.append({
     "eligible_centres": str(NB21_ELIGIBLE or "none"),
     "plateau_ok": bool(NB21_ELIGIBLE),
     "leave_one_vault_out_ok": bool(nb21_qualifying),
+    "within_basket_concentration_ok": "n/a (lead 2 only)",
     "adopt": bool(nb21_qualifying),
     "shadow_candidate": f"drop_{min(nb21_qualifying)}" if nb21_qualifying else None,
 })
 
 #: Lead 2. The centre must pass all seven constraints and the late period, every plateau point
-#: must pass, and leave-one-vault-out must pass.
+#: and every window-sensitivity run must pass, leave-one-vault-out must pass, AND the realised
+#: within-basket joint-loss concentration must fall against the anchor. That last gate is the
+#: plan's leads table verbatim - "passing the constraint table while the basket still sinks
+#: together would mean the proxy failed" - and the first draft of this cell left it out entirely.
+#: It needs NB22 Part A's mark matrix, which this close-out does not rebuild, so it is NOT
+#: recomputed here and rule 9 applies exactly as it does to an unexecuted masked run: a gate this
+#: kernel did not evaluate cannot produce a passing flag. NB22 itself measured the concentration
+#: as falling (0.2143 to 0.1876), so this False is "not re-derived here", not "the proxy failed";
+#: had the other lead-2 gates passed, this notebook would have had to re-derive it before ADOPT.
+NB22_CONCENTRATION_RECOMPUTED_HERE = False
 nb22_lovo_ok = ok_v3_and_late("complementary_18__without_top_vault")
 lead_rows.append({
     "lead": "2 - complementary downside selection (NB22)",
@@ -1031,7 +1119,9 @@ lead_rows.append({
     "eligible_centres": f"complementary_{COMPLEMENTARY_CENTRE}",
     "plateau_ok": bool(NB22_CENTRE_OK and NB22_PLATEAU_OK),
     "leave_one_vault_out_ok": bool(nb22_lovo_ok),
-    "adopt": bool(NB22_CENTRE_OK and NB22_PLATEAU_OK and NB22_WINDOW_OK and nb22_lovo_ok),
+    "within_basket_concentration_ok": "False - NOT recomputed in this kernel, fail closed",
+    "adopt": bool(NB22_CENTRE_OK and NB22_PLATEAU_OK and NB22_WINDOW_OK and nb22_lovo_ok
+                  and NB22_CONCENTRATION_RECOMPUTED_HERE),
     "shadow_candidate": None,
 })
 
@@ -1044,6 +1134,7 @@ lead_rows.append({
     "eligible_centres": SWAP_CENTRE_LABEL,
     "plateau_ok": bool(NB23_CENTRE_OK and NB23_PLATEAU_OK),
     "leave_one_vault_out_ok": bool(nb23_lovo_ok),
+    "within_basket_concentration_ok": "n/a (lead 2 only)",
     "adopt": bool(NB23_CENTRE_OK and NB23_PLATEAU_OK and nb23_lovo_ok),
     "shadow_candidate": None,
 })
@@ -1063,6 +1154,13 @@ if not CROSS_CHECK_OK:
 '''))
 
 cells.append(md("""# What each lead settled, and what it could not
+
+**Every diagnostic figure in this table is QUOTED from the source notebook named in its row, not
+recomputed here.** This close-out re-runs the backtests and re-derives the adoption gates; it does
+not rebuild NB20's mark archive, NB22's Part A mark matrix or NB23's stage-1 audit. The two
+metrics per run that the manifests froze, cycle Sharpe and CAGR, are the only source figures this
+kernel checks (cell 29). Read every number below as "NB2x reported this", with NB2x's own
+Robustness section attached.
 """))
 cells.append(code('''LEAD_SUMMARY = [
     {
@@ -1105,10 +1203,12 @@ cells.append(code('''LEAD_SUMMARY = [
             "falls from 0.2143 to 0.1876, paired difference -0.0267 with a 95% interval of "
             "[-0.0501, -0.0019], and four-of-six co-loss cycles fall from 24.0% to 20.0% - while "
             "CAGR goes to -17.74%. The mechanism of failure is measured, not guessed: trailing "
-            "joint-loss frequency correlates +0.013 with the next cycle's return, so the screen "
-            "spends the composite ranking (mean rank 7.73 of 0-17) on a statistic with no forward "
-            "information, and handing decide_trades exactly six candidates removes backfill and "
-            "drops deployment to 92.79%."
+            "joint-loss frequency correlates +0.013 with the next cycle's return over heavily "
+            "overlapping trailing-window reads, so the screen spends the composite ranking (mean "
+            "rank 7.73 of 0-17) on a statistic with no measurable forward association in this "
+            "sample - which is a descriptive result on overlapping observations, not a test that "
+            "establishes the absence of predictive information. Handing decide_trades exactly "
+            "six candidates removes backfill and drops deployment to 92.79%."
         ),
         "could_not": (
             "It cannot test the basket-level version of the idea. joint_loss_frequency scores each "
@@ -1236,15 +1336,20 @@ manifest = {
         },
         "nb20_ulcer_reading_ceiling": {
             "statement": (
-                "NB20's stale-cycle sensitivity moves the anchor's ulcer +4.4% to +11.1%, between "
-                "a quarter and three-quarters of the adoption rule's 15% ulcer margin, so a "
-                "candidate clearing the ulcer constraint by only a few points is not "
-                "distinguishable from a reporting artefact"
+                "NB20's stale-cycle sensitivity moves the ANCHOR's ulcer +4.4% to +11.2%, between "
+                "a quarter and three-quarters of the adoption rule's 15% ulcer margin, and the "
+                "five runs that clear the ulcer constraint clear it by less than that, so their "
+                "ulcer improvement cannot be read as clean evidence of a risk reduction. NB20 "
+                "re-measured the anchor only and did not measure the candidate-minus-anchor "
+                "difference in reporting bias, so this is a limit on the reading, NOT a "
+                "demonstration that the improvement IS a reporting artefact"
             ),
             "staleness_band_pct": [STALE_BAND_LOW, STALE_BAND_HIGH],
             "required_improvement_pct": REQUIRED_ULCER_IMPROVEMENT_PCT,
             "runs_clearing_the_bar": [str(label) for label in clearing.index],
-            "runs_inside_the_band": [str(label) for label in affected.index],
+            "runs_with_margin_no_larger_than_the_top_of_the_band": [
+                str(label) for label in affected.index
+            ],
             "affects": "lead 1's ulcer improvements",
             "does_not_affect": (
                 "leads 2 and 3, whose ulcers are worse than the anchor's by a multiple, and every "
