@@ -122,7 +122,7 @@
   "block": 10,
   "draws": 999,
   "seed": 0,
-  "best_observed_sharpe_improvement": 0.5899638622582026,
+  "best_observed_sharpe_improvement": 0.5875992681245021,
   "p_value": 0.813,
   "caveat": "corrects for the 35 configurations executed in this plan; cannot correct for the adaptive research history that chose which mechanisms to try, nor for lead 1 having been promoted from control to candidate after its control result was seen"
  },
@@ -1572,7 +1572,7 @@
   {
    "file": "git HEAD",
    "bytes": NaN,
-   "sha256": "1bdd5a4",
+   "sha256": "5f8c013",
    "modified": ""
   }
  ]
