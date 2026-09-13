@@ -177,9 +177,24 @@ def build_family(suffix: str = "", **common_overrides) -> pd.DataFrame:
 
     Run in the same kernel as the candidates it will be compared against, never loaded from a
     file, so the comparison is always on one data snapshot.
+
+    A member this notebook already ran for its own reasons - NB22 runs `drop_20` and `drop_30` for
+    its Part A diagnostic before it needs a comparator - is reused rather than re-run, provided
+    the recorded overrides are identical. Re-running it would be wasted compute and a duplicate
+    label; quietly running a DIFFERENT configuration under the family's name would be worse, so
+    that case raises.
     """
     for n in FAMILY_DROPS:
-        run_and_record(f"drop_{n}{suffix}", "control", vol_matched_drop_count=n, **common_overrides)
+        label = f"drop_{n}{suffix}"
+        expected = {"vol_matched_drop_count": n, **common_overrides}
+        existing = run_by_label.get(label)
+        if existing is not None:
+            assert existing["overrides"] == expected, (
+                f"{label} already ran with {existing['overrides']}, but the family needs {expected}"
+            )
+            print(f"  reusing the already-recorded {label}")
+            continue
+        run_and_record(label, "control", **expected)
     return family_frame(suffix)
 
 

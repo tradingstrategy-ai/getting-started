@@ -32,9 +32,13 @@ PARAM_ADDITIONS_STABILITY = PARAM_ADDITIONS_EVIDENCE + '''
     complementary_pool_size = 0
     #: NB22. Calendar window `joint_loss_frequency` measures co-movement over.
     joint_loss_window_days = 180
-    #: NB22. Fewest cohort-down days inside that window before a joint-loss frequency exists at
-    #: all. Below this the vault has no estimate and is NOT assumed to be complementary.
+    #: NB22. Fewest cohort-down days inside that window on which THIS vault also reported, before
+    #: a joint-loss frequency exists at all. Below this the vault has no estimate and is NOT
+    #: assumed to be complementary.
     joint_loss_min_events = 10
+    #: NB22. Fewest vaults that must have posted a FRESH mark on a day before that day's
+    #: cross-sectional median is meaningful enough to call the cohort up or down.
+    cohort_min_reporting = 5
 '''
 
 INDICATOR_ADDITIONS_STABILITY = '''
@@ -64,18 +68,35 @@ def fresh_daily_return(close: pd.Series) -> pd.Series:
 
 
 @indicators.define(dependencies=(fresh_daily_return,), source=IndicatorSource.dependencies_only_universe)
-def cohort_down_flag(dependency_resolver: IndicatorDependencyResolver) -> pd.Series:
-    """1.0 on days the cross-sectional median vault return was negative, else 0.0.
+def cohort_down_flag(
+    dependency_resolver: IndicatorDependencyResolver,
+    cohort_min_reporting: int = 5,
+) -> pd.Series:
+    """1.0 on days the median REPORTING vault lost money, 0.0 when it gained, NaN when too few
+    vaults reported to tell.
 
     The reference "bad day" for the whole vault cohort, built the same way as
     `sortino_cross_sectional_prior`: pull every pair's series combined into one MultiIndex frame
-    and aggregate by timestamp. Using the cohort median rather than BTC keeps the question about
-    the thing the portfolio actually holds - most of these vaults are market neutral by
-    construction, so their bad days are not BTC's bad days.
+    and aggregate by timestamp. The cohort median rather than BTC, because most of these vaults
+    are market neutral by construction and their bad days are not BTC's bad days.
+
+    The median is taken over FRESH marks only. A first version of this took it over every vault
+    in the universe, and the flag was almost never set after the NB57 polling-density break:
+    by 2026 most vaults are stale on most calendar days, a stale mark is an exact zero return,
+    and the median of a column that is mostly exact zeros is exactly zero, which is not negative.
+    The resulting `joint_loss_frequency` was NaN for every vault on every date, and the selection
+    block silently degenerated into "keep the six lowest pair ids", which lost 37 percentage
+    points of CAGR in the splice verification run. Restricting the median to vaults that actually
+    marked that day is the fix; requiring `cohort_min_reporting` of them stops a day on which two
+    vaults reported from defining a cohort-wide loss.
     """
     series = dependency_resolver.get_indicator_data_pairs_combined(fresh_daily_return)
-    median = series.groupby(level='timestamp').median()
-    return (median < 0).astype(float)
+    fresh = series[series != 0.0].dropna()
+    if len(fresh) == 0:
+        return pd.Series(dtype=float)
+    by_day = fresh.groupby(level='timestamp')
+    flag = (by_day.median() < 0).astype(float)
+    return flag.where(by_day.count() >= int(cohort_min_reporting))
 
 
 @indicators.define(
@@ -87,6 +108,7 @@ def joint_loss_frequency(
     dependency_resolver: IndicatorDependencyResolver,
     joint_loss_window_days: int = 180,
     joint_loss_min_events: int = 10,
+    cohort_min_reporting: int = 5,
 ) -> pd.Series:
     """Share of cohort-down days on which this vault ALSO lost, over a rolling calendar window.
 
@@ -103,17 +125,29 @@ def joint_loss_frequency(
     all. NB22 reports the realised pairwise structure of the chosen baskets so the gap between
     the proxy and the objective is measurable rather than assumed.
 
-    NaN until at least `joint_loss_min_events` cohort-down days sit inside the window. A vault
-    with no estimate is NOT treated as complementary; the selection block sorts NaN last.
+    The denominator counts only cohort-down days on which THIS vault also posted a fresh mark.
+    Without that restriction a vault that simply stops reporting never registers a loss, scores a
+    joint-loss frequency of zero, and is selected as maximally complementary - the selection
+    would reward silence. Requiring the vault to have been observed makes a quiet vault
+    unestimated rather than perfect.
+
+    NaN until at least `joint_loss_min_events` such days sit inside the window. A vault with no
+    estimate is NOT treated as complementary; the selection block sorts NaN last.
     """
     r = dependency_resolver.get_indicator_data('fresh_daily_return', pair=pair)
-    cohort_down = dependency_resolver.get_indicator_data('cohort_down_flag')
-    cohort_down = cohort_down.reindex(r.index).ffill().fillna(0.0)
+    cohort_down = dependency_resolver.get_indicator_data(
+        'cohort_down_flag', parameters={'cohort_min_reporting': cohort_min_reporting},
+    )
+    cohort_down = cohort_down.reindex(r.index)
 
     w = int(joint_loss_window_days)
+    cohort_is_down = (cohort_down == 1.0).astype(float)
+    reported = (r != 0.0).astype(float)
+    observable = cohort_is_down * reported
     own_down = (r < 0).astype(float)
-    joint = (own_down * cohort_down).rolling(w, min_periods=1).sum()
-    denominator = cohort_down.rolling(w, min_periods=1).sum()
+
+    joint = (own_down * observable).rolling(w, min_periods=1).sum()
+    denominator = observable.rolling(w, min_periods=1).sum()
     frequency = joint / denominator.replace(0.0, float('nan'))
     return frequency.where(denominator >= int(joint_loss_min_events))
 
