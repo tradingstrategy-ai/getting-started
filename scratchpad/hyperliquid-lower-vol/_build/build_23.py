@@ -656,6 +656,20 @@ if FORWARD_FILL_COUNT:
     display(audit[bridged][["raw", "n_eff", "prior", "pre_clip", "score", "evidence_age_days",
                             "latest_window_down_events"]].describe())
 
+#: WHY the bridge count is what it is, measured rather than asserted in prose. `raw_sortino` is
+#: masked by `down_count >= evidence_min_down_events`, so a valid score can only be bridged if the
+#: down-event count behind the LATEST event window falls below that bar at a read where an older
+#: window had already passed it. The distribution of that count decides whether bridging is even
+#: reachable on this cohort.
+down_behind_valid = audit.loc[audit["score_valid"], "latest_window_down_events"]
+print(f"Down-events in the latest event window at every valid read; the mask is >= {EV_MIN_DOWN}:")
+display(down_behind_valid.describe(percentiles=[0.01, 0.05, 0.5, 0.95]).to_frame().T)
+MIN_DOWN_EVENTS_AT_VALID_READ = float(down_behind_valid.min())
+READS_BELOW_MASK = int((down_behind_valid < EV_MIN_DOWN).sum())
+print(f"Minimum down-event count behind any valid read: {MIN_DOWN_EVENTS_AT_VALID_READ:.0f}, and "
+      f"{READS_BELOW_MASK:,} valid reads sit below the {EV_MIN_DOWN}-down-event mask. Bridging is "
+      f"only reachable where that count is below the mask.")
+
 assert (FORWARD_FILL_SHARE > FORWARD_FILL_TRIGGER) == USE_V2, (
     f"the measured forward-fill share is {FORWARD_FILL_SHARE:.4%} against a {FORWARD_FILL_TRIGGER:.0%} "
     f"trigger, but this notebook was built with USE_V2={USE_V2}. Set USE_V2 in _build/build_23.py "
@@ -668,8 +682,10 @@ print(f"Indicator chain decision confirmed: SELECTION_INDICATOR = {SELECTION_IND
 cells.append(md("""## 5. Clipping frequency at the [0, 1] cap
 
 A score that saturates is a score that has stopped ranking. `pre_clip` is the shrunk, t-cap-scaled
-value before `.clip(lower=0.0, upper=1.0)`; a read where it is at or below 0, or at or above 1,
-carries no ordering information against any other saturated read.
+value before `.clip(lower=0.0, upper=1.0)`. Two reads pinned at the **same** bound are exactly
+tied and carry no ordering information against each other; reads at opposite bounds are still
+ordered. What the cap does, then, is partition the pool into a tied floor group, a tied ceiling
+group, and the reads in between that the score can still rank.
 """))
 cells.append(code('''clipped_low = valid["pre_clip"] <= 0.0
 clipped_high = valid["pre_clip"] >= 1.0
@@ -764,7 +780,10 @@ has no information value at all and this notebook stops here with DIAGNOSTIC.
 
 The comparison is on **realised** weights, from `state.stats.positions` (position value at each
 statistics timestamp) divided by `state.stats.portfolio` total equity at the same timestamp - not
-on target weights, which can differ without a single trade changing.
+on target weights, which can differ without a single trade changing. The plan asked for a
+target-weight L1 distance beside the realised one; it is deliberately **not** reported here,
+because `decide_trades` does not persist its alpha-model targets into the state and the
+pre-registered gate is about the traded book. That omission is recorded rather than glossed.
 
 **Gate, pre-registered.** The book identical on every date: STOP, DIAGNOSTIC, the swap is a
 mechanical replication of the anchor. The book different on 10% or fewer of dates: STOP, the
@@ -895,6 +914,13 @@ MEDIAN_L1 = float(compare["l1_realised_weight_distance"].median())
 MAX_L1 = float(compare["l1_realised_weight_distance"].max())
 MEAN_SYMMETRIC = float(compare["symmetric_difference"].mean())
 
+#: Held-address sets over the WHOLE window, taken from the books themselves. The per-date
+#: `anchor_only` / `candidate_only` columns are exclusive sets: an address held by both runs on
+#: the same date appears in neither, so differencing those columns would count an address as
+#: "never held by the anchor" even when the anchor held it on another date.
+ANCHOR_ADDRESSES = {address for book in anchor_book.values() for address in book}
+CANDIDATE_ADDRESSES = {address for book in centre_book.values() for address in book}
+
 identity = pd.DataFrame([
     {"measure": "decision dates", "value": float(len(compare))},
     {"measure": "dates on which the traded book differs", "value": float(compare["book_differs"].sum())},
@@ -905,9 +931,14 @@ identity = pd.DataFrame([
     {"measure": "mean size of the holdings symmetric difference", "value": MEAN_SYMMETRIC},
     {"measure": "anchor total turnover, USD", "value": float(anchor_turnover_series.sum())},
     {"measure": "candidate total turnover, USD", "value": float(centre_turnover_series.sum())},
-    {"measure": "distinct addresses the candidate held and the anchor never did",
-     "value": float(len({a for row in compare["candidate_only"] for a in row.split(",") if a}
-                        - {a for row in compare["anchor_only"] for a in row.split(",") if a}))},
+    {"measure": "distinct addresses the anchor held on at least one date",
+     "value": float(len(ANCHOR_ADDRESSES))},
+    {"measure": "distinct addresses the candidate held on at least one date",
+     "value": float(len(CANDIDATE_ADDRESSES))},
+    {"measure": "addresses the candidate held that the anchor never held on any date",
+     "value": float(len(CANDIDATE_ADDRESSES - ANCHOR_ADDRESSES))},
+    {"measure": "addresses the anchor held that the candidate never held on any date",
+     "value": float(len(ANCHOR_ADDRESSES - CANDIDATE_ADDRESSES))},
 ]).set_index("measure")
 display(identity)
 
@@ -923,7 +954,9 @@ Drawdown episodes are peak-to-recovery segments of the anchor's own equity curve
 deepest: how far apart the two books were, and the approximate mark-to-market contribution of the
 positions each run held and the other did not. The contribution is the change in each position's
 `profit_usd` statistic over the window, summed per address, so it is a mark-to-market attribution
-and not a realised-P&L accounting - stated rather than implied.
+and not a realised-P&L accounting - stated rather than implied. A position carrying fewer than two
+statistics inside the window has no measurable change over it and is skipped; the number skipped
+is printed below, so the two `*_only_mtm_usd` columns are read as a partial attribution.
 """))
 cells.append(code('''def drawdown_episodes(equity_: pd.Series) -> pd.DataFrame:
     """Peak-to-recovery drawdown segments, deepest first."""
@@ -948,9 +981,14 @@ cells.append(code('''def drawdown_episodes(equity_: pd.Series) -> pd.DataFrame:
     return frame.sort_values("depth").reset_index(drop=True)
 
 
-def profit_delta_by_address(state_, start, end) -> dict:
-    """Change in each address's summed position `profit_usd` statistic over `[start, end]`."""
-    out = {}
+def profit_delta_by_address(state_, start, end) -> tuple:
+    """Change in each address's summed position `profit_usd` statistic over `[start, end]`.
+
+    A position with fewer than two statistics inside the window has no measurable change over it
+    and is skipped. The skip count is returned rather than swallowed, so the attribution below is
+    reported as the PARTIAL measure it is instead of implying it covers every changed holding.
+    """
+    out, excluded = {}, 0
     for position_id, stat_list in state_.stats.positions.items():
         position = state_.portfolio.get_position_by_id(position_id)
         if position.is_credit_supply():
@@ -958,21 +996,24 @@ def profit_delta_by_address(state_, start, end) -> dict:
         address = str(position.pair.pool_address).lower()
         inside = [s for s in stat_list if start <= pd.Timestamp(s.calculated_at) <= end]
         if len(inside) < 2:
+            excluded += 1
             continue
         out[address] = out.get(address, 0.0) + float(inside[-1].profit_usd or 0.0) - float(inside[0].profit_usd or 0.0)
-    return out
+    return out, excluded
 
 
 episodes = drawdown_episodes(anchor_equity)
 print(f"{len(episodes)} drawdown episodes in the anchor's equity curve.")
 episode_rows = []
+excluded_positions = []
 for _, episode in episodes.head(5).iterrows():
     start, end = pd.Timestamp(episode["start"]), pd.Timestamp(episode["end"])
     window = compare.loc[(compare.index >= start) & (compare.index <= end)]
     anchor_only = {a for row in window["anchor_only"] for a in row.split(",") if a}
     candidate_only = {a for row in window["candidate_only"] for a in row.split(",") if a}
-    anchor_profit = profit_delta_by_address(anchor_state, start, end)
-    centre_profit = profit_delta_by_address(centre["state"], start, end)
+    anchor_profit, anchor_excluded = profit_delta_by_address(anchor_state, start, end)
+    centre_profit, centre_excluded = profit_delta_by_address(centre["state"], start, end)
+    excluded_positions.append((anchor_excluded, centre_excluded))
     anchor_equity_change = float(anchor_equity.asof(end) / anchor_equity.asof(start) - 1.0)
     centre_equity_curve = centre["equity"]
     centre_equity_change = float(centre_equity_curve.asof(end) / centre_equity_curve.asof(start) - 1.0)
@@ -992,6 +1033,11 @@ for _, episode in episodes.head(5).iterrows():
 
 drawdown_attribution = pd.DataFrame(episode_rows)
 display(drawdown_attribution)
+print(f"Positions skipped by the mark-to-market attribution because they carry fewer than two "
+      f"statistics inside an episode window (anchor, candidate), summed over the five episodes: "
+      f"{sum(a for a, _ in excluded_positions)}, {sum(c for _, c in excluded_positions)}. Those "
+      f"positions contribute nothing to the two `*_only_mtm_usd` columns, which is why this is a "
+      f"partial attribution and not an accounting of the whole episode.")
 '''))
 
 cells.append(md("""## The gate
@@ -1197,6 +1243,56 @@ policy_row = pd.DataFrame([{
     "failed": row_failure(POLICY_LABEL),
 }]).set_index("label")
 display(policy_row)
+
+#: WHY the policy alternative reproduces the centre, measured rather than asserted. The only thing
+#: `require_scored_candidates=True` changes is that a candidate whose composite is NaN is dropped
+#: from the candidate list instead of being admitted at signal 0 (the `decide_trades` splice). So
+#: the equivalence is only informative alongside two numbers: how many reads strict admission
+#: actually removes, and whether the two runs' realised books and equity curves are identical.
+if POLICY_LABEL in run_by_label:
+    nan_composite_reads, gated_reads_checked = 0, 0
+    for pair_id, positions in gated_positions.items():
+        values = read_on(series_for(SELECTION_INDICATOR,
+                                    strategy_universe.get_pair_by_id(pair_id)), READ_AT)[positions]
+        gated_reads_checked += len(values)
+        nan_composite_reads += int(np.isnan(values).sum())
+
+    policy_book = realised_weight_book(run_by_label[POLICY_LABEL]["state"])
+    weight_diff = 0.0
+    for ts in set(centre_book) | set(policy_book):
+        a, b = centre_book.get(ts, {}), policy_book.get(ts, {})
+        for address in set(a) | set(b):
+            weight_diff = max(weight_diff, abs(a.get(address, 0.0) - b.get(address, 0.0)))
+    policy_equity = run_by_label[POLICY_LABEL]["equity"]
+    equity_index_matches = bool(centre["equity"].index.equals(policy_equity.index))
+    equity_diff = float((centre["equity"].reindex(policy_equity.index) - policy_equity).abs().max())
+
+    display(pd.DataFrame([
+        {"measure": "gated (candidate, date) reads whose composite is NaN - exactly what strict "
+                    "admission removes", "value": float(nan_composite_reads)},
+        {"measure": "share of gated reads that are NaN-composite",
+         "value": (nan_composite_reads / gated_reads_checked) if gated_reads_checked else float("nan")},
+        {"measure": "the two runs share an equity index", "value": float(equity_index_matches)},
+        {"measure": "largest realised-weight difference, centre against the policy run",
+         "value": weight_diff},
+        {"measure": "largest equity difference, centre against the policy run, USD",
+         "value": equity_diff},
+    ]).set_index("measure"))
+
+    POLICY_IDENTICAL = bool(equity_index_matches and weight_diff == 0.0 and equity_diff == 0.0)
+    if POLICY_IDENTICAL:
+        print(f"Strict admission removes {nan_composite_reads:,} of {gated_reads_checked:,} gated "
+              f"reads, and the two runs' realised books and equity curves are IDENTICAL. The "
+              f"NaN-composite candidates admitted at signal 0 therefore never reached the traded "
+              f"six on any date; the equivalence is measured, not inferred from the panel alone.")
+    else:
+        print(f"Strict admission removes {nan_composite_reads:,} of {gated_reads_checked:,} gated "
+              f"reads and the two runs DIFFER: largest weight difference {weight_diff:.6g}, "
+              f"largest equity difference ${equity_diff:,.2f}. The panel metrics agreeing does "
+              f"not mean the books did.")
+else:
+    POLICY_IDENTICAL = False
+    print("The policy alternative was not run, so there is nothing to compare the centre against.")
 '''))
 
 # ---------------------------------------------------------------------------------------------
