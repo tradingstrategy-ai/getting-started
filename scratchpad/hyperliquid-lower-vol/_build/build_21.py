@@ -138,9 +138,11 @@ invested >= 0.90. Constraint 7 is inapplicable, as printed above, so the verdict
 `passes_1_to_6`.
 
 `control_ref` - the best observed cycle Sharpe among family members no noisier than the row - is
-shown **for information only**. For a family member it is a self-comparison by construction: the
-row itself is always in its own at-or-below set, so `control_ref >= cycle_sharpe` always, and no
-member can ever clear it by 0.10. That is the definitional impossibility, made visible.
+shown **for information only**. Every family member is in its own at-or-below set, so
+`control_ref >= cycle_sharpe` on every family row and no member can ever clear it by 0.10. That
+is the definitional impossibility, made visible. The comparator is the row *itself* only where no
+quieter member has a higher Sharpe: `drop_30` and `drop_35` are referenced against themselves,
+while `drop_25` is referenced against `drop_30`. Either way the 0.10 margin is unreachable.
 
 The `failed` column is never truncated (`harness_evidence.py` sets `display.max_colwidth = None`).
 Two views: by Sharpe, and by drop count, so the shape over N is readable.
@@ -437,18 +439,20 @@ cells.append(md("""# Bootstrap margins on the decision that matters
 
 For every centre with `centre_ok` True - not only the near-misses - the paired block-bootstrap
 interval of the cycle-Sharpe difference, with common block indices across the aligned return
-matrix so each draw compares both strategies on the same market days. Block lengths 5, 10 and 20,
-seed and draw count printed by the harness, so a conclusion that depends on the block choice is
-visible as one.
+matrix so each draw compares both strategies on the same market days. Block lengths 5, 10 and 20
+appear as separate rows, so a conclusion that depends on the block choice is visible as one. The
+seed (0) and the draw count (1000) are fixed in `harness_stability.py`; they are NOT columns of
+the table below.
 
 **Against the anchor the decision boundary is -0.10** - the pre-registered Sharpe non-inferiority
 tolerance. The interval either clears it or it does not; there is no third answer and no
 adjustment of the boundary after seeing it.
 
 The table also prints an "observed control" row, because `bootstrap_margin_table()` computes both
-boundaries for every plan in this track. For a family member that row is a **self-comparison** -
-the run's own volatility puts it in its own at-or-below set - and it is inapplicable here for
-exactly the reason printed in the family cell. Read the anchor row.
+boundaries for every plan in this track. For both runs printed below that row is a
+**self-comparison** - the `against` column names the run itself, because its own volatility puts
+it in its own at-or-below set - and it is inapplicable here for exactly the reason printed in the
+family cell. Read the anchor row.
 """))
 cells.append(code('''centre_ok_centres = [int(n) for n in plateau.index[plateau["centre_ok"]]]
 if not centre_ok_centres:
