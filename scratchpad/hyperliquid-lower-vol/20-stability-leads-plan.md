@@ -1,11 +1,15 @@
-# Stability leads plan: three cheap tests of what actually stabilised the curve
+# Stability leads plan: what actually stabilised the curve, and can the marks be trusted
 
-- **Status**: DRAFT 2, revised after Codex CLI review (`gpt-6-astra`,
-  [20-stability-leads-plan-codex-review.md](20-stability-leads-plan-codex-review.md)). Two of the
-  review's recommendations change the operator's stated scope (replace lead 2; add a mark-quality
-  precursor) and are NOT applied - they are listed under "Decisions for the operator" at the end.
-  Everything else the review found is applied; see the review log.
-- **Track**: `hyperliquid-lower-vol`, notebooks NB20-NB23. Follows
+- **Status**: DRAFT 3, EXECUTING. Draft 2 was revised after Codex CLI review (`gpt-6-astra`,
+  [20-stability-leads-plan-codex-review.md](20-stability-leads-plan-codex-review.md)). Draft 3
+  adopts both of that review's scope recommendations: a mark-quality precursor now runs before the
+  three leads, and the named-exclusion backtest is replaced by complementary downside selection,
+  keeping its derivation half as a read-only diagnostic. The operator asked for all the notebooks
+  to be implemented after being shown this slate and the reasoning for the swap, and did not
+  object to it; the call was mine, not theirs, and it is reversible - the exclusion-list backtest
+  is fully specified in Draft 2 and can be run as written. The notebooks are renumbered
+  accordingly and every result below is pending.
+- **Track**: `hyperliquid-lower-vol`, notebooks NB20-NB24. Follows
   [14-evidence-weighted-plan.md](14-evidence-weighted-plan.md) (NB14-NB19, NOTHING ADOPTED, all
   seven notebooks independently reviewed) and the age-barrier audit in
   [13-research-age-barrier.ipynb](13-research-age-barrier.ipynb).
@@ -14,7 +18,7 @@
   (`BASELINE`) with explicit tolerances; the heading figures 37.90% CAGR, cycle Sharpe 2.160,
   cycle vol 0.1543, ulcer 1.80%, beta 0.046, 578 trades, $186,746 are rounded from those.
 - **Every historical result in this plan is exploratory and in-sample.** ADOPT means *admission to
-  the frozen prospective shadow protocol* (NB23), not authorisation to deploy capital. The full
+  the frozen prospective shadow protocol* (NB24), not authorisation to deploy capital. The full
   window has informed several rounds of research already; no chronological split inside it is
   out-of-sample.
 - **Data provenance**: each notebook prints SHA-256 content hashes of the vault price archive, the
@@ -26,7 +30,8 @@
 - **Question**: the previous plan found that nothing "smart" beat plain volatility avoidance, that
   the one screen-passing score collapsed in a real backtest, and that the change most likely to
   keep the anchor's return - swapping one leg of the composite - was never run. This plan tests
-  exactly those three leads.
+  those three leads, after first checking that the risk measures they are judged against are
+  reading real trading rather than absent reporting.
 
 This file is written to be executed by an agent that has not read the rest of the track.
 
@@ -35,16 +40,15 @@ This file is written to be executed by an agent that has not read the rest of th
 | # | Lead | Where it came from | What would make it a result |
 |---|---|---|---|
 | 1 | **The vol-matched drop family, promoted from control to candidate.** `vol_matched_drop_50` delivered vol 9.5%, ulcer 1.45%, beta 0.002, Sharpe 2.01, fully invested, for 17 pp of CAGR - better on every risk axis than any mechanism the previous plan built. It was never plateau- or leave-one-vault-out checked because it was the control. | NB15, NB19 | A contiguous run of N values that all pass constraints 1-6 and the late period, with leave-one-vault-out holding at the centre. Promoting a control after seeing its result is itself a selection; the notebook records a `simple_rule_eligible` flag, and ADOPT still means only admission to the shadow. |
-| 2 | **A named exclusion list instead of a volatility count.** `drop_30` is a spike as a *rule*; nobody has looked at which vaults leave between N = 20 and N = 30. If a stable set of names does the work, a curated exclusion list is a different mechanism, and `MASKED_VAULTS` already implements it. | NB15 review, NB12 | A list frozen on the derivation window whose exclusion, evaluated from a common July cash start, passes all seven constraints on the evaluation segment, holds across list sizes, and beats BOTH a uniform random-list null and a matched static-list null. The review is right that this is an outcome-informed hypothesis with a chronological diagnostic, not independent validation; it is labelled exploratory throughout. |
+| 2 | **Complementary downside selection, in place of a named exclusion list.** The curve is unstable because the six holdings lose on the same days. Rank by the incumbent composite, take the top P, keep the six with the lowest `P(vault down | cohort down)`, and leave sizing alone. The exclusion-list derivation survives as a read-only diagnostic. | NB15 review, Codex review idea 2 | The centre passes all seven constraints, the late period, the plateau over P and the window sensitivity, leave-one-vault-out holds, AND the realised within-basket joint-loss concentration falls against the anchor. The last of those is the point; passing the constraint table while the basket still sinks together would mean the proxy failed. |
 | 3 | **The minimal change nobody ran.** NB14/NB16 found the *evidence-shrunk* CAGR leg hurt; NB31 found the incumbent's *360-day* CAGR leg is load-bearing. Keep the incumbent's CAGR leg and swap only the 45-day Sortino leg for `sortino_shrunk_score`. | NB16 review, NB31 | First, a measurement audit and an identity diagnostic showing the swap actually changes the book; then, only if it does, a local sensitivity sweep and the seven constraints, plateau and leave-one-vault-out. The swap cannot reach young vaults; it re-ranks the old cohort. |
 
 ## Rules for the executing agent
 
 The previous plan's rules plus what its seven post-execution reviews and this plan's review taught.
 
-1. **Never select or tune towards a vault by name** - except in NB21, where a frozen list of names
-   is the mechanism under test, derived by the pre-registered procedure on the derivation window
-   before any evaluation output is produced.
+1. **Never select or tune towards a vault by name.** NB22 names vaults only in a read-only
+   diagnostic; no run in this plan is configured from a list of identities.
 2. **Never change a pre-registered threshold after seeing a result.** Record a badly placed one in
    the Robustness section and leave it.
 3. **Build from `_build/`** with a `build_NN.py` importing `builder.py`; never hand-edit a code
@@ -58,10 +62,10 @@ The previous plan's rules plus what its seven post-execution reviews and this pl
    Report the complete failure set for every row; a `first_failure` summary field is optional.
    Fail closed on any non-finite required metric and name it in the failure string.
 6. **Every numeric claim in a heading cites the cell it comes from.**
-7. **`runs = [(label, state, equity, returns, panel), ...]`** plus `run_by_label` is the only
-   source for every table; unique labels; every control (frontier points included) goes through
-   the same `run_and_record()` so it retains state, equity and returns.
-8. **Diagnostic logs** (`VOL_DROP_LOG`, `SLEEVE_LOG`) are cleared before each run and snapshotted
+7. **`runs` plus `run_by_label` is the only source for every table**; unique labels; every
+   control and every family member goes through the same `run_and_record()`, so each retains its
+   state, equity, returns and diagnostic logs.
+8. **Diagnostic logs** (`VOL_DROP_LOG`, `COMPLEMENT_LOG`, `SLEEVE_LOG`) are cleared before each run and snapshotted
    into that run's record afterwards; assert unique decision timestamps and expected coverage.
 9. **Adoption logic complete from the first run**: eligibility, constraints, late period, plateau,
    leave-one-vault-out, with each Boolean listed separately. A required robustness run that was
@@ -104,10 +108,10 @@ def placebo_ref_observed(family: pd.DataFrame, vol: float) -> float:
 
 Constraint 7: `cycle_sharpe >= placebo_ref_observed(family, cycle_vol) + 0.10`. The same
 definition and the same family are used in every notebook of this plan. **Lead 1 is the
-family**, so for NB20 constraint 7 is a self-comparison (a retained member would need
-`S >= S + 0.10`) and is **not applied** (review finding 6: inapplicable, not vacuous); NB20 reports
-`passes_1_to_6`, `failed_1_to_6` and `simple_rule_eligible`, never `passes_v2`. NB21 and NB22 must
-clear it: a named list and a re-ranked composite are additional mechanisms and carry a complexity
+family**, so for NB21 constraint 7 is a self-comparison (a retained member would need
+`S >= S + 0.10`) and is **not applied** (review finding 6: inapplicable, not vacuous); NB21 reports
+`passes_1_to_6`, `failed_1_to_6` and `simple_rule_eligible`, never `passes_v3`. NB22 and NB23 must
+clear it: a co-movement screen and a re-ranked composite are additional mechanisms and carry a complexity
 premium of 0.10 Sharpe over the best observed simple de-risking at their own risk level. That
 asymmetry is deliberate and is stated in each notebook's first bullet.
 
@@ -124,130 +128,86 @@ each candidate's Sharpe difference from the anchor per draw, centres each candid
 distribution on its observed difference (the no-difference null), takes the maximum across the
 family per draw, and reports `p = (1 + #{max_null >= observed_max}) / (B + 1)` with B = 999 and
 the exact family printed. It preserves candidate-anchor and candidate-candidate dependence. It
-still cannot erase the adaptive research history behind the family, and NB23 says so.
+still cannot erase the adaptive research history behind the family, and NB24 says so.
 
 Verdict words: ADOPT (= admission to shadow) / REJECT / CONTROL / DIAGNOSTIC.
 
 ## Shared additions
 
+Both modules are written and verified before any notebook is built:
+`_build/verify-stability-splices.ipynb` reproduces `BASELINE`, proves both `decide_trades`
+splices are inert on the anchor path, and exercises each new mechanism once.
+
 ### `_build/blocks_stability.py`
 
-```python
-"""Stability-leads track additions (20-stability-leads-plan.md), NB20-NB23."""
+Adds three things on top of `blocks_evidence.py`, which every stability notebook also splices
+(the Sortino leg of lead 3 lives there).
 
-INDICATOR_ADDITIONS_STABILITY = '''
-#: --- stability-leads track additions (see 20-stability-leads-plan.md) ---
+- `VOL_DROP_LOG`, a read-only per-cycle record of what the pre-registered vol-matched drop
+  actually removed: pool size, dropped ids and addresses, the inverse-volatility and signal of
+  every candidate, and which of the dropped had no volatility estimate at all. NB21's diagnostics
+  and NB22's Part A read this rather than reconstructing the decision offline. The review found a
+  reconstruction could not mirror `decide_trades` - it would miss `is_good_pair`, the quarantine
+  list, `MANUAL_BLACKLIST`, `MASKED_VAULTS`, strict admission and the tie order.
+- `fresh_daily_return`, `cohort_down_flag` and `joint_loss_frequency`, plus a
+  `complementary_pool_size` block in `decide_trades` and `COMPLEMENT_LOG`. NB22's mechanism.
+  `joint_loss_frequency` is `P(vault down | cohort down)` over a rolling window, where the cohort
+  reference is the cross-sectional median vault return, built the same way as
+  `sortino_cross_sectional_prior`. NaN sorts last: no estimate is not evidence of
+  complementarity.
+- `cagr_sortino_shrunk_weight`, the incumbent composite with only its Sortino leg swapped for
+  `sortino_shrunk_score`. NB23's mechanism. It is a component replacement, not an isolated test
+  of shrinkage or of event time: the replacement leg changes horizon, shrinkage, scaling and
+  saturation at once, and its NaN behaviour differs, so the admitted set is not guaranteed
+  identical even though the CAGR gate is.
 
-#: Per-cycle record of what the vol-matched drop actually removed, written by decide_trades (see
-#: CELL14_REPLACEMENTS_STABILITY). Cleared and snapshotted per run by run_and_record().
-VOL_DROP_LOG: dict = {}
-
-
-@indicators.define(
-    dependencies=(cagr_score, sortino_shrunk_score),
-    source=IndicatorSource.dependencies_only_per_pair,
-)
-def cagr_sortino_shrunk_weight(
-    pair: TradingPairIdentifier,
-    dependency_resolver: IndicatorDependencyResolver,
-    cagr_lookback_days: int = 360,
-    evidence_max_events: int = 90,
-    evidence_min_events: int = 20,
-    evidence_min_down_events: int = 5,
-    evidence_prior_strength: int = 60,
-    evidence_t_cap: float = 3.0,
-    cagr_weight: float = 0.6,
-) -> pd.Series:
-    """The incumbent composite with ONLY its Sortino leg swapped (NB22, lead 3).
-
-    `cagr_weight x cagr_score(360d) + (1 - cagr_weight) x sortino_shrunk_score`. The 360-day CAGR
-    leg is the incumbent's own, untouched, so the composite still needs 360 days of history and
-    cannot reach young vaults. It is a component replacement, not an isolated test of shrinkage
-    or of event time: the replacement leg changes horizon (up to 90 mark events instead of 45
-    calendar days), shrinkage, scaling and saturation at once, and its NaN behaviour differs
-    from `sortino_score`'s, so admission is NOT guaranteed identical even though the CAGR gate is
-    (review finding 10). NB22's audit cell measures exactly how much the selected book changes.
-    """
-    cagr_component = dependency_resolver.get_indicator_data(
-        'cagr_score', pair=pair, parameters={'cagr_lookback_days': cagr_lookback_days},
-    )
-    sortino_component = dependency_resolver.get_indicator_data(
-        'sortino_shrunk_score', pair=pair,
-        parameters={
-            'evidence_max_events': evidence_max_events,
-            'evidence_min_events': evidence_min_events,
-            'evidence_min_down_events': evidence_min_down_events,
-            'evidence_prior_strength': evidence_prior_strength,
-            'evidence_t_cap': evidence_t_cap,
-        },
-    )
-    return cagr_weight * cagr_component + (1.0 - cagr_weight) * sortino_component
-'''
-
-#: Read-only logging of the vol-matched drop, spliced after the existing drop block in
-#: cell14_enhanced.py. Anchor trades and equity must be identical with and without it (rule 4).
-#: Anchor string verified unique in cell14_enhanced.py on 2026-09-13.
-CELL14_REPLACEMENTS_STABILITY = {
-    "        dropped_ids = {item[0] for item in by_vol[:vol_matched_drop]}\n":
-    "        dropped_ids = {item[0] for item in by_vol[:vol_matched_drop]}\n"
-    "        # Stability-leads track: record what was actually dropped, so the offline diagnostic\n"
-    "        # reads the trading pipeline's own decision rather than reconstructing it.\n"
-    "        VOL_DROP_LOG[timestamp] = {\n"
-    "            'pre_drop_candidates': [item[0] for item in candidates],\n"
-    "            'inv_vol': {item[0]: inv_vol_by_id.get(item[0], 0.0) for item in candidates},\n"
-    "            'scored': {item[0]: bool(item[2] != 0.0) for item in candidates},\n"
-    "            'dropped_ids': sorted(dropped_ids),\n"
-    "            'no_estimate_dropped': sorted(pid for pid in dropped_ids if inv_vol_by_id.get(pid, 0.0) == 0.0),\n"
-    "        }\n",
-}
-```
-
-The log is written only when the drop branch executes (`vol_matched_drop > 0 and len(candidates)
-> vol_matched_drop`); when the gated pool has at most N members the trading code drops nothing,
-and the diagnostic reports that frequency explicitly (review finding 8). `no_estimate_dropped`
-identifies missing volatility, which is not the same as "unscored by the 360-day CAGR leg" (90
-versus 360 days) and not the same as "young": the diagnostic cross-tabulates all three and never
-uses them interchangeably.
+Both `decide_trades` splices are disabled at their defaults (`vol_matched_drop_count = 0`,
+`complementary_pool_size = 0`), so the anchor path never reaches either branch.
+`assert_anchor_parity()` asserts that both logs are empty after the anchor run, which is the
+evidence rather than the assumption.
 
 ### `_build/harness_stability.py`
 
-Appended as its own cell after `harness_evidence.py`'s cell. Defines: `BASELINE` (full-precision
-anchor metrics and tolerances, and `assert_anchor_parity()`); `provenance()` (SHA-256 of the
-price archive, metadata snapshot, universe cache and Binance store, plus the `_build/` git
-commit; printed in every notebook's first output cell); `placebo_ref_observed()` as above;
-`passes_constraints_v3()` / `failing_constraints_v3()` (constraints 1-6 from
-`harness_evidence.py` plus the observed-control constraint 7, with a `skip_placebo=True` switch
-for NB20); `passes_1_to_6()`; `bootstrap_paired_sharpe_diff()` (common block indices, margins,
-block-length sensitivity); `family_wise_joint()`; `verdict_table_v3()`; and `run_and_record()`
-itself, so that every notebook shares one implementation that clears and snapshots the diagnostic
-logs:
-
-```python
-def run_and_record(label, family, **overrides):
-    VOL_DROP_LOG.clear(); SLEEVE_LOG.clear()
-    s, e, r = run_variant(label, **overrides)
-    p = panel(label, s, e, r, anchor_cycle_returns)
-    entry = dict(label=label, state=s, equity=e, returns=r, panel=p, family=family,
-                 overrides=dict(overrides), vol_drop_log=dict(VOL_DROP_LOG), sleeve_log=dict(SLEEVE_LOG))
-    assert len(set(entry["vol_drop_log"])) == len(entry["vol_drop_log"])
-    runs.append(entry); run_by_label[label] = entry
-    return entry
-```
-
-`build_family()` runs the 5-step vol-matched family (N in {5, ..., 60}; N = 0 is the anchor's own
-entry) through `run_and_record(..., family="control")`, once per notebook, in the same kernel as
-the candidates.
-
-Before any notebook runs: splice both files through `builder.py`, compile every cell, run the
-anchor with the logging replacement in place and `vol_matched_drop_count = 0`, and assert parity
-against `BASELINE` - the logging branch never executes on the anchor path, and the assertion
-proves it. Reuse `_build/verify-plan14-draft2.ipynb`'s pattern.
+Appended as its own cell after `harness_evidence.py`'s. Defines `BASELINE` and
+`assert_anchor_parity()`; `provenance()` (SHA-256 content hashes of the price archive, metadata
+snapshot, Binance store and BTC cache, plus the git commit); `placebo_ref_observed()`;
+`passes_constraints_v3()` / `failing_constraints_v3()` / `passes_1_to_6()`, all failing closed on
+any non-finite required metric; `late_period_ok_v3()`; `verdict_table_v3()`, which reads `runs`
+directly so an executed run cannot be left out of the table that should have judged it;
+`bootstrap_paired_sharpe_diff()` and `bootstrap_margin_table()` (common block indices, both
+decision boundaries, block lengths 5 / 10 / 20); `family_wise_joint()`; and the run bookkeeping -
+`runs`, `run_by_label`, `record_anchor()`, `build_family()`, `family_frame()` and
+`run_and_record()`, which clears and snapshots all three diagnostic logs around every run and
+asserts unique decision timestamps.
 
 ## Experiment track
 
-### NB20 - backtest: the vol-matched family as a candidate
+### NB20 - research: reporting versus trading inactivity (precursor)
 
-**File**: `20-backtest-vol-matched-family.ipynb`, `_build/build_20.py`.
+**File**: `20-research-mark-quality.ipynb`, `_build/build_20.py`. Verdict word: DIAGNOSTIC.
+
+**Question.** Every risk number in this track - ulcer, cycle volatility, invested beta, Sortino -
+is computed from a share-price series that stops moving when a vault stops reporting. A vault
+that goes quiet therefore looks stable. Until stale reporting is separated from genuinely flat
+trading, the objective function all three leads are judged against may be describing missing
+observations rather than economic experience. The review rated this the highest information per
+effort on its list, and it costs no backtests beyond the anchor.
+
+**Sections.** A polling-gap census across the tradable cohort, split at the NB57 regime break on
+2026-04-01, reporting gap-length distributions and endpoint mark age. Whether a gap predicts a
+loss: for every gap of two or more days that ends in a fresh mark, the resuming return, bucketed
+by preceding gap length, against the unconditional distribution, with a block-bootstrap interval
+and no significance claim from overlapping samples. Recovery shape after a long gap that resumes
+negative. How much of this reaches the anchor's own book, by position count, capital and profit.
+Finally a sensitivity: the anchor's ulcer and volatility recomputed with cycles that sat inside a
+stale window dropped, reported as a sensitivity and never as a corrected value.
+
+**Adopts nothing.** If gaps do predict losses, that finding is a constraint on how every later
+notebook's ulcer improvement may be read, and NB24 carries it forward.
+
+### NB21 - backtest: the vol-matched family as a candidate (lead 1)
+
+**File**: `21-backtest-vol-matched-family.ipynb`, `_build/build_21.py`.
 
 **Question.** Is there a stable member of the family that beat everything else? Not "does
 de-risking work" - it does - but "is there an N at which it clears Sharpe non-inferiority, holds
@@ -267,16 +227,16 @@ masked={largest_contributing_vault(run_by_label[f"drop_{n}"]["state"])})`, which
 **Diagnostic, from `VOL_DROP_LOG`, not from a reconstruction.** Per N: mean pre-drop pool size;
 frequency of the no-drop branch (pool <= N); mean actual removed count `len(dropped_ids)`; mean
 `len(dropped_ids) - len(no_estimate_dropped)` (volatile removals actually made); a cross-tab of
-removed ids by (volatility available / missing) x (composite scored / unscored) x (age < 360 d /
->= 360 d at that date, from NB13's life cache); the Jaccard overlap of `dropped_ids` between
-consecutive decision dates (two empty sets = missing, one empty = 0), reported as a description of
-how stable the removed set is - never as a stopping rule.
+removed vaults by (volatility available / missing) x (composite scored / unscored) x (age < 360 d
+/ >= 360 d at that date, from NB13's life cache); the Jaccard overlap of `dropped_addresses`
+between consecutive decision dates (two empty sets = missing, one empty = 0), reported as a
+description of how stable the removed set is - never as a stopping rule.
 
-**Outputs.** `verdict_table_v3(..., skip_placebo=True)` with `passes_1_to_6`, `failed_1_to_6`,
-`late_ok`, and `placebo_ref` shown for information; the plateau table (N, N-5, N+5 each
-Boolean); `simple_rule_eligible` per N; bootstrap intervals vs the anchor for every eligible
-centre (boundary -0.10); the chart of CAGR, Sharpe, vol, ulcer against N; the diagnostic tables;
-equity curves of the anchor and every N with `passes_1_to_6`.
+**Outputs.** `verdict_table_v3(..., skip_placebo=True)` with `passes_1_to_6`, the full `failed`
+string, `late_ok`, and `control_ref` shown for information; the plateau table (N, N-5, N+5 each
+Boolean); `simple_rule_eligible` per N; `bootstrap_margin_table()` for every eligible centre;
+the chart of CAGR, Sharpe, vol, ulcer against N; the diagnostic tables; equity curves of the
+anchor and every N with `passes_1_to_6`.
 
 **Verdict.** ADOPT (to shadow) the **smallest** N for which the centre, both neighbours and the
 masked centre all pass `passes_1_to_6` and `late_ok`; if several qualify, the smallest N is the
@@ -285,74 +245,55 @@ per N. If the family clears every risk constraint but Sharpe non-inferiority at 
 heading says that de-risking at these settings costs Sharpe *on this window under this rule* -
 not that it does so in general, and not if any N failed on CAGR, deployment or plateau instead.
 
-### NB21 - research + backtest: a named exclusion list (exploratory)
+### NB22 - research + backtest: complementary downside selection (lead 2, redirected)
 
-**File**: `21-backtest-exclusion-list.ipynb`, `_build/build_21.py`.
+**File**: `22-backtest-joint-downside.ipynb`, `_build/build_22.py`.
 
-**Question.** Is the `drop_30` effect carried by a stable set of names? If so, does excluding those
-names - frozen on the derivation window, evaluated from a common cash start on the evaluation
-window - do what the volatility count does, and beat removing a matched set of *other* names?
+**What changed and why.** Draft 2 proposed freezing a named exclusion list derived from the
+vaults that leave the book between `drop_20` and `drop_30`. The review's objection stands: that
+converts an outcome-selected volatility band into permanent identities, and its own evaluation
+design could not separate the names from their risk cohort. The mechanism that survives is the
+question underneath it - the equity curve is unstable because the six holdings lose on the same
+days - and that is testable directly, generalisably, and without naming anyone. The derivation
+work is kept, as a read-only diagnostic, because "who actually leaves between N = 20 and N = 30"
+is still an unanswered question about the book.
 
-**Status of this notebook.** Exploratory. The window is in-sample, `drop_30` and the 20-to-30 band
-were chosen after seeing full-window results, and a chronological split inside the window is a
-diagnostic, not validation (review finding 1). The heading's first bullet says this.
+**Part A, diagnostic: who the volatility count removes.** Run `drop_20` and `drop_30` and read
+both `vol_drop_log`s. Report the marginal band `M = (D30 - D20)` per decision date, the frequency
+with which each address appears in it, the persistent core at 50 / 75 / 90% of dates, monthly
+membership stability, and the cross-tab of the top-15 by age and score availability. Report how
+many of them ever displaced a *funded* anchor position. No run is configured from this table.
 
-**Derivation (on 2026-01-01 to 2026-06-30 only).** Run `drop_20` and `drop_30` with the logging
-splice. For every decision date in the derivation window, `D20, U20 = drop_set(20)`, `D30, U30 =
-drop_set(30)` read from the two runs' `vol_drop_log`; `M = (D30 - D20) - U30` (the marginal band,
-volatile part only). `frequency[address] = #dates address in M / #dates`. Order by descending
-`frequency`, then ascending frequency of being in `D20`, then lower-case address. Report: the
-frequency table; a persistent-core table (addresses in M on >= 50% / 75% / 90% of dates);
-monthly membership stability; stability of the top-15 under 20 blocked resamples of the
-derivation dates (block = 10 dates); the cross-tab of top-15 members by age and score
-availability at the derivation cutoff; how many top-15 members ever displaced a *funded* anchor
-position (from the anchor run's positions). Any k for which fewer than k addresses have positive
-frequency is marked unavailable, not padded. Freeze the ordered list, the cutoff, the frequency
-table and the input hashes in a printed manifest **before** any evaluation cell runs.
+**Part B, the mechanism.** `joint_loss_frequency` measures, per vault over a rolling window,
+`P(vault down | cohort down)` where the cohort reference is the cross-sectional median vault
+return. Low means the vault holds up when the rest of the cohort is losing. The
+`complementary_pool_size` parameter takes the top P candidates by the incumbent composite and
+keeps the `max_assets_in_portfolio` with the lowest joint-loss frequency, leaving sizing and
+every other rule untouched. It changes *which* names are held, not how much of each.
 
-**Evaluation (2026-07-01 to 2026-09-08, from a common cash start).** Every evaluation run starts
-from $150,000 cash at the first scheduled decision on or after 2026-07-01 with full indicator
-history (`run_and_record(..., backtest_start=datetime.datetime(2026, 7, 1))`; the universe
-loader already carries the pre-July history). Runs: `anchor_jul` (the comparator);
-`family_jul` (N in {5, ..., 60}, twelve runs, the constraint-7 family for this segment);
-`exclude_top{k}_jul` for k in {5, 10, 15} with `masked=set(EXCLUSION_LIST[:k])`; the two nulls
-below; and, if `exclude_top10_jul` passes, the masked robustness run with
-`masked=set(EXCLUSION_LIST[:10]) | {top_contributor_of_exclude_top10_jul}`. Full-window masked
-runs (`exclude_top{k}_full`) are also produced, labelled **retrospective counterfactuals**, and
-are not used for the verdict (review finding 2). All seven constraints are evaluated on the
-evaluation segment against `anchor_jul` and `family_jul`; `late_*` columns are redundant here and
-the late-period check is replaced by the segment itself.
+**Runs.** The anchor; `build_family()` as the constraint-7 comparator; then
+`run_and_record(f"complementary_{p}", "candidate", complementary_pool_size=p)` for P in
+{10, 12, 14, 16, 18, 20, 24}, with P = 18 as the pre-registered centre and the rest as the
+plateau. Window sensitivity at the centre: `joint_loss_window_days` in {90, 270} and
+`joint_loss_min_events` in {5, 20}, four more runs, reported beside the plateau. Leave-one-vault-out
+on the centre if the centre and plateau pass.
 
-**Two nulls, both k = 10, B = 49 draws each** (empirical resolution 0.02; 199 would be better and
-is a noted trade-off against ~50 minutes of compute):
+**The gap between the proxy and the objective, measured not assumed.** `joint_loss_frequency`
+scores each candidate against the cohort, not against the other five names actually chosen, so it
+cannot see two vaults that are each complementary to the cohort but identical to each other. From
+`complement_log` and the realised returns, report for the centre and the anchor: the mean pairwise
+joint-loss frequency *within* the chosen basket, the share of decision dates on which the screen
+changed the basket, the count of reads with no estimate, and the realised share of cycles in which
+four or more of six holdings lost together. If the within-basket concentration is no better than
+the anchor's, the proxy failed even where the constraint table passes, and the heading says so.
 
-- *Uniform*: sampled without replacement from the sorted, frozen population of addresses that
-  were in the gated pool with valid `inverse_vol` on any derivation date, `np.random.default_rng
-  (seed)`, every list printed. A weak baseline (review finding 3: uniform lists contain
-  never-competitive names).
-- *Matched static-list*: sampled from the same population stratified into fixed bins on
-  derivation-only volatility rank (quintile), composite-score availability (ever scored / never),
-  gated-eligibility frequency (tercile) and anchor exposure (ever funded by the anchor / never);
-  each draw matches the candidate list's bin counts; fallback to the nearest bin if a bin is
-  exhausted, recorded. This is the null that asks whether *these identities* matter beyond
-  their risk-and-eligibility cohort.
+**Verdict.** ADOPT (to shadow) the centre only if it passes all seven constraints (v3, comparator
+= the family), `late_ok`, every plateau neighbour passes, and leave-one-vault-out passes.
+Otherwise REJECT with the complete failure set. Report Part A regardless.
 
-Primary null statistic: **negative evaluation-segment ulcer** (stability, the operator's
-objective); CAGR-floor and deployment eligibility enforced separately as constraints; CAGR and
-Sharpe ranks reported as secondary diagnostics. `p = (1 + #{T_random >= T_candidate}) / (B + 1)`,
-ties against the candidate, numerator and denominator printed. Call it a random-list benchmark
-percentile, not a significance test.
+### NB23 - backtest: the incumbent composite with only its Sortino leg swapped (lead 3)
 
-**Verdict.** ADOPT (to shadow) `exclude_top10` only if, on the evaluation segment: it passes all
-seven constraints (v3, comparator = `family_jul`); `exclude_top5` and `exclude_top15` pass all
-seven; the masked robustness run passes all seven; and its ulcer-based p <= 0.10 against BOTH
-nulls. Otherwise REJECT with the complete failure set. If the derivation produces no address with
-frequency >= 0.5, the notebook still runs `exclude_top10` (the derivation tables are the finding
-either way) but says in the first bullet that no persistent core exists.
-
-### NB22 - backtest: the incumbent composite with only its Sortino leg swapped
-
-**File**: `22-backtest-sortino-leg-swap.ipynb`, `_build/build_22.py`.
+**File**: `23-backtest-sortino-leg-swap.ipynb`, `_build/build_23.py`.
 
 **Question.** Does the event-time, shrunk Sortino leg re-rank the old cohort better than the
 incumbent's 45-day rolling Sortino? Two stages: first establish that the swap changes the book and
@@ -363,21 +304,21 @@ that the score is measuring what it claims; only then sweep.
 calendar span of the event window (the 90 mark events cover different durations per vault -
 report its dispersion across candidates); age of the last *valid* evidence at each read; **how
 often the forward-fill in `_event_time_stats` bridges an event date that failed the down-count
-mask** (a later event window with too few down-events inherits an older valid score - the review
-found this in the helper) - if that bridging affects more than 2% of (candidate, date) reads,
-define a `_v2` indicator chain in `blocks_stability.py` that masks before reindexing and use it
-for every run in this notebook, recording the change; clipping frequency at the [0, 1] cap;
-selected positions whose score was NaN (admitted at signal 0).
+mask** (a later window with too few down-events inherits an older valid score - the review found
+this in the helper) - if that bridging affects more than 2% of (candidate, date) reads, define a
+`_v2` indicator chain in `blocks_stability.py` that masks before reindexing and use it for every
+run in this notebook, recording the change; clipping frequency at the [0, 1] cap; selected
+positions whose score was NaN (admitted at signal 0).
 
-**Stage 1 - identity diagnostic.** Run `swap__centre` (`selection_score_indicator=
-"cagr_sortino_shrunk_weight"`, admission as the anchor's: `require_scored_candidates=False`).
-Against the anchor, per decision date: target-weight L1 distance and realised-weight L1 distance
-(from `state.stats.positions` values over equity), whether the traded top-6 sets differ, the
-symmetric difference size, the active cycle return, and turnover. Summarise: share of decision
-dates on which the traded book differs; mean L1 distance; the contribution of changed holdings to
-the largest five drawdowns. If the traded book is identical on every date, the notebook stops
-with DIAGNOSTIC: the swap is a mechanical replication of the anchor and the sweep has no
-information value (the remaining budget goes to the operator's decision on idea 3 below).
+**Stage 1 - identity diagnostic.** Run `swap__centre`
+(`selection_score_indicator="cagr_sortino_shrunk_weight"`, admission as the anchor's:
+`require_scored_candidates=False`). Against the anchor, per decision date: target-weight L1
+distance and realised-weight L1 distance (from `state.stats.positions` values over equity),
+whether the traded top-6 sets differ, the symmetric difference size, the active cycle return, and
+turnover. Summarise: share of decision dates on which the traded book differs; mean L1 distance;
+the contribution of changed holdings to the largest five drawdowns. If the traded book is
+identical on every date, the notebook stops with DIAGNOSTIC: the swap is a mechanical replication
+of the anchor and the sweep has no information value.
 
 **Stage 2 - sweep, only if the book differs on more than 10% of dates.**
 
@@ -397,32 +338,30 @@ run_and_record("swap__require_scored", "policy", **{**common, "require_scored_ca
 `cagr_weight` now has an upper neighbour (0.7): an earlier search boundary is not an economic
 reason to exclude it. Strict admission is a policy alternative, reported beside the plateau but
 not part of it. Plateau = all ten neighbours pass v3 and `late_ok`. Leave-one-vault-out on the
-centre if the centre and plateau pass. Bootstrap intervals for the centre vs the anchor (-0.10)
-and vs the observed placebo comparator (+0.10), block-length sensitivity included.
+centre if the centre and plateau pass. `bootstrap_margin_table()` for the centre.
 
 **Verdict.** ADOPT (to shadow) only if the centre passes all seven (v3) and `late_ok`, all ten
 neighbours pass all seven and `late_ok`, and leave-one-vault-out passes. Otherwise REJECT with
 the complete failure set. A near-anchor replication that fails only the 15% ulcer reduction is
 reported as exactly that.
 
-### NB23 - close-out
+### NB24 - close-out
 
-**File**: `23-backtest-closeout.ipynb`, `_build/build_23.py`.
+**File**: `24-backtest-closeout.ipynb`, `_build/build_24.py`.
 
-Loads each notebook's frozen manifest (centre labels, neighbours, masks, eligibility flags, the
-NB21 list and null results, NB22's stage-1 outcome), re-runs in one kernel the anchor, the 5-step
-family, every NB20 `drop_N`, NB21's evaluation-segment runs if NB21 reached stage 2 (from the July
-start, with their own `anchor_jul`), every NB22 run that was executed, and every triggered
-robustness run; reproduces every gate from the manifests (it does not trust the source
-notebooks' verdict flags); asserts each centre's Sharpe against a literal copied from the source
-notebook; prints the combined `verdict_table_v3()`; the frontier chart with every run overlaid;
-`family_wise_joint()` over the complete executed family with its exact membership printed and the
-statement that it cannot correct for the adaptive history; equity curves; and the prospective
+Loads each notebook's frozen manifest (centre labels, neighbours, masks, eligibility flags, NB20's
+mark-quality verdict, NB22's Part A table and within-basket result, NB23's stage-1 outcome),
+re-runs in one kernel the anchor, the 5-step family, every NB21 `drop_N`, every NB22 and NB23 run
+that was executed, and every triggered robustness run; reproduces every gate from the manifests
+(it does not trust the source notebooks' verdict flags); asserts each centre's Sharpe against a
+literal copied from the source notebook; prints the combined `verdict_table_v3()`; the frontier
+chart with every run overlaid; `family_wise_joint()` over the complete executed family with its
+exact membership printed and the statement that it cannot correct for the adaptive history;
+equity curves; NB20's constraint on how any ulcer improvement may be read; and the prospective
 shadow specification - start date, fixed comparator (the unchanged anchor on the same decision
 dates), monitoring horizon, stopping conditions and decision rule, all fixed before new data
 arrive, with the literal override dictionary for any ADOPT. If more than one lead reaches ADOPT,
-the shadow runs them side by side; the plan does not rank them. If NB21 is DIAGNOSTIC-only it is
-recorded as ineligible, not assumed to have a centre.
+the shadow runs them side by side; the plan does not rank them.
 
 **Verdict.** ADOPT `<labels>` (to shadow) or NOTHING ADOPTED, plus one sentence per lead on what
 it settled and one on what it could not.
@@ -430,63 +369,65 @@ it settled and one on what it could not.
 ## Order, cost, and what would change my mind
 
 ```
-verify splice + anchor parity   (~2 min)
-NB20                             (1 + 12 + robustness, ~8 min)
-NB21                             (derivation 2 runs; evaluation 1 + 12 + 3 + 98 nulls + robustness, ~45 min)
-NB22                             (stage 1: 1 run + audit; stage 2 if triggered: 11 + robustness, ~8 min)
-NB23                             (~40-60 runs, ~20 min)
+verify splices + anchor parity   (_build/verify-stability-splices.ipynb)
+NB20   mark quality              (anchor only, plus archive analysis)
+NB21   vol-matched family        (1 + 12 + robustness)
+NB22   joint downside            (1 + 12 family + 2 drop runs + 7 + 4 + robustness)
+NB23   Sortino leg swap          (stage 1: 1 run + audit; stage 2 if triggered: 11 + robustness)
+NB24   close-out                 (every executed run, in one kernel)
 ```
 
-Three concurrent at most; NB21's null draws are the cost driver and are the reason B = 49 rather
-than 199. Build all four `build_NN.py` before running any.
+Three notebooks running at most. The first run rebuilt the whole indicator cache because the
+vault archive was re-downloaded; every later notebook serves from that warm cache.
 
-What I expect, stated before running: NB20 clears every risk constraint at N >= 45 and fails
-Sharpe non-inferiority everywhere except an isolated N near 30 - a REJECT that quantifies the
-de-risking trade exactly. NB21 most likely finds a small persistent core (4-6 names) inside an
-unstable band, and the matched null is the check that decides whether those names matter. NB22
-most likely changes the traded book on a minority of dates and lands within the paired interval
-of the anchor - the interesting outcome would be a passing centre with a holding plateau, the
-first mechanism in either plan to clear the rule.
+What I expect, stated before running: NB20 finds material stale reporting and a negative skew on
+resuming marks, which would put a ceiling on how any ulcer improvement in NB21-NB23 may be read.
+NB21 clears every risk constraint at N >= 45 and fails Sharpe non-inferiority everywhere except an
+isolated N near 30 - a REJECT that quantifies the de-risking trade exactly. NB22 changes the
+basket on a majority of dates and reduces within-basket joint-loss concentration; whether that
+survives the ulcer and Sharpe constraints together is the open question, and it is the first
+mechanism in either plan aimed directly at the operator's objective. NB23 most likely changes the
+traded book on a minority of dates and lands inside the paired interval of the anchor.
 
 ## Decisions for the operator
 
-The review recommends two scope changes that this draft does not make, because leads 1-3 were
-the stated scope:
+Draft 3 already applies the review's two scope recommendations. What is left for the operator:
 
-1. **Displace NB21 with "complementary downside selection"** (review idea 2): from the incumbent's
-   top-18 candidates, choose six with the lowest joint-loss frequency, keeping the incumbent's
-   sizing. The review's argument: a named exclusion list converts an outcome-selected volatility
-   band into permanent identities, whereas joint-downside selection is a generalisable mechanism
-   tied directly to equity-curve stability. Its cheapest first test is one fixed six-from-18
-   construction compared with the anchor's joint-loss concentration.
-2. **Precede all three leads with a reporting-versus-trading-inactivity audit** (review idea 1):
-   tabulate, for anchor-held vaults, the next observed loss and recovery by preceding
-   polling-gap length, separately before and after April, with endpoint mark age. The argument:
-   until stale reporting is separated from genuinely flat trading, the risk measures every lead
-   is judged on may describe missing observations rather than economic experience. The review
-   rates this the highest information-per-effort item on its list.
+1. **The named exclusion list is not being backtested.** Draft 2 specifies it in full - derivation
+   window, frozen manifest, common July cash start, uniform and matched static-list nulls,
+   evaluation-segment constraints - and it can be run as written. NB22's Part A produces the
+   derivation table either way, so the decision can be made after seeing who actually leaves the
+   book between N = 20 and N = 30.
+2. **`joint_loss_frequency` is a per-vault proxy for a basket-level objective.** It scores each
+   candidate against the cohort, not against the other five names chosen. A true pairwise-greedy
+   basket search needs a co-movement matrix inside `decide_trades`. NB22 measures the gap; if the
+   within-basket concentration barely moves while the per-vault scores do, the greedy version is
+   the obvious next notebook.
 
-The review's other ideas, ranked by its expected value of information: retention-and-exit
-attribution (does the 14-day momentum gate cause sell-and-rebuy churn); perp-position screening
-for hidden tail risk; robust positive drift across independent calendar blocks; drawdown-recovery
-shape; direct small-basket path optimisation; regime-conditional selection; capacity and
-withdrawal-pressure signals; manager commitment metadata; hierarchical pooling by leader or
-strategy family. Each has a cheapest-first-test in the review file.
+The review's remaining ideas, ranked by its own expected value of information:
+retention-and-exit attribution (does the 14-day momentum gate cause sell-and-rebuy churn);
+perp-position screening for hidden tail risk; robust positive drift across independent calendar
+blocks; drawdown-recovery shape; direct small-basket path optimisation; regime-conditional
+selection; capacity and withdrawal-pressure signals; manager commitment metadata; hierarchical
+pooling by leader or strategy family. Each has a cheapest-first-test in the review file.
 
 ## Definition of done
 
-- [ ] `_build/blocks_stability.py` and `_build/harness_stability.py` exist; the splice
-      verification notebook reproduces `BASELINE` with the logging replacement in place.
-- [ ] `build_20.py` ... `build_23.py` exist and build without assertion errors.
+- [x] `_build/blocks_stability.py` and `_build/harness_stability.py` exist; the splice
+      verification notebook reproduces `BASELINE` with both replacements in place and shows both
+      branches inert on the anchor.
+- [ ] `build_20.py` ... `build_24.py` exist and build without assertion errors.
 - [ ] Every notebook prints provenance hashes and passes `assert_anchor_parity()`.
-- [ ] NB20: plateau table over N, `simple_rule_eligible`, the removed-set cross-tab and
-      no-drop-branch frequency, bootstrap intervals at -0.10.
-- [ ] NB21: frozen manifest printed before evaluation; both nulls with `(numerator, denominator)`;
-      evaluation from the July cash start; retrospective counterfactuals labelled as such.
-- [ ] NB22: stage-1 audit and identity diagnostic; stage-2 only if triggered, with the trigger
+- [ ] NB20: gap census, resuming-return buckets with intervals, anchor-book exposure, and the
+      stale-cycle sensitivity clearly labelled as a sensitivity.
+- [ ] NB21: plateau table over N, `simple_rule_eligible`, the removed-set cross-tab and
+      no-drop-branch frequency, bootstrap margins at -0.10.
+- [ ] NB22: Part A derivation table; Part B plateau over `complementary_pool_size` and the window
+      sensitivity; within-basket joint-loss concentration against the anchor.
+- [ ] NB23: stage-1 audit and identity diagnostic; stage-2 only if triggered, with the trigger
       value printed.
-- [ ] NB23: manifests loaded, gates reproduced, cross-check asserted, `family_wise_joint()` with
-      family printed, shadow specification frozen.
+- [ ] NB24: manifests loaded, gates reproduced, cross-check asserted, `family_wise_joint()` with
+      family printed, NB20's constraint carried forward, shadow specification frozen.
 - [ ] Each notebook independently reviewed after its run, findings checked against the cited
       cells, corrections applied, before the status line is set to EXECUTED.
 - [ ] One commit per notebook.
@@ -497,22 +438,22 @@ strategy family. Each has a cheapest-first-test in the review file.
 - **Codex CLI review** (`gpt-6-astra`, [20-stability-leads-plan-codex-review.md](20-stability-leads-plan-codex-review.md)).
   Sixteen findings, a 38-item executability table, eleven creative alternatives ranked by
   information per effort, and two displacement recommendations.
-- **Draft 2** (this file). Applied: NB21 relabelled exploratory, evaluated from a common July cash
-  start with all seven constraints on the evaluation segment, list frozen in a manifest, a matched
-  static-list null added beside the uniform one, the null statistic changed to evaluation-segment
-  ulcer with `p = (1 + count) / (B + 1)`, Jaccard demoted to descriptive; drop-set diagnostics now
-  read a logging splice (`VOL_DROP_LOG`) instead of an offline reconstruction, with the no-drop
-  branch, actual removed counts, and a missing-volatility / unscored / age cross-tab; constraint 7
-  redefined as the best observed control at or below the candidate's volatility (no
-  interpolation, nothing "not evaluable"), inapplicable to NB20 by explicit statement with a
-  `simple_rule_eligible` flag, applied to NB21/NB22 as a stated complexity premium; the
-  5-step family fixed as the comparator everywhere; NB22 restructured into a measurement audit
-  and identity diagnostic before any sweep, with the Sortino helper's forward-fill-past-
-  invalidation behaviour to be measured and fixed if material, `cagr_weight = 0.7` and
-  `evidence_max_events` neighbours added, strict admission moved out of the plateau; bootstrap
-  intervals for every eligible centre with common block indices against the -0.10 and +0.10
-  boundaries; the family-wise check replaced by a jointly resampled, centred maximum statistic;
-  provenance by content hash and the point-in-time membership limitation stated; ADOPT defined
-  as admission to shadow; robustness Booleans listed separately with skipped runs failing closed;
-  manifests handed to NB23. Not applied (scope): the two displacement recommendations, recorded
-  under "Decisions for the operator".
+- **Draft 2**. Applied the review's findings while keeping leads 1-3 as the stated scope. NB21
+  relabelled exploratory and evaluated from a common July cash start with a matched static-list
+  null; drop-set diagnostics moved to a logging splice; constraint 7 redefined as the best
+  observed control at or below the candidate's volatility; NB22 restructured into a measurement
+  audit and identity diagnostic before any sweep; bootstrap margins on both boundaries with common
+  block indices; the family-wise check replaced by a jointly resampled, centred maximum statistic;
+  provenance by content hash; ADOPT defined as admission to shadow.
+- **Draft 3** (this file). Adopts the two scope recommendations Draft 2 had deferred. A
+  mark-quality precursor (NB20) now runs before the three leads, because stale reporting would
+  otherwise contaminate the objective every lead is judged against. Complementary downside
+  selection replaces the named-exclusion backtest, keeping its derivation as a read-only
+  diagnostic in NB22 Part A. Notebooks renumbered NB20-NB24. The shared-additions section now
+  describes the code as built rather than as specified, and the verification notebook has run.
+  One further fact was discovered during verification and is not a plan decision: **the vault
+  price archive was re-downloaded on 2026-09-13 and its content changed** (253,789,435 bytes to
+  254,300,668). NB14-NB19 ran on the earlier snapshot. Every figure in this plan's `BASELINE` came
+  from the earlier one, so anchor parity is the first thing every notebook checks, and if it fails
+  the whole track is re-baselined on the new snapshot with the difference reported rather than
+  absorbed.
