@@ -424,8 +424,11 @@ falls to 92.79% from 97.20%.
 ### Family-wise
 
 `family_wise_joint()` over the complete 35-run family, 125 aligned cycles, block 10, 999 draws,
-seed 0: best observed Sharpe improvement +0.589964 (`drop_30`), null 95th percentile 3.204, 812
-exceedances, **p = 0.813**. It cannot correct for the adaptive research history that chose which
+seed 0: best observed Sharpe improvement +0.587599 (`drop_30`), null 95th percentile 3.191, 812
+exceedances, **p = 0.813**. The improvement figure is now exactly `drop_30`'s panel cycle Sharpe
+minus the anchor's, 2.747391 - 2.159792, which is what the `ddof` realignment was for; the
+p-value did not move. A null 95th percentile of 3.191 against a best observed improvement of
+0.588 means this test has almost no power, which is a different statement from "no effect". It cannot correct for the adaptive research history that chose which
 mechanisms to try, and lead 1's promotion from control to candidate is the specific uncorrectable
 selection in this plan.
 
