@@ -304,8 +304,9 @@ report its dispersion across candidates); age of the last *valid* evidence at ea
 often the forward-fill in `_event_time_stats` bridges an event date that failed the down-count
 mask** (a later window with too few down-events inherits an older valid score - the review found
 this in the helper) - if that bridging affects more than 2% of (candidate, date) reads, define a
-`_v2` indicator chain in `blocks_stability.py` that masks before reindexing and use it for every
-run in this notebook, recording the change; clipping frequency at the [0, 1] cap; selected
+`_v2` indicator chain in `blocks_stability.py` that masks AFTER the reindex, so an invalidated
+window becomes NaN instead of inheriting an older score, and use it for every run in this
+notebook, recording the change; clipping frequency at the [0, 1] cap; selected
 positions whose score was NaN (admitted at signal 0).
 
 **Stage 1 - identity diagnostic.** Run `swap__centre`
@@ -373,17 +374,20 @@ manifests of NB21-NB23 at a tolerance of 1e-9, and matched at a worst difference
 
 | Lead | Verdict | What it settled | What it could not |
 |---|---|---|---|
-| 0, mark quality (NB20) | DIAGNOSTIC | Stale reporting hides real losses. A gap of five days or more is followed by a resuming mark 119.2 bps below the unconditional mean, CI [-279.5, -14.9], and only 46.0% of those losses recover within 30 days against 74.9% for losses after no gap. | Whether the effect is causal or a reporting convention. It also cannot be corrected for, only bounded: the sensitivity drops observations rather than restoring missing ones. |
+| 0, mark quality (NB20) | DIAGNOSTIC | Stale reporting hides real losses. A gap of five days or more is followed by a resuming mark 119.2 bps below the unconditional mean, CI [-279.5, -14.9], and only 46.0% of those losses recover within 30 days against 74.9% for losses after no gap. | Whether the effect is causal or a reporting convention, and whether the sparse regime differs from the dense one. Its own review corrected an earlier "entirely post-April" reading: sparse is -56.8 bps, the SAME sign, CI [-265.0, +83.5], wide enough to contain a larger effect than dense. That is an absence of power, not an absence of effect. Roughly half the non-recovery may also be definitional, since a vault that stops printing has a forward-filled mark that cannot exceed its pre-gap level by construction. |
 | 1, the vol-matched family (NB21) | REJECT | `drop_30` is a spike, not a rule. It has an empty failure set and gains 11.10 pp of CAGR over the anchor (48.99% against 37.90%, Sharpe 2.747 against 2.160, ulcer 1.384% against 1.796%, beta 0.001), and its lower neighbour fails on ulcer and the late period while `drop_40` fails on three constraints. | Whether a plateau exists at a finer spacing than 5. The family was run at 5-step spacing only. |
-| 2, complementary downside selection (NB22) | REJECT | Reducing downside co-movement is not sufficient. Within-basket pairwise co-loss fell to 0.1876 from the anchor's 0.2143, paired difference -0.0267 CI [-0.0501, -0.0019], and four-of-six co-loss cycles fell to 20.0% from 24.0% - and the portfolio still returned -17.74% at Sharpe -1.177. | Whether a pairwise-greedy basket search would do better. The per-vault proxy was tested, not the basket-level objective. |
+| 2, complementary downside selection (NB22) | REJECT | The screen does not reduce co-movement at all. Within-basket pairwise co-loss does fall, 0.2143 to 0.1876, but its review decomposed that against a matched independence benchmark and the WHOLE fall is the marginal down rates dropping: excess over independence is +0.000059 for the anchor, essentially independent, against +0.011750 for the centre, paired difference +0.0117 CI [+0.0040, +0.0228], excluding zero in the WRONG direction. The selected basket co-loses MORE than chance. The portfolio returned -17.74% at Sharpe -1.177. | Whether a pairwise-greedy basket search would do better. The per-vault proxy was tested, and it failed on its own terms, which is the plan's stated worry realised rather than avoided. |
 | 3, the Sortino leg swap (NB23) | REJECT | The swap is a real change that makes things worse. The traded book differs on 113 of 126 dates (89.68%) with a mean weight L1 distance of 0.720, and the centre returns 7.91% at Sharpe 0.584 with double the anchor's ulcer. | Which of the four things the leg changes at once - horizon, shrinkage, scaling, saturation - is responsible. It is a component replacement, not a controlled test. |
 
 ### Why lead 2 failed, in one sentence
 
 It spends the composite ranking, dropping from a mean pool rank of 2.5 to 7.73, to buy a statistic
-with no forward information: trailing joint-loss frequency correlates +0.013 with next-cycle return
-over 2,106 reads and its quintile means are non-monotone. Handing `decide_trades` exactly six
-candidates also removes backfill, so deployment falls to 92.79% from 97.20%.
+that shows no measurable forward information on this sample: trailing joint-loss frequency
+correlates +0.013 with next-cycle return over 2,106 reads and its quintile means are non-monotone.
+That is one pooled correlation over repeated-vault, heavily overlapping observations with no
+independence correction, so it does not establish that no information exists - only that none was
+detected here. Handing `decide_trades` exactly six candidates also removes backfill, so deployment
+falls to 92.79% from 97.20%.
 
 ### Three limitations of the rule, recorded and NOT retuned
 
@@ -403,13 +407,19 @@ candidates also removes backfill, so deployment falls to 92.79% from 97.20%.
    plateau-supported with a median fallback; include N = 0 in the family as this plan's own
    docstring already specifies; and state the bar as a number at pre-registration time rather than
    as a formula whose value is unknown until the family runs.
-3. **NB20 puts a ceiling on how any ulcer improvement may be read.** The staleness sensitivity
-   moves the anchor's ulcer by +4.4% to +11.2%, which is 30% to 74% of the adoption rule's 15%
-   margin. Five runs clear the ulcer bar and ALL FIVE clear it by a margin inside that band
-   (`drop_30` +22.94%, `drop_35` +22.84%, `drop_45` +22.52%, `drop_60` +22.41%, `drop_50`
-   +19.33%), so lead 1's ulcer result is not distinguishable from a reporting artefact. Leads 2
-   and 3 are unaffected: their ulcers are 2.0x and 4.2x the anchor's and every other failure
-   stands independently.
+3. **NB20 gives context for reading any ulcer improvement, and it is weaker than first stated.**
+   The staleness sensitivity moves the anchor's ulcer by +4.4% to +11.2%, comparable in scale to
+   the margins by which five runs clear the 15% bar (`drop_30` +22.94%, `drop_35` +22.84%,
+   `drop_45` +22.52%, `drop_60` +22.41%, `drop_50` +19.33% - the last of which sits BELOW the
+   band's lower end). Both quantities are percentages of the anchor's measured ulcer, so they are
+   on the same scale and the comparison is valid. But the reviews of NB20 and NB24 both found the
+   original conclusion overstated: the sensitivity perturbs the ANCHOR ONLY. A candidate holds
+   different vaults at different weights on different dates, and what would have to move for its
+   improvement to be an artefact is the candidate-minus-anchor DIFFERENCE in reporting bias, which
+   no notebook measured. The band is context for reading an improvement, not an error bar around
+   one, and it is not a bound in either direction, because dropping cycles can raise or lower an
+   ulcer index depending on where they sit in the drawdown path. Leads 2 and 3 are unaffected
+   regardless: their ulcers are 2.0x and 4.2x the anchor's and every other failure stands alone.
 
 ### Family-wise
 
@@ -493,9 +503,9 @@ pooling by leader or strategy family. Each has a cheapest-first-test in the revi
 - [x] NB24: manifests loaded, gates reproduced from scratch, cross-check asserted at 1e-9 and
       matched at exactly zero across all 36 runs, `family_wise_joint()` with the family printed,
       NB20's constraint carried forward, shadow specification frozen.
-- [ ] Each notebook independently reviewed after its run, findings checked against the cited
-      cells, corrections applied. NOT DONE. The previous plan's seven notebooks each had an
-      independent Codex review that caught real errors; these five have not been reviewed.
+- [x] Each notebook independently reviewed after its run, findings checked against the cited
+      cells, corrections applied. Done with Codex CLI (`gpt-5.6-terra`, reasoning effort high),
+      one reviewer per notebook, reviews committed beside each notebook.
 - [x] One commit per notebook.
 
 ## Review log
@@ -536,3 +546,32 @@ pooling by leader or strategy family. Each has a cheapest-first-test in the revi
   What was NOT done: independent post-execution review of the five notebooks. The previous plan's
   reviews caught real errors in five of seven notebooks, so these results should be treated as
   unreviewed until that pass runs.
+- **Independently reviewed** on 2026-09-13, one Codex CLI reviewer per notebook (`gpt-5.6-terra`,
+  reasoning effort high, read-only sandbox), each given this plan, the notebook's build script,
+  the shared modules and the de-noised executed notebook. Reviews are committed as
+  `2N-*-codex-review.md`. Across the five, 41 findings were raised: 30 confirmed, 5 rejected on
+  inspection, 5 partial, and 4 more found by the verifying agents that the reviewer missed.
+  Every finding was checked against the cited cell before anything was changed; the rejections
+  matter as much as the confirmations, and two of them were the SAME wrong claim about a pandas
+  row lookup, raised independently by two reviewers and disproved in a REPL by both agents.
+
+  Three headline claims were corrected. NB20's "the effect is entirely post-April" became "the
+  sparse regime is unresolved, not null", because its interval is wide enough to contain a larger
+  effect. NB20's ulcer band was demoted from an error bar to context, because it perturbs the
+  anchor only. NB22's "the mechanism worked and the portfolio still lost" was RETRACTED: the
+  fall in within-basket co-loss is entirely explained by the marginal down rates, and against a
+  matched independence benchmark the selected basket co-loses MORE than chance. NB23's zero
+  forward-fill measurement, which looked like the kind of null that is usually a measurement bug,
+  survived every axis of scrutiny and was strengthened by a new measurement showing the mask is
+  unreachable on this cohort rather than merely unhit.
+
+  Two shared-module defects were fixed in commit `328c8de` and all five notebooks re-run against
+  them: `bootstrap_paired_sharpe_diff()` and `family_wise_joint()` standardised Sharpe with the
+  population deviation while the adoption rule's constraint 2 is defined on the sample deviation,
+  so every reported observed Sharpe difference sat `sqrt(125/124)` = 1.00402x away from the
+  difference of the panel Sharpes printed beside it; and `joint_loss_frequency` counted a missing
+  observation as a reported day, because a NaN is not equal to 0.0. Both were immaterial - after
+  the fix every observed difference equals the corresponding panel Sharpe difference to the last
+  digit, no `clears_boundary` flag moved on any row of any notebook, and no backtest metric,
+  manifest value or verdict changed anywhere. They were fixed and re-run anyway, so that the
+  committed code reproduces the committed notebooks and the next plan does not inherit them.
