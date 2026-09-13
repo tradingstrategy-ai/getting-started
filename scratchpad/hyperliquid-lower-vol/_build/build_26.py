@@ -33,9 +33,10 @@ window 2026-01-01 to 2026-09-08, in-sample throughout.
 Three new `vol_drop_mode` values decompose the incumbent sort. `measured_only` removes the N most
 volatile vaults that HAVE an estimate and never an unmeasured one - what the control was always
 described as doing. `unmeasured_only` removes vaults with too little history to measure and never
-a measured one, however volatile - the other half. `random` removes N candidates by a seeded
-deterministic permutation, which is the null the drop has never had: it separates "this filter
-selects well" from "holding fewer names on this window happened to help". `incumbent` reproduces
+a measured one, however volatile - the other half. `random` removes N candidates by a uniform
+permutation drawn from a generator seeded on `(vol_drop_seed, decision date)`, which is the null
+the drop has never had: it separates "this filter selects well" from "holding fewer names on this
+window happened to help". `incumbent` reproduces
 the original sort exactly and is the default, so every earlier notebook is unaffected.
 
 Variants are compared at matched REMOVALS ACTUALLY MADE, not at matched N. Comparing at equal N
@@ -154,15 +155,84 @@ display(composition.round(2))
 print("The incumbent's effective volatility strength is `mean_removed_measured`, not its nominal N.")
 '''))
 
+cells.append(md("""## When the incumbent actually removes a volatile vault
+
+The mean above hides the shape. The incumbent consumes the unmeasured pool first, so its measured
+removals are whatever is left over - zero on any date with at least N unmeasured candidates. This
+reads that per-decision from `VOL_DROP_LOG` and cuts it by regime, so the heading's claim about
+the sparse period is verified rather than inferred from equal rounded CAGRs.
+
+It also asserts that the random null is a null: that its ten seeds draw ten different sets, and
+that the draw changes from decision to decision. An earlier version of the `random` branch folded
+the seed and the date into a multiplicative hash ADDITIVELY, which only rotates one fixed ring
+order; the rotation never crossed an element, every seed and every date drew the same set, and
+the ten draws were one draw run ten times. That failure was invisible in every table except as
+`null_median == null_best`, so it is asserted here.
+"""))
+cells.append(code('''regime_rows = []
+for entry in runs:
+    log = entry["vol_drop_log"]
+    if not log:
+        continue
+    stamps = pd.DatetimeIndex(sorted(log))
+    for regime, mask in (("sparse", stamps < REGIME_BREAK),
+                         ("dense", (stamps >= REGIME_BREAK) & (stamps < LATE_START)),
+                         ("late", stamps >= LATE_START)):
+        subset = [log[t] for t in stamps[mask]]
+        if not subset:
+            continue
+        measured_removed = [len(v["dropped_ids"]) - len(v["no_estimate_dropped"]) for v in subset]
+        regime_rows.append({
+            "label": entry["label"], "mode": entry["family"], "regime": regime,
+            "decisions": len(subset),
+            "min_unmeasured_pool": int(min(v["unmeasured_pool"] for v in subset)),
+            "mean_removed": float(np.mean([len(v["dropped_ids"]) for v in subset])),
+            "mean_removed_measured": float(np.mean(measured_removed)),
+            "max_removed_measured": int(max(measured_removed)),
+        })
+by_regime = pd.DataFrame(regime_rows).set_index(["label", "regime"]).sort_index()
+display(by_regime.loc[[l for l in by_regime.index.get_level_values(0).unique()
+                       if l.startswith("incumbent_") or l in ("measured_8", "unmeasured_30")]].round(2))
+
+sparse_inc30 = by_regime.loc[("incumbent_30", "sparse")]
+print(f"incumbent_30, sparse regime: {int(sparse_inc30['decisions'])} decisions, smallest "
+      f"unmeasured pool {int(sparse_inc30['min_unmeasured_pool'])}, largest measured removal on "
+      f"any single decision {int(sparse_inc30['max_removed_measured'])}.")
+
+# The random null has to BE a null. Both assertions failed silently in the first version.
+signatures = {}
+for entry in runs:
+    if not str(entry["family"]).startswith("random null"):
+        continue
+    log = entry["vol_drop_log"]
+    signatures[entry["label"]] = tuple(tuple(log[t]["dropped_ids"]) for t in sorted(log))
+for prefix in ("random30_", "random9_"):
+    group = {k: v for k, v in signatures.items() if k.startswith(prefix)}
+    distinct = len(set(group.values()))
+    print(f"{prefix}*: {distinct} distinct draw sequences across {len(group)} seeds")
+    assert distinct == len(group), (
+        f"{prefix}* drew the same sequence for different seeds; this is one draw, not "
+        f"{len(group)} - the null has no sampling distribution"
+    )
+    per_date = {len(set(v)) for v in group.values()}
+    print(f"{prefix}*: {min(per_date)} to {max(per_date)} distinct removed sets within a run "
+          f"of {len(next(iter(group.values())))} decisions")
+    assert min(per_date) > 1, f"{prefix}* removed the same set on every decision date"
+'''))
+
 cells.append(md("""# Portfolio key metrics
 
-Every variant against the anchor, sorted by Martin ratio. `passes_v3` is constraints 1 to 7; as
-in NB25 it is not adoption, which also needs a plateau, leave-one-vault-out and the late period.
+Every variant against the anchor, sorted by Martin ratio. `passes_1_to_6` is constraints 1 to 6
+only; constraint 7 is not evaluated here, and passing 1 to 6 is not adoption, which also needs a
+plateau, leave-one-vault-out and the late period.
 """))
 cells.append(code('''# `family_frame()` looks for labels named `drop_N`; this notebook names them `incumbent_N`, so
-# the comparator family is built directly from the incumbent runs. They are the same
-# configurations NB21 ran, and they are the right observed control here: the question is whether
-# either half beats the conflated mechanism it was cut out of.
+# the comparator frame is built directly from the incumbent runs. It is NOT the pre-registered
+# `FAMILY_DROPS` family: that is 5-step, `drop_5` through `drop_60`, and NB21 ran all twelve,
+# while these five are a 10-step subset of the same configurations. It is a diagnostic
+# comparator, not the rule-v3 observed control, which is why constraint 7 is never evaluated
+# below. The question here is only whether either half beats the conflated mechanism it was cut
+# out of.
 family = pd.DataFrame([run_by_label[f"incumbent_{n}"]["panel"] for n in INCUMBENT_N]).set_index("label")
 family["drop_n"] = list(INCUMBENT_N)
 
@@ -310,31 +380,46 @@ Per-vault share of total equity at every decision, from `state.stats.positions` 
 weights, so it already reflects the minimum-hold rule and any blocked deposit window.
 """))
 cells.append(code('''def weight_frame(label: str) -> pd.DataFrame:
-    """Realised per-vault weight over time, columns are vault names, rows are decision dates."""
+    """Realised per-vault weight over time, one column per VAULT, rows are decision dates.
+
+    Keyed by pool address, not by share-token symbol. Two vaults can carry the same symbol, and a
+    symbol-keyed frame sums them into one column - which would undercount holdings, overstate the
+    top-one weight and the Herfindahl index, and make `distinct_vaults_held` a count of symbols.
+    The column LABEL is still the symbol, with a short address suffix wherever one symbol belongs
+    to more than one vault in this run.
+    """
     state_ = run_by_label[label]["state"]
     equity_at = {}
     for stat in state_.stats.portfolio:
         if stat.total_equity:
             equity_at[pd.Timestamp(stat.calculated_at)] = float(stat.total_equity)
+    symbol_of = {}
     rows = {}
     for position_id, series in state_.stats.positions.items():
         position = state_.portfolio.get_position_by_id(position_id)
         if position.is_credit_supply():
             continue
+        address = str(position.pair.pool_address).lower()
         base = getattr(position.pair, "base", None)
         symbol = getattr(base, "token_symbol", None) if base is not None else None
-        name = str(symbol) if symbol else str(position.pair.pool_address)[:10]
+        symbol_of[address] = str(symbol) if symbol else address[:10]
         for stat in series:
             ts = pd.Timestamp(stat.calculated_at)
             equity = equity_at.get(ts)
             if not equity:
                 continue
             rows.setdefault(ts, {})
-            rows[ts][name] = rows[ts].get(name, 0.0) + float(stat.value) / equity
+            rows[ts][address] = rows[ts].get(address, 0.0) + float(stat.value) / equity
     if not rows:
         return pd.DataFrame()
     frame = pd.DataFrame(rows).T.sort_index().fillna(0.0)
-    return frame.loc[:, frame.max().sort_values(ascending=False).index]
+    frame = frame.loc[:, frame.max().sort_values(ascending=False).index]
+    shared = pd.Series([symbol_of[a] for a in frame.columns]).value_counts()
+    frame.columns = [
+        symbol_of[a] if shared[symbol_of[a]] == 1 else f"{symbol_of[a]} ({a[:8]})"
+        for a in frame.columns
+    ]
+    return frame
 
 
 def weight_chart(label: str, top: int = 12):
@@ -365,8 +450,12 @@ WEIGHT_CHART_LABELS = (["anchor"]
                        + ["random30_s0", "random9_s0"])
 print(f"Stacked weight charts for {len(WEIGHT_CHART_LABELS)} variants. The remaining "
       f"{len(RANDOM_SEEDS) * 2 - 2} random-null draws are summarised numerically below instead of "
-      f"charted: they are a null, they differ only by seed, and 38 stacked-area figures would "
-      f"make the notebook unreadable and very large.")
+      f"charted: they are a null, and {len(runs)} stacked-area figures would make the notebook "
+      f"unreadable and very large.")
+_anchor_weights = weight_frame("anchor")
+print(f"The anchor held {_anchor_weights.shape[1]} distinct vault addresses, of which "
+      f"{sum('(' in c for c in _anchor_weights.columns)} needed an address suffix because two "
+      f"vaults share a share-token symbol.")
 for label in WEIGHT_CHART_LABELS:
     weight_chart(label)
 '''))
