@@ -5,7 +5,15 @@ Supersedes the anchor-relative adoption rules v1-v4 used in NB03-NB26. Set by th
 
 ## Objective
 
-**Maximise cycle Sharpe.**
+**Maximise cycle Sharpe by selecting stable vaults, not lucky and volatile ones.**
+
+The second clause is not decoration. Portfolio Sharpe is an OUTCOME, and this track has repeatedly
+produced good outcomes for bad reasons: `drop_30` reached the highest Sharpe in either batch and
+NB26 showed 98% of its edge was one vault; a purely random removal of nine vaults ranks seventh of
+57 by Sharpe, ahead of most mechanisms we designed on purpose. A rule that gates only on the
+outcome cannot tell those apart from a mechanism that works. So the gates below constrain THREE
+things: the outcome, the character of the book that produced it, and whether the selection signal
+demonstrably predicts stability at all.
 
 No return floor. The operator removed it on 2026-09-14 on the grounds that we do not know what
 vaults the universe will contain in future, so a floor calibrated to today's opportunity set is
@@ -55,7 +63,8 @@ CAGR below 20%. The floor was never binding, so removing it admits nothing it wa
 ## Gates
 
 A candidate is ADOPTED (= admitted to the prospective shadow protocol, never deployed on this
-evidence alone) only if every one of these holds.
+evidence alone) only if every one of these holds. Gates 1-2 are sanity and survival, 3-5 are the
+"stable, not lucky" clause of the objective, and 6-8 are the anti-overfitting machinery.
 
 1. **Positive return.** `cagr > 0`. Not a performance bar, a sanity one: Sharpe is not
    meaningful for a losing strategy and the ratio is uninterpretable when the numerator is
@@ -68,14 +77,34 @@ evidence alone) only if every one of these holds.
    plateau, not a closing robustness note. NB26 established that masking one vault takes the
    anchor from 37.90% to 23.90% and takes the best candidate's edge from 11.10 points to 0.22;
    single-name dependence is the binding property of this book.
-3. **Sharpe plateau.** Both pre-registered neighbours must clear gate 1, and the centre's cycle
+3. **The book held stable vaults.** Capital-weighted over the realised holdings, the candidate's
+   vaults must have had LOWER own realised volatility than the anchor's did, and LOWER own
+   event-concentration - the share of each vault's trailing return delivered by its best five
+   days, from `residual_event_concentration`. A mechanism that reaches a high portfolio Sharpe
+   while holding vaults that are individually more volatile or more spiky than the anchor's has
+   not done what the objective asks, whatever its Sharpe.
+4. **The result was not luck.** `luck_ratio` at least the anchor's, and `top5_gross_share` no more
+   than the anchor's. Both are already computed by `panel()`. **Note the absolute levels are poor
+   for everything including the anchor**: the anchor's `luck_ratio` is 0.1459, meaning removing
+   its best five days costs far more than removing five random ones, and its top five positions
+   deliver 60.8% of gross profit. Passing this gate means "no worse than the anchor", not "robust".
+   Report the absolute values alongside, and do not describe a passing candidate as luck-free.
+5. **The selection signal predicts stability, measured outside the backtest.** Before the
+   mechanism is backtested, a research notebook must show that its score, read at a decision
+   timestamp, rank-correlates positively across candidates with those vaults' REALISED FORWARD
+   stability - forward volatility, forward downside deviation and forward event-concentration over
+   the following 30 days. Not forward return. If the signal does not predict forward stability,
+   the mechanism is not selecting stable vaults and any portfolio Sharpe it achieves is
+   incidental. Report Spearman correlations with vault-clustered intervals, and state the sign and
+   magnitude in the heading. A mechanism failing this gate is REJECTED without a backtest.
+6. **Sharpe plateau.** Both pre-registered neighbours must clear gate 1, and the centre's cycle
    Sharpe must be within 0.25 of each neighbour's. This is a FLATNESS test, not a superiority
    test: it rejects a centre that stands above its own neighbours, which is what a spike looks
    like. `drop_30` at 2.747 against `drop_35` at 2.301 fails it by 0.45, correctly.
-4. **Sub-period sign.** Positive CAGR in all three segments: sparse (to 2026-03-31), dense (April
+7. **Sub-period sign.** Positive CAGR in all three segments: sparse (to 2026-03-31), dense (April
    to June) and late (July onwards). A candidate that earns in one regime only has not been shown
    to work.
-5. **Null.** Beat all draws of the mechanism's own information-destroying null on cycle Sharpe,
+8. **Null.** Beat all draws of the mechanism's own information-destroying null on cycle Sharpe,
    with at least ten draws. The null must preserve the mechanism's structure and destroy only its
    ranking information. **Assert that the draws actually differ and print the count of distinct
    draws** - NB26's null was one draw repeated ten times and the tell, `null_median == null_best`,
@@ -84,8 +113,8 @@ evidence alone) only if every one of these holds.
 ## Reported on every row, never gated
 
 `cycle_sharpe`, `cagr`, `cycle_vol`, `ulcer`, `max_dd`, `abs_invested_beta`, `mean_invested`, the
-three sub-period CAGRs and ulcers, `top_vault_pnl_share`, and `lovo_cagr_drop` (CAGR lost when the
-largest contributor is masked). Also the anchor's own values, for continuity with NB03-NB26.
+three sub-period CAGRs and ulcers, `luck_ratio`, `top5_gross_share`, `top_vault_pnl_share`,
+`lovo_sharpe_retention`, and the two capital-weighted held-book character measures from gate 3. Also the anchor's own values, for continuity with NB03-NB26.
 
 Paired block-bootstrap intervals against the anchor are reported for context. They are not a gate,
 because the window cannot resolve the differences involved and pretending otherwise was the
