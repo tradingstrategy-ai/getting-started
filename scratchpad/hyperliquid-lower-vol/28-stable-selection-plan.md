@@ -1,9 +1,8 @@
 # Stable-selection plan: screen the signal first, and admit nothing from this window
 
-- **Status**: DRAFT 2, after Codex CLI review
-  ([28-stable-selection-plan-codex-review.md](28-stable-selection-plan-codex-review.md),
-  `gpt-5.6-sol`, 11 blocking and 13 material findings). **Blocked on one operator input**, marked
-  OPERATOR INPUT REQUIRED below; everything else is resolved.
+- **Status**: DRAFT 3, IN EXECUTION. `delta` resolved; NB28-NB31 being implemented.
+  Reviews: [28-stable-selection-plan-codex-review.md](28-stable-selection-plan-codex-review.md)
+  (`gpt-5.6-sol`, 11 blocking and 13 material findings), all applied in Draft 2.
 - **Rules**: [RESEARCH-RULES.md](RESEARCH-RULES.md). Objective: maximise cycle Sharpe by selecting
   stable vaults, not lucky and volatile ones, holding as many distinct vaults as the Sharpe allows.
 - **Track**: `hyperliquid-lower-vol`, NB28-NB31. Supersedes
@@ -32,21 +31,23 @@ and even that is reported as a diagnostic.
 There is no ADOPT. `RESEARCH-RULES.md` gate language is retained for scoring, and a candidate
 meeting every gate is SHORTLISTED, not adopted.
 
-## OPERATOR INPUT REQUIRED
+## `delta`, resolved
 
 Gate 5's return clause needs a **non-inferiority margin `delta`**, in annualised percentage
 points, for the contrast between the forward return of the vaults a signal calls stable and those
 it calls unstable. The review is right that "the interval does not exclude zero" is a
 failure-to-reject, not a guarantee: a materially negative but noisy association would pass it.
 
-The rule becomes: the lower simultaneous bound on that contrast must exceed `-delta`.
+The rule is: the lower simultaneous bound on that contrast must exceed `-delta`.
 
-`delta = 0` demands the stable set be no worse in return, which given NB09's and NB16's results
-would reject almost everything. Large `delta` makes the clause vacuous. **Recommendation: 5
-annualised percentage points**, which says a signal may pick vaults earning up to 5 points less
-per year if it demonstrably picks more stable ones, and which would have rejected NB09's
-consistency legs (15.0%, 24.3% and 9.2% CAGR against 37.9%) on magnitude rather than on noise.
-The executing agent must not invent this number.
+**`delta = 5` annualised percentage points**, set by the operator on 2026-09-14 on the
+recommendation below, and pre-registered in `_build/harness_rules.py` as `DELTA_ANNUALISED_PP`
+before any run of this plan. A signal may pick vaults earning up to 5 points less per year
+provided it demonstrably picks more stable ones. `delta = 0` would demand the stable set be no
+worse in return, which given NB09's and NB16's results would reject almost everything; a large
+`delta` makes the clause vacuous. At 5 points the clause would have rejected NB09's consistency
+legs (15.0%, 24.3% and 9.2% CAGR against 37.9%) on MAGNITUDE rather than on noise, which is the
+failure mode the review objected to.
 
 ## What the rejected experiments taught, and what this plan does about it
 
@@ -334,7 +335,7 @@ that.
 
 ## Definition of done
 
-- [ ] OPERATOR INPUT REQUIRED resolved: `delta` supplied.
+- [x] `delta` resolved at 5 annualised percentage points, pre-registered in `_build/harness_rules.py`.
 - [ ] `_build/blocks_prefilter.py`, `_build/harness_rules.py`; verification reproduces `BASELINE`
       and `measured_8` and passes the inserted-mark invariance test.
 - [ ] `run_and_record()` clears and snapshots `PREFILTER_LOG`.
