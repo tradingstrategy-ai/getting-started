@@ -83,7 +83,7 @@ SIGNALS = [
     {"name": "residual_event_concentration", "direction": "high", "time_base": "180 calendar rows", "note": "calendar clock"},
     {"name": "fresh_event_concentration", "direction": "high", "time_base": "90 fresh events", "note": "event clock"},
     {"name": "positive_window_share", "direction": "low", "time_base": "30/180 calendar rows", "note": ""},
-    {"name": "gain_to_pain_score", "direction": "high", "time_base": "180 calendar rows", "note": "higher is WORSE in this indicator's sign convention - verified in NB28"},
+    {"name": "gain_to_pain_score", "direction": "low", "time_base": "180 calendar rows", "note": "gains/pain mapped to 0..1, so HIGH is better - Draft 2 of the plan declared this backwards"},
     {"name": "min_window_sortino", "direction": "low", "time_base": "30-360 calendar rows", "note": "strict; NaN unless every window has history"},
     {"name": "sortino_score", "direction": "low", "time_base": "45 calendar rows", "note": ""},
     {"name": "sortino_shrunk_score", "direction": "low", "time_base": "90 fresh events", "note": ""},

@@ -1,0 +1,74 @@
+{
+ "verdict": "NOTHING SHORTLISTED - no mechanism is carried",
+ "shortlisted": [],
+ "kernels_agree_with_nb29": true,
+ "reproduction": {
+  "configurations": 7,
+  "reproducing_at_1e-9": 7,
+  "worst_abs_diff": 0.0
+ },
+ "family_membership": [],
+ "family_excluded": {
+  "inverse_vol_q10": "reference",
+  "inverse_vol_q20": "reference",
+  "inverse_vol_q30": "reference",
+  "inverse_vol_q30_strict": "diagnostic",
+  "inverse_vol_q40": "reference",
+  "inverse_vol_q50": "reference",
+  "screen_log": "control"
+ },
+ "gates": {
+  "inverse_vol_q30": {
+   "signal": "inverse_vol",
+   "gate_1_positive": true,
+   "gate_2_lovo": false,
+   "gate_3_held_book": false,
+   "gate_4_luck": false,
+   "gate_5_screen": false,
+   "gate_6_plateau": false,
+   "gate_7_subperiod": false,
+   "gate_8_diversification": false,
+   "gate_9_null": false,
+   "failed_gates": "gate_2, gate_3, gate_4, gate_5, gate_6, gate_7, gate_8, gate_9",
+   "verdict": "REJECT"
+  }
+ },
+ "specification": {
+  "status": "NOTHING SHORTLISTED - no mechanism is carried",
+  "signal": null,
+  "run_label": null,
+  "exclusion_fraction_q": null,
+  "missingness": "permissive - a candidate with no signal value is KEPT",
+  "override_dictionary": {},
+  "comparator": "the anchor of 02-better-format.ipynb, run on the same new data, same kernel",
+  "monitoring_horizon": "the first 90 calendar days of decisions after 2026-09-08",
+  "primary_statistic": "cycle Sharpe of the candidate minus the anchor's, on the shared cycle clock",
+  "stopping_rule": "abandon if the candidate's CAGR is negative over the prospective window, or if its cycle Sharpe falls more than 0.50 below the anchor's on the same cycles, or if the prefilter is inert (no decision changes the selected basket) on more than 80% of prospective decisions",
+  "what_may_not_change": "the signal, q, the direction, the permissive missingness handling, the comparator and the horizon. Re-tuning any of them after seeing prospective data makes that window in-sample and voids the exercise.",
+  "known_limits": [
+   "The screen and the backtests share overlapping 30-day windows; nothing here is out-of-sample.",
+   "NB30's cross-fit is a diagnostic: the folds share vaults and one market regime, and the purge removes temporal but not cross-sectional contamination.",
+   "Gate 4 means 'no worse than the anchor', not 'luck-free'. The anchor's own luck_ratio is 0.1459 and its top five positions deliver 60.8% of gross profit.",
+   "Concentration is set by max_assets_in_portfolio and inverse-volatility sizing, not by selection; gate 8 therefore excludes only mechanisms that make it worse."
+  ]
+ },
+ "upstream": {
+  "nb28_gate_5": {
+   "inverse_vol": false,
+   "downside_deviation_90": false,
+   "ulcer_index_180": false,
+   "drawdown_recovery_days": false,
+   "residual_event_concentration": false,
+   "fresh_event_concentration": false,
+   "positive_window_share": false,
+   "gain_to_pain_score": false,
+   "min_window_sortino": false,
+   "sortino_score": false,
+   "sortino_shrunk_score": false,
+   "btc_beta": false,
+   "fresh_observation_count": false
+  },
+  "nb29_shortlisted": [],
+  "nb30_fold_stability": "VACUOUS - no fold's screen selected any signal, so there is no mechanism to cross-fit and the stitched path is the anchor's own"
+ }
+}

@@ -1,0 +1,220 @@
+{
+ "verdict": "DIAGNOSTIC",
+ "fold_stability": "VACUOUS - no fold's screen selected any signal, so there is no mechanism to cross-fit and the stitched path is the anchor's own",
+ "folds": 5,
+ "purge_days": 30,
+ "draws": 200,
+ "centre": 0.3,
+ "full_sample_leader": null,
+ "fold_table": {
+  "0": {
+   "start": "2026-01-01 00:00:00",
+   "end_inclusive": "2026-02-12 00:00:00",
+   "fold_decisions": 22,
+   "training_decisions": 74,
+   "purged_decisions": 15,
+   "gate_5_passers": "(none)",
+   "leading_signal": "(none)"
+  },
+  "1": {
+   "start": "2026-02-14 00:00:00",
+   "end_inclusive": "2026-03-28 00:00:00",
+   "fold_decisions": 22,
+   "training_decisions": 59,
+   "purged_decisions": 30,
+   "gate_5_passers": "(none)",
+   "leading_signal": "(none)"
+  },
+  "2": {
+   "start": "2026-03-30 00:00:00",
+   "end_inclusive": "2026-05-11 00:00:00",
+   "fold_decisions": 22,
+   "training_decisions": 59,
+   "purged_decisions": 30,
+   "gate_5_passers": "(none)",
+   "leading_signal": "(none)"
+  },
+  "3": {
+   "start": "2026-05-13 00:00:00",
+   "end_inclusive": "2026-06-24 00:00:00",
+   "fold_decisions": 22,
+   "training_decisions": 59,
+   "purged_decisions": 30,
+   "gate_5_passers": "(none)",
+   "leading_signal": "(none)"
+  },
+  "4": {
+   "start": "2026-06-26 00:00:00",
+   "end_inclusive": "2026-08-09 00:00:00",
+   "fold_decisions": 23,
+   "training_decisions": 73,
+   "purged_decisions": 15,
+   "gate_5_passers": "(none)",
+   "leading_signal": "(none)"
+  }
+ },
+ "segments": {
+  "0": {
+   "source": "anchor (no signal passed this fold's screen)",
+   "cycles": 21,
+   "segment_return": 0.052688,
+   "anchor_segment_return": 0.052688,
+   "identical_to_anchor": true
+  },
+  "1": {
+   "source": "anchor (no signal passed this fold's screen)",
+   "cycles": 22,
+   "segment_return": 0.036524,
+   "anchor_segment_return": 0.036524,
+   "identical_to_anchor": true
+  },
+  "2": {
+   "source": "anchor (no signal passed this fold's screen)",
+   "cycles": 22,
+   "segment_return": -0.003816,
+   "anchor_segment_return": -0.003816,
+   "identical_to_anchor": true
+  },
+  "3": {
+   "source": "anchor (no signal passed this fold's screen)",
+   "cycles": 22,
+   "segment_return": 0.003695,
+   "anchor_segment_return": 0.003695,
+   "identical_to_anchor": true
+  },
+  "4": {
+   "source": "anchor (no signal passed this fold's screen)",
+   "cycles": 23,
+   "segment_return": 0.11609,
+   "anchor_segment_return": 0.11609,
+   "identical_to_anchor": true
+  }
+ },
+ "stitched": {
+  "stitched out-of-fold": {
+   "cycles": 110,
+   "sharpe": 2.167217,
+   "cagr": 0.390551,
+   "vol": 0.156361,
+   "total_return": 0.217643
+  },
+  "anchor, same cycles": {
+   "cycles": 110,
+   "sharpe": 2.167217,
+   "cagr": 0.390551,
+   "vol": 0.156361,
+   "total_return": 0.217643
+  }
+ },
+ "paired_sharpe": {
+  "n": 110.0,
+  "observed": 0.0,
+  "block": 10.0,
+  "draws": 1000.0,
+  "seed": 0.0,
+  "lo": 0.0,
+  "hi": 0.0
+ },
+ "signal_stability": {
+  "inverse_vol": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "downside_deviation_90": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "ulcer_index_180": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "drawdown_recovery_days": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "residual_event_concentration": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "fresh_event_concentration": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "positive_window_share": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "gain_to_pain_score": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "min_window_sortino": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "sortino_score": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "sortino_shrunk_score": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "btc_beta": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  },
+  "fresh_observation_count": {
+   "folds_passing_gate_5": 0,
+   "folds_leading": 0,
+   "leading_in": "-",
+   "full_sample_gate_5": false
+  }
+ },
+ "all_runs": {
+  "screen_log": {
+   "family": "control",
+   "overrides": {
+    "stability_prefilter_signal": "inverse_vol",
+    "stability_prefilter_direction": "low",
+    "stability_prefilter_fraction": 0.0,
+    "stability_prefilter_count": 0,
+    "stability_prefilter_strict": false,
+    "stability_prefilter_null_seed": -1
+   },
+   "panel": {
+    "cagr": 0.37897081230942264,
+    "cycle_sharpe": 2.1597920746960435,
+    "cycle_vol": 0.1542780798652122,
+    "ulcer": 0.017964105097182066,
+    "max_dd": -0.04450420243016073,
+    "abs_invested_beta": 0.04579692297567623,
+    "mean_invested": 0.9719692059418593
+   }
+  }
+ }
+}

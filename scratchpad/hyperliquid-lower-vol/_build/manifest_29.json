@@ -1,0 +1,300 @@
+{
+ "verdict": "REJECT - nothing shortlisted",
+ "shortlisted": [],
+ "carried": [
+  "inverse_vol"
+ ],
+ "survivors_of_cheap_gates": [],
+ "centre": 0.3,
+ "fractions": [
+  0.1,
+  0.2,
+  0.3,
+  0.4,
+  0.5
+ ],
+ "neighbours": [
+  0.2,
+  0.4
+ ],
+ "reference_realised_share": 0.24274582274203407,
+ "family": {
+  "inverse_vol_q10": {
+   "signal": "inverse_vol",
+   "q": 0.1,
+   "realised_excluded_share": 0.078557,
+   "cagr": 0.3889,
+   "cycle_sharpe": 2.35461,
+   "cycle_vol": 0.143924,
+   "ulcer": 0.015452,
+   "max_dd": -0.036527,
+   "abs_invested_beta": 0.042169,
+   "mean_invested": 0.972388,
+   "sparse_cagr": 0.433055,
+   "dense_cagr": 0.578123,
+   "late_cagr": 0.24965
+  },
+  "inverse_vol_q20": {
+   "signal": "inverse_vol",
+   "q": 0.2,
+   "realised_excluded_share": 0.160522,
+   "cagr": 0.142393,
+   "cycle_sharpe": 1.419554,
+   "cycle_vol": 0.097107,
+   "ulcer": 0.015506,
+   "max_dd": -0.035426,
+   "abs_invested_beta": 0.005792,
+   "mean_invested": 0.972433,
+   "sparse_cagr": 0.270196,
+   "dense_cagr": 0.127706,
+   "late_cagr": 0.096956
+  },
+  "inverse_vol_q30": {
+   "signal": "inverse_vol",
+   "q": 0.3,
+   "realised_excluded_share": 0.242746,
+   "cagr": 0.086951,
+   "cycle_sharpe": 1.108641,
+   "cycle_vol": 0.077945,
+   "ulcer": 0.016005,
+   "max_dd": -0.031451,
+   "abs_invested_beta": 0.011159,
+   "mean_invested": 0.97985,
+   "sparse_cagr": 0.275068,
+   "dense_cagr": -0.050117,
+   "late_cagr": 0.042397
+  },
+  "inverse_vol_q40": {
+   "signal": "inverse_vol",
+   "q": 0.4,
+   "realised_excluded_share": 0.324101,
+   "cagr": 0.094307,
+   "cycle_sharpe": 1.329315,
+   "cycle_vol": 0.069628,
+   "ulcer": 0.016792,
+   "max_dd": -0.03719,
+   "abs_invested_beta": 0.003739,
+   "mean_invested": 0.976877,
+   "sparse_cagr": 0.268512,
+   "dense_cagr": -0.047571,
+   "late_cagr": 0.076517
+  },
+  "inverse_vol_q50": {
+   "signal": "inverse_vol",
+   "q": 0.5,
+   "realised_excluded_share": 0.407128,
+   "cagr": 0.017615,
+   "cycle_sharpe": 0.33691,
+   "cycle_vol": 0.056526,
+   "ulcer": 0.01473,
+   "max_dd": -0.029232,
+   "abs_invested_beta": 0.005529,
+   "mean_invested": 0.969728,
+   "sparse_cagr": 0.118316,
+   "dense_cagr": -0.022909,
+   "late_cagr": -0.057798
+  }
+ },
+ "inertness": {
+  "inverse_vol_q10": {
+   "decisions_logged": 126,
+   "decisions_with_exclusions": 126,
+   "dates_matched_to_reference": 126,
+   "dates_with_a_different_basket": 30,
+   "share_of_decisions_changed": 0.238095,
+   "excluded_names_the_reference_held": 33,
+   "basket_jaccard_vs_reference": 0.857143,
+   "distinct_vaults": 32,
+   "equity_path_identical_to_reference": false,
+   "inert": false
+  },
+  "inverse_vol_q20": {
+   "decisions_logged": 126,
+   "decisions_with_exclusions": 126,
+   "dates_matched_to_reference": 126,
+   "dates_with_a_different_basket": 63,
+   "share_of_decisions_changed": 0.5,
+   "excluded_names_the_reference_held": 98,
+   "basket_jaccard_vs_reference": 0.805556,
+   "distinct_vaults": 32,
+   "equity_path_identical_to_reference": false,
+   "inert": false
+  },
+  "inverse_vol_q30": {
+   "decisions_logged": 126,
+   "decisions_with_exclusions": 126,
+   "dates_matched_to_reference": 126,
+   "dates_with_a_different_basket": 120,
+   "share_of_decisions_changed": 0.952381,
+   "excluded_names_the_reference_held": 256,
+   "basket_jaccard_vs_reference": 0.675,
+   "distinct_vaults": 34,
+   "equity_path_identical_to_reference": false,
+   "inert": false
+  },
+  "inverse_vol_q40": {
+   "decisions_logged": 126,
+   "decisions_with_exclusions": 126,
+   "dates_matched_to_reference": 126,
+   "dates_with_a_different_basket": 122,
+   "share_of_decisions_changed": 0.968254,
+   "excluded_names_the_reference_held": 322,
+   "basket_jaccard_vs_reference": 0.609756,
+   "distinct_vaults": 33,
+   "equity_path_identical_to_reference": false,
+   "inert": false
+  },
+  "inverse_vol_q50": {
+   "decisions_logged": 126,
+   "decisions_with_exclusions": 126,
+   "dates_matched_to_reference": 126,
+   "dates_with_a_different_basket": 126,
+   "share_of_decisions_changed": 1.0,
+   "excluded_names_the_reference_held": 407,
+   "basket_jaccard_vs_reference": 0.55814,
+   "distinct_vaults": 34,
+   "equity_path_identical_to_reference": false,
+   "inert": false
+  }
+ },
+ "gates": {
+  "inverse_vol_q30": {
+   "signal": "inverse_vol",
+   "gate_1_positive": true,
+   "gate_2_lovo": false,
+   "gate_3_held_book": false,
+   "gate_4_luck": false,
+   "gate_5_screen": false,
+   "gate_6_plateau": false,
+   "gate_7_subperiod": false,
+   "gate_8_diversification": false,
+   "gate_9_null": false,
+   "failed_gates": "gate_2, gate_3, gate_4, gate_5, gate_6, gate_7, gate_8, gate_9",
+   "verdict": "REJECT"
+  }
+ },
+ "nulls": [],
+ "lovo": [],
+ "all_runs": {
+  "inverse_vol_q10": {
+   "family": "reference",
+   "overrides": {
+    "stability_prefilter_signal": "inverse_vol",
+    "stability_prefilter_direction": "low",
+    "stability_prefilter_fraction": 0.1,
+    "stability_prefilter_count": 0,
+    "stability_prefilter_strict": false,
+    "stability_prefilter_null_seed": -1
+   },
+   "panel": {
+    "cagr": 0.3889003474359647,
+    "cycle_sharpe": 2.354610194030322,
+    "cycle_vol": 0.14392397041602958,
+    "ulcer": 0.015451693542749124,
+    "max_dd": -0.0365269532490925,
+    "abs_invested_beta": 0.0421686919267039,
+    "mean_invested": 0.9723880064900159
+   }
+  },
+  "inverse_vol_q20": {
+   "family": "reference",
+   "overrides": {
+    "stability_prefilter_signal": "inverse_vol",
+    "stability_prefilter_direction": "low",
+    "stability_prefilter_fraction": 0.2,
+    "stability_prefilter_count": 0,
+    "stability_prefilter_strict": false,
+    "stability_prefilter_null_seed": -1
+   },
+   "panel": {
+    "cagr": 0.14239344163755208,
+    "cycle_sharpe": 1.4195544086225165,
+    "cycle_vol": 0.09710657250154346,
+    "ulcer": 0.015506356726320362,
+    "max_dd": -0.03542625780769837,
+    "abs_invested_beta": 0.00579246431184094,
+    "mean_invested": 0.9724331821546859
+   }
+  },
+  "inverse_vol_q30": {
+   "family": "reference",
+   "overrides": {
+    "stability_prefilter_signal": "inverse_vol",
+    "stability_prefilter_direction": "low",
+    "stability_prefilter_fraction": 0.3,
+    "stability_prefilter_count": 0,
+    "stability_prefilter_strict": false,
+    "stability_prefilter_null_seed": -1
+   },
+   "panel": {
+    "cagr": 0.08695091389728726,
+    "cycle_sharpe": 1.1086405692117824,
+    "cycle_vol": 0.07794496170805397,
+    "ulcer": 0.016005485699844894,
+    "max_dd": -0.031451217647998075,
+    "abs_invested_beta": 0.011158799615837382,
+    "mean_invested": 0.9798495718717734
+   }
+  },
+  "inverse_vol_q40": {
+   "family": "reference",
+   "overrides": {
+    "stability_prefilter_signal": "inverse_vol",
+    "stability_prefilter_direction": "low",
+    "stability_prefilter_fraction": 0.4,
+    "stability_prefilter_count": 0,
+    "stability_prefilter_strict": false,
+    "stability_prefilter_null_seed": -1
+   },
+   "panel": {
+    "cagr": 0.09430666939002408,
+    "cycle_sharpe": 1.3293146987382474,
+    "cycle_vol": 0.06962772046890621,
+    "ulcer": 0.0167915712680548,
+    "max_dd": -0.03718998816648511,
+    "abs_invested_beta": 0.003739336470334818,
+    "mean_invested": 0.976877112494686
+   }
+  },
+  "inverse_vol_q50": {
+   "family": "reference",
+   "overrides": {
+    "stability_prefilter_signal": "inverse_vol",
+    "stability_prefilter_direction": "low",
+    "stability_prefilter_fraction": 0.5,
+    "stability_prefilter_count": 0,
+    "stability_prefilter_strict": false,
+    "stability_prefilter_null_seed": -1
+   },
+   "panel": {
+    "cagr": 0.017615024179213457,
+    "cycle_sharpe": 0.336909716369823,
+    "cycle_vol": 0.05652576007249139,
+    "ulcer": 0.01473009438196382,
+    "max_dd": -0.029232453021607152,
+    "abs_invested_beta": 0.005528984806036998,
+    "mean_invested": 0.9697275628017675
+   }
+  },
+  "inverse_vol_q30_strict": {
+   "family": "diagnostic",
+   "overrides": {
+    "stability_prefilter_signal": "inverse_vol",
+    "stability_prefilter_direction": "low",
+    "stability_prefilter_fraction": 0.3,
+    "stability_prefilter_count": 0,
+    "stability_prefilter_strict": true,
+    "stability_prefilter_null_seed": -1
+   },
+   "panel": {
+    "cagr": 0.08695091389728726,
+    "cycle_sharpe": 1.1086405692117824,
+    "cycle_vol": 0.07794496170805397,
+    "ulcer": 0.016005485699844894,
+    "max_dd": -0.031451217647998075,
+    "abs_invested_beta": 0.011158799615837382,
+    "mean_invested": 0.9798495718717734
+   }
+  }
+ }
+}
