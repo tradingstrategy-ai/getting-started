@@ -1,272 +1,369 @@
-# Stable-selection plan: screen the signal first, backtest only what predicts
+# Stable-selection plan: screen the signal first, and admit nothing from this window
 
-- **Status**: DRAFT 1, awaiting Codex CLI review.
+- **Status**: DRAFT 2, after Codex CLI review
+  ([28-stable-selection-plan-codex-review.md](28-stable-selection-plan-codex-review.md),
+  `gpt-5.6-sol`, 11 blocking and 13 material findings). **Blocked on one operator input**, marked
+  OPERATOR INPUT REQUIRED below; everything else is resolved.
 - **Rules**: [RESEARCH-RULES.md](RESEARCH-RULES.md). Objective: maximise cycle Sharpe by selecting
   stable vaults, not lucky and volatile ones, holding as many distinct vaults as the Sharpe allows.
 - **Track**: `hyperliquid-lower-vol`, NB28-NB31. Supersedes
-  [27-event-concentration-plan.md](27-event-concentration-plan.md), whose question survives here as
-  one screened signal; its Codex review's blocking findings on nulls, event-time measures and
-  re-sampling are applied below.
-- **Anchor**: [02-better-format.ipynb](02-better-format.ipynb), a reference not a bar. `BASELINE`
-  in `_build/harness_stability.py`, asserted in every notebook.
-- **Every result is exploratory and in-sample.** ADOPT = admission to the shadow protocol.
+  [27-event-concentration-plan.md](27-event-concentration-plan.md).
+- **Anchor**: [02-better-format.ipynb](02-better-format.ipynb), a reference not a bar.
+
+## The change that matters most in this draft
+
+**Nothing in this plan can be adopted, and ADOPT is removed from its vocabulary.**
+
+The review's blocking finding 4 is correct and cannot be engineered around on this window. The
+screen chooses signals using 30-day forward returns; the backtest then judges portfolios built
+from those signals on returns that overlap the same 30-day windows. Procedural ordering does not
+make the screen out-of-sample. The data would select the mechanism, select the surviving variants
+and score the survivor, all on 126 decisions whose minimum detectable Sharpe difference is about
+2.50.
+
+A purge-and-split would leave roughly 35 decisions to evaluate on, which cannot resolve anything.
+So the honest structure is the third option the review offers: **NB28-NB31 are hypothesis
+generation.** Their deliverable is a ranked shortlist and a frozen prospective specification, not
+an admission. NB30 replaces the combined mechanism (undefined, and a third selection layer) with
+a cross-fitted evaluation, which is the only way this window yields an out-of-fold number at all,
+and even that is reported as a diagnostic.
+
+**Verdict vocabulary**: SHORTLIST (carried to the prospective shadow) / REJECT / DIAGNOSTIC.
+There is no ADOPT. `RESEARCH-RULES.md` gate language is retained for scoring, and a candidate
+meeting every gate is SHORTLISTED, not adopted.
+
+## OPERATOR INPUT REQUIRED
+
+Gate 5's return clause needs a **non-inferiority margin `delta`**, in annualised percentage
+points, for the contrast between the forward return of the vaults a signal calls stable and those
+it calls unstable. The review is right that "the interval does not exclude zero" is a
+failure-to-reject, not a guarantee: a materially negative but noisy association would pass it.
+
+The rule becomes: the lower simultaneous bound on that contrast must exceed `-delta`.
+
+`delta = 0` demands the stable set be no worse in return, which given NB09's and NB16's results
+would reject almost everything. Large `delta` makes the clause vacuous. **Recommendation: 5
+annualised percentage points**, which says a signal may pick vaults earning up to 5 points less
+per year if it demonstrably picks more stable ones, and which would have rejected NB09's
+consistency legs (15.0%, 24.3% and 9.2% CAGR against 37.9%) on magnitude rather than on noise.
+The executing agent must not invent this number.
 
 ## What the rejected experiments taught, and what this plan does about it
 
 | Lesson | Source | Consequence here |
 |---|---|---|
-| Portfolio Sharpe cannot tell a mechanism from luck. The best Sharpe in either batch was one vault; a random removal of nine vaults ranks 7th of 57. | NB26, NB25 | Gate 5 of the rules: a signal must predict forward stability BEFORE it is backtested. This plan screens first. |
-| Composite re-weightings that favour "consistency" pick vaults that do not lose because they do not earn. | NB09, NB16 | The mechanism is a PRE-FILTER that removes the unstable tail and then lets the incumbent's return ranking run, not a re-weighting. That is the structure of the one thing that worked. |
-| The measured-only volatility drop has a small real return edge that survives leave-one-vault-out; its risk gains are generic. | NB26 | It is the special case `signal = inverse_vol`. It runs here as the baseline the other signals must beat. |
-| No selection mechanism moves concentration. Vol barely moves either. | NB25, NB26 | The diversification floor is expected to bind on nothing; the tie-break at 0.25 Sharpe will decide most comparisons. Stated, not hidden. |
-| Staleness is a size proxy and the calendar-day concentration measure confounds lumpiness with sparse reporting. | 2026-09-14 check, 27-plan review | Every forward target and every signal is computed on FRESH marks over the tradable pool only. A fresh-event concentration measure is defined properly and screened alongside the calendar one. |
-| A pooled null changes more than ranking information; ten draws floor at p = 0.0909. | 27-plan review | Within-date permutation of the exact signal vector; distinctness asserted; "beats all ten" is a deterministic screen, never called significant. |
+| Portfolio Sharpe cannot tell a mechanism from luck. The best Sharpe in either batch was one vault; a random removal of nine vaults ranks 7th of 57. | NB25, NB26 | Signals are screened for forward predictiveness before any backtest, and nothing is adoptable from this window. |
+| Composite re-weightings favouring "consistency" pick vaults that do not lose because they do not earn. | NB09, NB16 | The return clause is a non-inferiority test with a margin, not a failure-to-reject. |
+| The measured-only volatility drop has a small real return edge surviving leave-one-vault-out. | NB26 | It is the `inverse_vol` special case and the reference every other signal is compared against. |
+| No selection mechanism moves concentration; volatility barely moves either. | NB25, NB26 | The diversification floor binds on nothing, and the 0.25 tie-break is an operator indifference band, not a resolution claim. |
+| Staleness is a size proxy; the calendar concentration measure confounds lumpiness with sparse reporting. | 2026-09-14 check | Both concentration measures are screened, and their difference is tested by a paired contrast, not by two separate intervals. |
+| A null can be degenerate in ways a naive distinctness check misses. | NB26 | Effectiveness is asserted on excluded sets, baskets AND cycle-return series, not on the value map. |
 
 ## The mechanism under test
 
-`stability_prefilter`: at each decision, among the candidates that reach the ranking step, read
-signal `S` at T-1, exclude the least-stable fraction `q` of them by `S`, then rank and size the
-survivors exactly as the incumbent does. `q = 0` is the anchor. `S = inverse_vol` with a count
-instead of a fraction is NB26's `measured_only` drop.
+`stability_prefilter`: at each decision, among candidates reaching the ranking step, read signal
+`S` at T-1, exclude the least-stable fraction `q` **of the candidates for which `S` is finite**,
+then rank and size survivors exactly as the incumbent does. `q = 0` is the anchor. `S =
+inverse_vol` with a count is NB26's `measured_only` drop.
 
-A fraction rather than a count, so the filter's strength does not depend on how many candidates
-are unmeasured on a given date. Candidates whose `S` is NaN are kept by default (permissive), or
-excluded under `stability_prefilter_strict = True` (strict); both are run.
+The review is right that equal `q` is not equal filtering strength across signals: a signal with a
+higher NaN rate filters a smaller share of the whole pool. Every run therefore reports, per date,
+the measured count, the NaN count, the excluded count, the **excluded share of all candidates**
+and the remaining count. Comparisons across signals are made at matched *realised* exclusion
+share, never at matched `q`.
+
+Candidates with NaN `S` are kept (permissive) or excluded (`stability_prefilter_strict`). **Strict
+runs are DIAGNOSTIC only** and cannot inherit a permissive signal's gate-5 pass, because gate 5 is
+a complete-case statistic and missingness-as-exclusion is precisely the behaviour it does not test.
 
 ## Rules for the executing agent
 
 All of [RESEARCH-RULES.md](RESEARCH-RULES.md) §Standing method rules, plus:
 
-1. Shared code goes in `_build/blocks_prefilter.py` and `_build/harness_rules.py`, built from
-   the existing modules' replacement dicts without editing them. The prefilter block is inserted
-   into the VALUE of `blocks_stability.py`'s "Rank by composite" replacement, ahead of the
-   complementary-selection block, the way `blocks_drop_modes.py` widened the drop block.
-2. `stability_prefilter_signal = ''` (off) is the default. The anchor must reproduce `BASELINE`
-   with the splice present; NB26's `measured_8` must reproduce 0.409685 / 2.373768 under
-   `signal='inverse_vol', count=8`. Both asserted before any notebook is built.
-3. **Candidate membership at each decision date is read from the trading code's own log**, never
-   reconstructed. `PREFILTER_LOG[timestamp]` records the candidate addresses, each one's signal
-   value, its NaN status, and the excluded set. NB28's screen uses the same membership, taken
-   from a `q = 0` run that logs but excludes nothing.
-4. **Every null asserts its draws differ** and prints the count of distinct `(date, vault, value)`
-   mappings across seeds, and asserts no draw is the identity permutation.
-5. Signals are read at T-1 in the screen exactly as `decide_trades` reads them. A screen result
-   computed at T is not comparable to a trading result and is not accepted.
+1. Shared code in `_build/blocks_prefilter.py` and `_build/harness_rules.py`, built from existing
+   modules' replacement dicts without editing them.
+2. `stability_prefilter_signal = ''` is the default and disables the block. The anchor must
+   reproduce `BASELINE` with the splice present, and NB26's `measured_8` must reproduce
+   0.409685 / 2.373768. Both asserted before any notebook is built.
+3. **`run_and_record()` must clear and snapshot `PREFILTER_LOG`** alongside the existing logs, or
+   candidate membership leaks between runs. The existing helper does not know about it.
+4. **Signals keep their exact cached definitions** and are only read at T-1. Only the forward
+   targets use the new fresh-return construction. The signal table states each signal's time base.
+5. Candidate membership comes from `PREFILTER_LOG`, never reconstructed.
+6. Replace `v == v` with `np.isfinite(v)` everywhere; the fail-closed rule excludes infinities.
 
 ## Gates
 
-The nine gates in RESEARCH-RULES.md, evaluated in this order so an expensive gate is never run for
-a candidate that has already failed a cheap one: 1 positive return; 5 signal predicts stability
-(from NB28, once per signal); 2 single-vault survival; 3 held-book stability; 4 not luck; 8
-diversification floor; 6 plateau; 7 sub-period sign; 9 null. Every Boolean is listed separately
-on every row; an unexecuted gate is False.
+The nine gates of `RESEARCH-RULES.md`, scored in this order so an expensive gate never runs for a
+candidate that failed a cheap one. Every Boolean listed separately; unexecuted means False.
+Meeting all nine yields SHORTLIST, not ADOPT.
 
-The tie-break: within 0.25 Sharpe, the more diversified candidate. Expected to decide most
-comparisons and stated as such in every heading.
+Two corrections the review forced:
+
+- **Gate 2** gates on Sharpe retention and is now calibrated on Sharpe, not CAGR. Measured under
+  leave-one-vault-out: the anchor retains 1.781367/2.159792 = **0.825**, `measured_8` retains
+  2.040695/2.373768 = **0.860**, and the `drop_30` spike retains 1.889823/2.747391 = **0.688**.
+  The 70% bar therefore sits above the spike and below both legitimate cases, as intended.
+- **Gate 3 and gate 8** are defined exactly below, because "capital-weighted" and "more
+  diversified" were both unimplementable as written.
+
+### Gate 3, held-book stability, defined
+
+One observation per decision date. Weights are each vault's share of total equity at that
+timestamp from `state.stats.positions` over `state.stats.portfolio` equity, normalised across
+finite holdings on that date. Each holding is joined to its **T-1 cached indicator value** for
+realised volatility (`1/inverse_vol`) and for `residual_event_concentration`. A holding whose
+indicator is NaN is dropped from that date's weighted mean and the dropped weight share is
+reported; a date where more than 25% of weight is dropped is excluded and counted. The gate
+compares the mean across dates against the anchor's, computed identically.
+
+### Gate 8 and the tie-break, defined
+
+`top_vault_pnl_share` is address-aggregated total P&L of the largest contributing address divided
+by the sum of **positive** address-level total P&L. "More diversified" is **Pareto dominance**
+across the five measures: no worse on all five and strictly better on at least one. If neither
+dominates, the comparison is declared unresolved and both are shortlisted.
+
+The 0.25 Sharpe tie-break is an **operator indifference band**, a decision policy. It is not a
+statistical resolution claim and the plan does not describe it as one. `RESEARCH-RULES.md` is
+corrected on this point in the same commit.
 
 ## Shared additions
 
 ### `_build/blocks_prefilter.py`
 
-Parameters, all defaulting to off:
-
 ```python
-    stability_prefilter_signal = ''          # indicator name; '' disables the block entirely
-    stability_prefilter_fraction = 0.0       # exclude this share of candidates by the signal
-    stability_prefilter_count = 0            # OR this many; count wins if both set (NB26 parity)
-    stability_prefilter_direction = 'low'    # 'low': smaller signal = less stable (e.g. inverse_vol)
-                                             # 'high': larger signal = less stable (e.g. ulcer)
-    stability_prefilter_strict = False       # exclude NaN-signal candidates rather than keep them
-    stability_prefilter_null_seed = -1       # >= 0: permute the signal vector within the date
+    stability_prefilter_signal = ''          # indicator name; '' disables the block
+    stability_prefilter_fraction = 0.0       # share of FINITE-signal candidates to exclude
+    stability_prefilter_count = 0            # OR this many; count wins when > 0 (NB26 parity)
+    stability_prefilter_direction = 'low'    # 'low' = smaller signal means less stable
+    stability_prefilter_strict = False       # exclude NaN-signal candidates (DIAGNOSTIC only)
+    stability_prefilter_null_seed = -1       # >= 0: permute FINITE values within the date
 ```
 
-The block, placed after the vol-matched drop and before complementary selection:
+The null, corrected per blocking finding 7 — NaNs stay with their original vault so only finite
+ranking is destroyed:
 
 ```python
-    prefilter_signal = str(getattr(parameters, 'stability_prefilter_signal', '') or '')
-    if prefilter_signal:
-        values = {}
-        for _pid, _pair, _sig in candidates:
-            v = indicators.get_indicator_value(prefilter_signal, pair=_pair)
-            values[_pid] = float(v) if v is not None and v == v else float('nan')
         seed = int(getattr(parameters, 'stability_prefilter_null_seed', -1))
         if seed >= 0:
-            # Within-date permutation of the EXACT signal vector across this date's candidates
-            # (27-plan review, finding 6). Preserves the date-level distribution and the number
-            # and location of NaNs; destroys only which vault carries which value.
-            ids = sorted(values); vals = [values[i] for i in ids]
+            finite_ids = sorted(i for i in values if np.isfinite(values[i]))
+            finite_vals = [values[i] for i in finite_ids]
             rng = np.random.default_rng(seed * 1_000_003 + timestamp.toordinal())
-            values = dict(zip(ids, rng.permutation(vals)))
-        direction = str(getattr(parameters, 'stability_prefilter_direction', 'low'))
-        strict = bool(getattr(parameters, 'stability_prefilter_strict', False))
-        scored = [c for c in candidates if values[c[0]] == values[c[0]]]
-        unscored = [c for c in candidates if values[c[0]] != values[c[0]]]
-        ordered = sorted(scored, key=lambda c: (values[c[0]] if direction == 'low' else -values[c[0]], c[0]))
-        count = int(getattr(parameters, 'stability_prefilter_count', 0) or 0)
-        if count <= 0:
-            count = int(round(float(getattr(parameters, 'stability_prefilter_fraction', 0.0)) * len(scored)))
-        excluded = {c[0] for c in ordered[:count]}
-        if strict:
-            excluded |= {c[0] for c in unscored}
-        PREFILTER_LOG[timestamp] = {...candidate addresses, values, nan flags, excluded, seed...}
-        candidates = [c for c in candidates if c[0] not in excluded]
-        if not candidates:
-            return []
+            values = dict(values)
+            values.update(zip(finite_ids, rng.permutation(finite_vals)))
 ```
 
-`np` must be available in the strategy cell; verify, and import it in the splice if not.
+`PREFILTER_LOG[timestamp]` records candidate addresses, each signal value, its finite flag, the
+excluded set, the measured/NaN/excluded/remaining counts and the seed.
 
-### `fresh_event_concentration` (new indicator, in the same module)
+### `fresh_event_concentration`
 
-The 27-plan review's finding 2 applied. Event `j` spans `(t_{j-1}, t_j]` between consecutive
-marks where the price CHANGED. Vault return is `log(P[t_j] / P[t_{j-1}])`; BTC return is the log
-return compounded over the same interval; beta is estimated on the trailing
-`event_concentration_max_events` matched interval pairs, excluding the current event, with at
-least 30 pairs. Residual is vault minus beta times BTC. The statistic is the sum of the largest
-five positive residuals over the trailing `event_concentration_max_events = 90` complete events,
-divided by the sum of all positive residuals in the same window; NaN until exactly 90 complete
-residual events exist. Report the calendar span covered by each window. This is the
-**fresh-event measure**; it is NOT called polling-invariant, because merging economic-return
-events across a gap changes the partition of the path. It is invariant to inserting duplicate
-unchanged rows, which is the property that matters for the staleness confound, and that
-invariance is asserted by a unit test in the verification notebook: duplicate every row of a
-series three times and assert the value is unchanged at every original timestamp.
+Event `j` spans `(t_{j-1}, t_j]` between consecutive marks where the price changed. Vault return
+is `log(P[t_j]/P[t_{j-1}])`; BTC return is the log return compounded over the same interval.
+**Each residual uses a rolling beta estimated solely from matched events strictly preceding that
+event**, minimum 30 matched pairs — one causal beta per event, not one evaluation-time beta
+applied retrospectively. The statistic is the sum of the five largest positive residuals over the
+latest 90 finite residual events, divided by the sum of all positive residuals in that window;
+NaN until 90 finite residual events exist, which requires at least 120 raw events. Each window's
+calendar span is reported.
+
+It is **not** polling-invariant and is not described as such. Its claim is invariance to inserting
+unchanged marks, verified by a test that inserts unchanged marks **at new intermediate
+timestamps** while preserving every original price-change endpoint and the BTC path, then asserts
+equality at original timestamps, equality of the finite/NaN mask, and equality of reported spans.
 
 ### `_build/harness_rules.py`
 
-`passes_rules()` / `failing_rules()` implementing the nine gates with the ordering above;
-`held_book_character(entry)` computing capital-weighted mean realised vol and mean
-`residual_event_concentration` of the held vaults from `state.stats.positions`;
-`lovo_gate(label)` running the masked candidate and returning Sharpe retention;
-`diversification(entry)` returning the five floor measures; `within_date_null_ok(centre, nulls)`;
-`verdict_table_rules()`; `tie_break(a, b)`.
+`passes_rules()` / `failing_rules()`; `held_book_character()` and `diversification()` as defined
+above; `lovo_gate()` returning Sharpe retention; `joint_cluster_bootstrap()`; `simultaneous_ci()`;
+`null_effectiveness()`; `verdict_table_rules()`; `tie_break()` implementing Pareto dominance.
 
 ## Experiment track
 
 ### NB28 - research: which stability signals predict forward stability?
 
-**File**: `28-research-stability-signal-screen.ipynb`. Verdict: DIAGNOSTIC. Gate 5 for everything
-downstream.
+**File**: `28-research-stability-signal-screen.ipynb`. Verdict DIAGNOSTIC.
 
-**Membership and alignment.** Run the anchor and one `q = 0` prefilter run (`signal='inverse_vol',
-fraction=0.0`) whose `PREFILTER_LOG` records every candidate at every decision date. The screen is
-over exactly those (date, candidate) pairs, 126 dates, roughly 148 candidates each. Signals are
-read from the cached indicators at T-1.
+**Eligible dates.** Only decisions with `T + 30 days <= last_available_timestamp`, which excludes
+roughly the final fifteen decisions. The notebook prints the eligible count and never claims 126.
 
-**Signals screened**, each with its pre-registered "less stable" direction:
+**Forward targets**, all on a common 30-calendar-day horizon so they are not frequency-dependent
+(blocking 1, material 14, material 15). Returns are built from the carried NAV at T, so no event
+straddles T. Per candidate over `(T, T+30d]`:
 
-| signal | window | less stable when |
+- **Forward volatility**: `sqrt(sum of squared fresh interval log returns * 365/30)`.
+- **Forward downside variation**: the same over negative intervals only.
+- **Forward fresh-event top-five share**: as the indicator, over the forward window. NaN unless at
+  least `min_positive_events = 8` positive residual events exist, so it cannot degenerate to
+  exactly 1.0.
+- **Forward 30-day cumulative log-NAV return**: the return clause's target.
+- Maximum drawdown is reported as a DIAGNOSTIC only, not a gate target (blocking 5).
+
+Every target has explicit missing-reason codes: insufficient events, zero denominator,
+non-finite. Counts per reason are printed.
+
+**Signals screened.** Each keeps its cached definition; the table names its time base.
+
+| signal | time base | less stable when |
 |---|---|---|
-| `inverse_vol` | 90 d | low |
-| `downside_deviation_90` | 90 d | high |
-| `ulcer_index_180` | 180 d | high |
-| `drawdown_recovery_days` | 180 d | high |
-| `residual_event_concentration` (calendar) | 180 d | high |
-| `fresh_event_concentration` (new) | 90 events | high |
-| `positive_window_share` | 30/180 d | low |
-| `gain_to_pain_score` | 180 d | low |
-| `min_window_sortino` | 30-360 d | low |
-| `sortino_score` | 45 d | low |
-| `sortino_shrunk_score` | 90 events | low |
-| `btc_beta` (absolute) | 90 d | high |
-| `fresh_observation_count` | 90 d | low - a CONTROL: the staleness proxy itself |
+| `inverse_vol` | 90 calendar rows | low |
+| `downside_deviation_90` | 90 calendar rows | high |
+| `ulcer_index_180` | 180 calendar rows | high |
+| `drawdown_recovery_days` | 180 calendar rows | high |
+| `residual_event_concentration` | 180 calendar rows | high |
+| `fresh_event_concentration` | 90 fresh events | high |
+| `positive_window_share` | 30/180 calendar rows | low |
+| `gain_to_pain_score` | 180 calendar rows | high |
+| `min_window_sortino` | 30-360 calendar rows | low |
+| `sortino_score` | 45 calendar rows | low |
+| `sortino_shrunk_score` | 90 fresh events | low |
+| `btc_beta` (absolute) | 90 calendar rows | high |
+| `fresh_observation_count` | 90 calendar rows | low - CONTROL, the staleness proxy |
 
-**Forward targets** over `(T, T + 30 d]`, on fresh marks only, per candidate: realised volatility
-of fresh log returns; downside deviation; maximum drawdown; fresh-event top-five share as defined
-above but over the forward window; and mean fresh log return, the "not dead" check.
+**Inference** (blocking 2 and 3). One joint procedure resamples **date blocks of at least 15
+decisions (circular moving blocks) and vault clusters together**, recomputing the whole nonlinear
+statistic on each draw, with **the same resamples reused across every signal and target**.
+Simultaneous one-sided max-T intervals control the 39 stability hypotheses and the 13 return
+hypotheses as two pre-registered families. Any p-value uses the add-one correction. Unadjusted
+intervals may be printed descriptively and labelled as such. Percentile construction; fail closed
+on constant input or non-finite Spearman. Minimum 40 usable dates per signal-target or that pair
+is not evaluated.
 
-**Statistic.** For each signal and each target, at each date, the Spearman rank correlation
-across that date's candidates, signed so that positive means "the signal's stable end had the
-more stable outcome". The reported figure is the mean across dates, with a 95% interval from a
-block bootstrap over dates (block 10) AND a separate interval from resampling vaults with
-replacement, both printed; the wider governs. Minimum 30 candidates with both signal and target
-on a date, or the date is skipped and the skip counted.
+**Statistic.** The estimand is stated explicitly as the equal-weight mean association on a typical
+decision date: per date, Spearman across that date's candidates, signed so positive means the
+signal's stable end had the more stable outcome, averaged over eligible dates.
 
-**Pass rule for gate 5**, pre-registered: a signal passes if its mean correlation with at least
-three of the four forward stability targets is positive with the governing interval excluding
-zero, AND its correlation with forward mean return is not negative with the interval excluding
-zero. The second clause is what rejects the NB09 pattern of picking vaults that do not lose
-because they do not earn.
+**Tail-aligned diagnostic** (material 12), required alongside: at each date compare the forward
+target ranks of the exact fraction that WOULD be excluded at `q = 0.30` against the retained set,
+and average that contrast under the same clustered inference. The Spearman satisfies the rule; the
+tail contrast tests the mechanism.
 
-**Also reported per signal:** rank autocorrelation of the signal itself across consecutive
-dates (a stable-vault signal that reshuffles every cycle is measuring noise); its Spearman
-correlation with `fresh_observation_count` and with median TVL (the confound); its NaN rate on
-the tradable pool; and the calendar span of the fresh-event window.
+**Gate 5 pass rule**, pre-registered, matching `RESEARCH-RULES.md` exactly (blocking 5 and 6):
 
-**Output.** A table of all thirteen signals with pass/fail on gate 5 and every statistic, written
-to `_build/manifest_28.json`, which NB29 reads to decide what to run. The heading names the
-passing signals and says in plain words whether the calendar and fresh-event concentration
-measures differ in what they predict, which is the 27-plan's question answered without a
-backtest.
+> All THREE of forward volatility, forward downside variation and forward fresh-event top-five
+> share show a positive association with the signal's stable end, with the simultaneous lower
+> bound above zero; AND the simultaneous lower bound on the stable-versus-unstable forward 30-day
+> return contrast exceeds `-delta`.
+
+**Also reported**: rank persistence across consecutive dates on the common candidate intersection,
+as a diagnostic, not a filter; Spearman against `fresh_observation_count` and median TVL; NaN rate
+on the tradable pool; fresh-event window spans.
+
+**The calendar-versus-fresh question** (material 21) is answered by a **paired difference** of the
+two measures' correlations on the same candidate-date sample with common resamples and the same
+multiplicity control. The heading says their predictive patterns differed by such-and-such, with
+an interval. It does not say "settles".
 
 ### NB29 - backtest: the prefilter, one signal at a time
 
-**File**: `29-backtest-stability-prefilter.ipynb`.
+**File**: `29-backtest-stability-prefilter.ipynb`. Verdict SHORTLIST / REJECT.
 
-For each signal that passed gate 5 in NB28, in the order of its mean stability correlation:
-`stability_prefilter_fraction` in {0.10, 0.20, 0.30, 0.40, 0.50}, **0.30 the pre-registered
-centre**, permissive admission. Plus the strict variant at the centre. If only `inverse_vol`
-passed, run it alone and say so in the first bullet. If nothing passed, this notebook runs the
-anchor and the `inverse_vol` sweep as a reference only, verdict DIAGNOSTIC, and NB30 is skipped.
+For each gate-5 passer, `stability_prefilter_fraction` in {0.10, 0.20, 0.30, 0.40, 0.50}, centre
+0.30, permissive. Strict at the centre, DIAGNOSTIC. `inverse_vol` always runs as the reference
+even if it fails gate 5, labelled as such.
 
-Per signal: gates in the stated order; leave-one-vault-out on the centre and both neighbours
-before the plateau is evaluated; the within-date permutation null, ten seeds, at the centre;
-`held_book_character`, `diversification`, `luck_ratio`, `top5_gross_share` on every row.
+Gates in order; leave-one-vault-out on centre and both neighbours before the plateau is scored;
+the corrected within-date permutation null, ten seeds, at the centre.
 
-**Verdict per signal.** ADOPT the centre only if all nine gates hold. Across signals with a
-passing centre, apply the tie-break. REJECT otherwise, with the complete failure set.
+**Null effectiveness** (blocking 8). Print distinct counts of: signal mappings, excluded-set
+histories, realised basket histories, and cycle-return series. **Gate 9 is False if fewer than ten
+distinct cycle-return series exist.** The comparison is the strict `centre_sharpe >
+max(null_sharpes)` and is never called significant.
 
-### NB30 - backtest: combining passing signals
+**Inertness check** (material 19), every run: share of decisions where the prefilter changed the
+selected six, how many excluded names would otherwise have been selected, basket Jaccard against
+the anchor, and whether the realised equity path is distinct from the anchor's. A run that changes
+nothing is reported as inert regardless of its metrics.
 
-**File**: `30-backtest-stability-prefilter-combined.ipynb`. Runs only if at least two signals had
-a passing centre in NB29; otherwise the file is not created and NB31 says why.
+### NB30 - diagnostic: cross-fitted evaluation of the leading signal
 
-Rank-sum of the passing signals (each ranked in its stable direction, ranks summed, exclude the
-worst fraction `q`), same sweep, same gates, same null. The question is whether two independently
-predictive stability signals beat either alone, at the same `q`, by more than the 0.25 tie-break
-margin. Expected answer: no, and the tie-break decides.
+**File**: `30-backtest-stability-crossfit.ipynb`. Verdict DIAGNOSTIC. Replaces the combined
+mechanism, which was undefined and added a third selection layer.
 
-### NB31 - close-out
+Five contiguous folds over the decision schedule. For each fold, gate 5 is re-run using only dates
+outside that fold **and outside a 30-day purge either side**, the leading signal is re-chosen from
+that reduced screen, and the prefilter runs with the fold's own choice active only during that
+fold. Stitching the five out-of-fold segments gives one equity path in which no segment was
+scored by a screen that saw it.
 
-**File**: `31-backtest-stability-closeout.ipynb`. Re-runs every executed configuration in one
-kernel, re-derives every gate from `harness_rules.py`, cross-checks against manifests at 1e-9,
-`family_wise_joint()` over the complete executed family, frontier and equity charts, the
-held-book character and diversification tables for every run, and the frozen shadow
-specification. States which gate rejected most candidates, whether the tie-break ever decided
-anything, and whether any signal other than `inverse_vol` predicted forward stability at all.
+Report: whether the same signal wins in all five folds; the stitched out-of-fold Sharpe and CAGR
+against the anchor's over the same dates; and how often the fold-selected signal differs. **If the
+leading signal is not stable across folds, the screen is fitting noise and the plan says so.**
+
+This is a diagnostic because folds share vaults and market regime, and the purge cannot remove
+cross-sectional contamination. It is the best this window supports, not a clean out-of-sample test.
+
+### NB31 - close-out and the prospective specification
+
+**File**: `31-backtest-stability-closeout.ipynb`.
+
+Re-runs every executed configuration in one kernel, re-derives every gate, cross-checks manifests
+at 1e-9, and prints the combined verdict table.
+
+`family_wise_joint()` membership (material 24) is **exactly**: every configuration evaluated as
+potentially shortlistable, including failed centres and neighbours; excluding the anchor,
+reference-only runs, leave-one-vault-out runs and null runs. The notebook states that this test
+cannot correct for the thirteen screened alternatives upstream.
+
+**The deliverable** is the frozen prospective specification: which signal, which `q`, the strict
+or permissive variant, the fixed comparator, the monitoring horizon, the stopping rule, and the
+literal override dictionary. Fixed before new data arrive. Plus a sentence per signal on what the
+screen found and one on what it could not.
 
 ## Order and cost
 
+Each backtest is about 20 seconds on a warm indicator cache; each notebook costs about 3 minutes
+of startup. Corrected from Draft 1, which the review read as 7 minutes per run.
+
 ```
-verify splices, parity, measured_8 reproduction, fresh-event duplicate-row test   (~10 min)
-NB28  anchor + one logging run + archive analysis over 13 signals                 (~15 min)
-NB29  per passing signal: 5 + 1 + 3 LOVO + 10 null = 19 runs, ~7 min each          (~7 min x signals)
-NB30  conditional, same shape                                                      (~7 min)
-NB31  every executed run                                                           (~20 min)
+verify splices, parity, measured_8 reproduction, inserted-mark invariance test   (~10 min)
+NB28  anchor + one logging run + screen over 13 signals with joint bootstrap      (~25 min)
+NB29  per passing signal: 19 runs ~ 7 min compute + 3 min startup                 (~10 min x signals)
+NB30  5 folds x (screen + 1 run)                                                  (~20 min)
+NB31  every executed run                                                          (~25 min)
 ```
 
-**What I expect, stated before running.** `inverse_vol` passes gate 5 easily, because volatility
-clusters; that is the sizing rule's premise and not news. `fresh_observation_count` fails gate 5
-on the tradable pool, which is the 2026-09-14 finding restated. The calendar concentration
-measure correlates with `fresh_observation_count` and the fresh-event one does not, which settles
-the 27-plan's question. Of the remaining signals I expect two or three to pass gate 5 and none of
-them to beat `inverse_vol` in NB29 by more than 0.25 Sharpe, so the tie-break decides and the
-plan's most likely verdict is a small, real, diversification-neutral improvement that the rules
-correctly refuse to call more than that.
+**What I expect.** `inverse_vol` passes gate 5; that is the sizing rule's premise, not news.
+`fresh_observation_count` fails on the tradable pool, restating the 2026-09-14 finding. The two
+concentration measures differ in what they predict, with an interval. Two or three other signals
+pass, none beats `inverse_vol` by more than the indifference band, several prefilter runs are
+inert, and NB30 finds the leading signal is not stable across folds. The most likely honest
+outcome is a shortlist of one or two signals for a prospective shadow and no claim stronger than
+that.
 
 ## Definition of done
 
-- [ ] `_build/blocks_prefilter.py`, `_build/harness_rules.py`; verification notebook reproduces
-      `BASELINE` and `measured_8`, and passes the duplicate-row invariance test.
-- [ ] `build_28.py` .. `build_31.py` exist; every notebook prints provenance and asserts parity.
-- [ ] NB28: thirteen signals screened with both intervals, pass/fail on gate 5, manifest written.
-- [ ] NB29: every passing signal swept, nine gates in order, null distinctness asserted.
-- [ ] NB30 run or its absence explained in NB31.
-- [ ] NB31: gates re-derived, cross-check at 1e-9, shadow specification frozen.
-- [ ] Each notebook independently reviewed; findings verified before applied.
-- [ ] One commit per notebook. Nothing posted to the PR unless asked.
+- [ ] OPERATOR INPUT REQUIRED resolved: `delta` supplied.
+- [ ] `_build/blocks_prefilter.py`, `_build/harness_rules.py`; verification reproduces `BASELINE`
+      and `measured_8` and passes the inserted-mark invariance test.
+- [ ] `run_and_record()` clears and snapshots `PREFILTER_LOG`.
+- [ ] NB28: eligible dates printed, targets on a common 30-day horizon with missing-reason counts,
+      one joint two-way cluster bootstrap with shared resamples, simultaneous intervals over two
+      pre-registered families, tail-aligned contrast, paired calendar-versus-fresh difference.
+- [ ] NB29: gates in order, null effectiveness on cycle-return series, inertness check every run.
+- [ ] NB30: five folds with purge, fold-stability of the leading signal reported.
+- [ ] NB31: explicit family membership, frozen prospective specification, no ADOPT anywhere.
+- [ ] Each notebook independently reviewed; findings verified against cited cells before applied.
 
 ## Review log
 
 - **Draft 1**, 2026-09-14. Written under the new rules from NB09, NB16, NB25, NB26 and the
-  27-plan's Codex review, whose blocking findings 1, 2, 3, 6 and 7 are applied above.
+  27-plan's review.
+- **Codex CLI review** (`gpt-5.6-sol`): 11 blocking, 13 material, 4 minor. Verdict "not executable
+  as an adoption protocol as written".
+- **Draft 2**, 2026-09-14. All 11 blocking findings applied. The largest change is structural:
+  finding 4's double-selection problem cannot be engineered around on 126 decisions, so ADOPT is
+  removed and the plan is hypothesis generation producing a frozen prospective specification.
+  NB30's combined mechanism is replaced by a cross-fitted diagnostic. Also applied: forward
+  targets restricted to complete windows on a common 30-day horizon with explicit missing reasons;
+  one joint two-way cluster bootstrap with shared resamples and simultaneous intervals over two
+  pre-registered families; the pass rule aligned to the three targets the rules name; the return
+  clause made a non-inferiority test pending `delta`; the null permuting only finite values with
+  NaNs left attached; null effectiveness asserted on cycle-return series; signals keeping their
+  cached definitions with time bases stated; gate 3, gate 8 and the tie-break given exact
+  definitions; gate 2 recalibrated on real Sharpe retention (0.825 anchor, 0.860 `measured_8`,
+  0.688 the spike); strict runs made diagnostic-only; the tail-aligned contrast added; the
+  calendar-versus-fresh comparison made a paired difference; inertness checks added; 0.25
+  redescribed as an operator indifference band; `luck_ratio` described as five cycles; family
+  membership specified; and the cost arithmetic corrected.

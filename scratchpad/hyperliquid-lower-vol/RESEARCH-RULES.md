@@ -98,7 +98,9 @@ evidence alone) only if every one of these holds. Gates 1-2 are sanity and survi
    days, from `residual_event_concentration`. A mechanism that reaches a high portfolio Sharpe
    while holding vaults that are individually more volatile or more spiky than the anchor's has
    not done what the objective asks, whatever its Sharpe.
-4. **The result was not luck.** `luck_ratio` at least the anchor's, and `top5_gross_share` no more
+4. **The result was not luck.** `luck_ratio` at least the anchor's - note it removes the best
+   five CYCLES, not the best five days, because `panel()` computes it on the two-day cycle
+   clock - and `top5_gross_share` no more
    than the anchor's. Both are already computed by `panel()`. **Note the absolute levels are poor
    for everything including the anchor**: the anchor's `luck_ratio` is 0.1459, meaning removing
    its best five days costs far more than removing five random ones, and its top five positions
@@ -136,9 +138,16 @@ They trade off directly here and Sharpe cannot arbitrate, because this window's 
 Sharpe difference is about 2.50 while the entire candidate spread is 1.5 to 2.7. So:
 
 **When two candidates' cycle Sharpe differ by less than 0.25, prefer the more diversified one.**
-Below that margin the Sharpe ordering is noise and diversification is measured without error, so
-the measurable quantity decides. 0.25 is the same tolerance as the plateau gate and is
-pre-registered here, before any run under these rules.
+This is an OPERATOR INDIFFERENCE BAND - a decision policy, pre-registered before any run under
+these rules. It is NOT a statistical resolution claim: a minimum detectable difference near 2.50
+says this sample is poorly powered for differences far larger than 0.25, and does not identify
+0.25 as a boundary between signal and noise. Realised diversification measures also carry
+sampling uncertainty despite being computed without a model. Where statistical evidence about a
+Sharpe difference is wanted, use the paired bootstrap interval and say so.
+
+"More diversified" means Pareto dominance across the five measures of gate 8: no worse on all
+five and strictly better on at least one. If neither candidate dominates, the comparison is
+unresolved and both are carried.
 
 Above 0.25 the higher Sharpe wins, and the diversification gate still applies as a floor. A
 candidate that buys Sharpe by concentrating further than the anchor is rejected outright rather
