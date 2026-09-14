@@ -27,6 +27,12 @@ PARAM_ADDITIONS_FLOOR = PARAM_ADDITIONS_PREFILTER.rstrip("'\n") + '''
     calm_min_fresh = 30
     #: Window for the ulcer and downside rankers, in rows. 90 to match `inverse_vol_window`.
     stability_rank_window = 90
+    #: A ranker also refuses to score a vault whose LAST fresh mark is older than this many rows.
+    #: The count guard alone is not enough: a vault that moved thirty times early in the window
+    #: and then went silent for sixty rows has sixty zero returns suppressing its volatility, a
+    #: finite score, and would rank near the top - the reward-silence failure this track has
+    #: already made once. Ten rows is five strategy cycles.
+    calm_max_stale_rows = 10
 '''
 
 INDICATOR_ADDITIONS_FLOOR = '''
@@ -42,39 +48,68 @@ def _fresh_count(close: pd.Series, window: int) -> pd.Series:
     return (close.pct_change().abs() > 0).astype(float).rolling(window, min_periods=1).sum()
 
 
+def _rows_since_fresh(close: pd.Series) -> pd.Series:
+    """Rows since the mark last moved. Zero on a day the mark moved; NaN before it ever has."""
+    moved = close.pct_change().abs() > 0
+    position = pd.Series(np.arange(len(close), dtype=float), index=close.index)
+    last_move = position.where(moved).ffill()
+    return position - last_move
+
+
+def _scorable(close: pd.Series, window: int, min_fresh: int, max_stale: int) -> pd.Series:
+    """Both guards: enough fresh marks in the window AND a recent one."""
+    return (_fresh_count(close, window) >= int(min_fresh)) & (_rows_since_fresh(close) <= int(max_stale))
+
+
+def _window_ulcer(prices: np.ndarray) -> float:
+    """Ulcer index of ONE window, drawdown measured from the running high inside that window."""
+    high = np.maximum.accumulate(prices)
+    drawdown = prices / high - 1.0
+    return float(np.sqrt(np.mean(drawdown ** 2)))
+
+
 @indicators.define()
-def calm_score(close: pd.Series, inverse_vol_window: int = 90, calm_min_fresh: int = 30) -> pd.Series:
-    """`inverse_vol`, NaN unless at least `calm_min_fresh` marks moved inside the window.
+def calm_score(
+    close: pd.Series, inverse_vol_window: int = 90, calm_min_fresh: int = 30, calm_max_stale_rows: int = 10,
+) -> pd.Series:
+    """`inverse_vol`, NaN unless at least `calm_min_fresh` marks moved inside the window AND the
+    last one is no more than `calm_max_stale_rows` rows old.
 
     Higher is calmer. Identical to `inverse_vol` on a vault that reports; NaN rather than 10,000
-    on one that does not.
+    on one that has stopped.
     """
     w = int(inverse_vol_window)
     vol = close.pct_change().rolling(w, min_periods=w).std()
-    return (1.0 / vol.clip(lower=VOL_FLOOR)).where(_fresh_count(close, w) >= int(calm_min_fresh))
+    return (1.0 / vol.clip(lower=VOL_FLOOR)).where(_scorable(close, w, calm_min_fresh, calm_max_stale_rows))
 
 
 @indicators.define()
-def inverse_ulcer_score(close: pd.Series, stability_rank_window: int = 90, calm_min_fresh: int = 30) -> pd.Series:
+def inverse_ulcer_score(
+    close: pd.Series, stability_rank_window: int = 90, calm_min_fresh: int = 30, calm_max_stale_rows: int = 10,
+) -> pd.Series:
     """One over the trailing ulcer index. Higher means less time under water, and shallower.
 
-    The out-of-sample sketch put this ranker's worst split at -13.9% against the volatility
-    ranker's -22.5%: the ulcer penalises DURATION under the high as well as depth, which is
-    closer to "a stable equity curve" than volatility is.
+    Computed in ONE window: for each trailing `stability_rank_window` rows, drawdown is measured
+    from the running high inside that window and the ulcer is the root mean square of it. The
+    obvious two-step form - a rolling max, then a rolling mean of squared drawdowns - needs
+    about twice the window before its first value and mixes reference highs from outside it,
+    which is what `ulcer_index_180` does and what a review of the first build of this notebook
+    caught here.
     """
     w = int(stability_rank_window)
-    drawdown = close / close.rolling(w, min_periods=w).max() - 1.0
-    ulcer = (drawdown ** 2).rolling(w, min_periods=w).mean() ** 0.5
-    return (1.0 / ulcer.clip(lower=ULCER_FLOOR)).where(_fresh_count(close, w) >= int(calm_min_fresh))
+    ulcer = close.rolling(w, min_periods=w).apply(_window_ulcer, raw=True)
+    return (1.0 / ulcer.clip(lower=ULCER_FLOOR)).where(_scorable(close, w, calm_min_fresh, calm_max_stale_rows))
 
 
 @indicators.define()
-def inverse_downside_score(close: pd.Series, stability_rank_window: int = 90, calm_min_fresh: int = 30) -> pd.Series:
+def inverse_downside_score(
+    close: pd.Series, stability_rank_window: int = 90, calm_min_fresh: int = 30, calm_max_stale_rows: int = 10,
+) -> pd.Series:
     """One over the trailing downside deviation. Higher means smaller and rarer losing days."""
     w = int(stability_rank_window)
     r = close.pct_change()
     downside = ((r.clip(upper=0.0) ** 2).rolling(w, min_periods=w).mean()) ** 0.5
-    return (1.0 / downside.clip(lower=VOL_FLOOR)).where(_fresh_count(close, w) >= int(calm_min_fresh))
+    return (1.0 / downside.clip(lower=VOL_FLOOR)).where(_scorable(close, w, calm_min_fresh, calm_max_stale_rows))
 '''
 
 #: No new `decide_trades` splice: the floor is `gate_threshold` and the ranker is
