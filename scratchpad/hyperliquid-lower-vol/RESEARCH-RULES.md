@@ -5,7 +5,8 @@ Supersedes the anchor-relative adoption rules v1-v4 used in NB03-NB26. Set by th
 
 ## Objective
 
-**Maximise cycle Sharpe by selecting stable vaults, not lucky and volatile ones.**
+**Maximise cycle Sharpe by selecting stable vaults, not lucky and volatile ones, holding as many
+distinct vaults as the Sharpe allows.**
 
 The second clause is not decoration. Portfolio Sharpe is an OUTCOME, and this track has repeatedly
 produced good outcomes for bad reasons: `drop_30` reached the highest Sharpe in either batch and
@@ -14,6 +15,10 @@ NB26 showed 98% of its edge was one vault; a purely random removal of nine vault
 outcome cannot tell those apart from a mechanism that works. So the gates below constrain THREE
 things: the outcome, the character of the book that produced it, and whether the selection signal
 demonstrably predicts stability at all.
+
+The third clause conflicts with the first in this universe, and the rule says below how that is
+resolved. It is stated as a clause rather than a separate objective because the evidence is
+unambiguous that wider is worse here.
 
 No return floor. The operator removed it on 2026-09-14 on the grounds that we do not know what
 vaults the universe will contain in future, so a floor calibrated to today's opportunity set is
@@ -38,7 +43,7 @@ Also dropped: the 20% CAGR floor. Checked before removing it, across all 57 runs
 batches: **nothing has high Sharpe and low return.** No run anywhere has Sharpe above 1.8 with
 CAGR below 20%. The floor was never binding, so removing it admits nothing it was holding back.
 
-## Three consequences the operator should know
+## Four consequences the operator should know
 
 1. **Cash overlays are now out, not in.** They were rejected under v1-v4 by the deployment floor,
    which has gone - but they reduce Sharpe here, so the new objective rejects them on the merits.
@@ -54,7 +59,17 @@ CAGR below 20%. The floor was never binding, so removing it admits nothing it wa
    15% target and 0.085 at the 10% - and that lowers Sharpe. **So the operator can have lower
    volatility or higher Sharpe, not both, until a mechanism exists that changes volatility without
    changing deployment.** Nothing tested so far does.
-3. **Sharpe is below this window's resolution.** NB03a put the minimum detectable Sharpe
+3. **No selection mechanism has ever changed concentration, and the two things that do are
+   expensive.** Measured across every variant in both batches: mean holdings 6.00, largest
+   single weight 33.1-33.2%, Herfindahl 0.242-0.244, 32 to 34 distinct vaults over the window.
+   Those numbers are identical to three decimal places whether the mechanism is the drop family,
+   complementary selection, the Sortino swap or the anchor itself. Concentration is set by
+   `max_assets_in_portfolio = 6` and by inverse-volatility sizing, not by which vaults are chosen.
+   The only levers that move it were tested in batch 1 and cost heavily: eight names gives 11.18%
+   CAGR and ten names 1.15%, against the anchor's 37.90%; capping position concentration at 0.20
+   gives 27.21% and at 0.25 gives 28.78%. **So "as many vaults as possible" is bounded at six
+   unless the operator accepts a 9 to 37 point return cost.**
+4. **Sharpe is below this window's resolution.** NB03a put the minimum detectable Sharpe
    difference at about 2.50 on 125 two-day cycles. The spread across every candidate ever run is
    roughly 1.5 to 2.7. Ranking runs by Sharpe is therefore ranking on noise, and the new objective
    makes that the explicit selection criterion. **The robustness gates below are now doing all the
@@ -104,17 +119,37 @@ evidence alone) only if every one of these holds. Gates 1-2 are sanity and survi
 7. **Sub-period sign.** Positive CAGR in all three segments: sparse (to 2026-03-31), dense (April
    to June) and late (July onwards). A candidate that earns in one regime only has not been shown
    to work.
-8. **Null.** Beat all draws of the mechanism's own information-destroying null on cycle Sharpe,
+8. **Diversification no worse than the anchor.** Over the realised holdings: mean holdings count
+   at least the anchor's 6.00, largest mean weight no more than its 0.3316, Herfindahl no more
+   than its 0.2436, distinct vaults held over the window at least its 33, and `top_vault_pnl_share`
+   no more than the anchor's. This is a floor, not a target. Nothing yet built moves any of these,
+   so in practice it excludes only mechanisms that make concentration WORSE.
+9. **Null.** Beat all draws of the mechanism's own information-destroying null on cycle Sharpe,
    with at least ten draws. The null must preserve the mechanism's structure and destroy only its
    ranking information. **Assert that the draws actually differ and print the count of distinct
    draws** - NB26's null was one draw repeated ten times and the tell, `null_median == null_best`,
    was visible and missed.
 
+## Resolving the conflict between Sharpe and diversification
+
+They trade off directly here and Sharpe cannot arbitrate, because this window's minimum detectable
+Sharpe difference is about 2.50 while the entire candidate spread is 1.5 to 2.7. So:
+
+**When two candidates' cycle Sharpe differ by less than 0.25, prefer the more diversified one.**
+Below that margin the Sharpe ordering is noise and diversification is measured without error, so
+the measurable quantity decides. 0.25 is the same tolerance as the plateau gate and is
+pre-registered here, before any run under these rules.
+
+Above 0.25 the higher Sharpe wins, and the diversification gate still applies as a floor. A
+candidate that buys Sharpe by concentrating further than the anchor is rejected outright rather
+than traded off.
+
 ## Reported on every row, never gated
 
 `cycle_sharpe`, `cagr`, `cycle_vol`, `ulcer`, `max_dd`, `abs_invested_beta`, `mean_invested`, the
 three sub-period CAGRs and ulcers, `luck_ratio`, `top5_gross_share`, `top_vault_pnl_share`,
-`lovo_sharpe_retention`, and the two capital-weighted held-book character measures from gate 3. Also the anchor's own values, for continuity with NB03-NB26.
+`lovo_sharpe_retention`, the two capital-weighted held-book character measures from gate 3, and
+the five diversification measures from gate 8. Also the anchor's own values, for continuity with NB03-NB26.
 
 Paired block-bootstrap intervals against the anchor are reported for context. They are not a gate,
 because the window cannot resolve the differences involved and pretending otherwise was the
