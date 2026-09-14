@@ -5,9 +5,11 @@ Supersedes the anchor-relative adoption rules v1-v4 used in NB03-NB26. Set by th
 
 ## Objective
 
-**Maximise cycle Sharpe, subject to CAGR >= 20%.**
+**Maximise cycle Sharpe.**
 
-That is the whole objective. There is no requirement to match or beat
+No return floor. The operator removed it on 2026-09-14 on the grounds that we do not know what
+vaults the universe will contain in future, so a floor calibrated to today's opportunity set is
+arbitrary. There is no requirement to match or beat
 [02-better-format.ipynb](02-better-format.ipynb) on any metric. The anchor is now a REFERENCE
 POINT, reported on every table so results stay comparable with NB03-NB26, and it is not a bar.
 
@@ -24,9 +26,11 @@ Dropped: Sharpe non-inferiority, the volatility ceiling, the ulcer-improvement r
 beta ceiling, and the deployment floor. Concentration and cash are both acceptable if they buy
 Sharpe.
 
-Kept: the 20% CAGR floor, which is the operator's own number.
+Also dropped: the 20% CAGR floor. Checked before removing it, across all 57 runs of both
+batches: **nothing has high Sharpe and low return.** No run anywhere has Sharpe above 1.8 with
+CAGR below 20%. The floor was never binding, so removing it admits nothing it was holding back.
 
-## Two consequences the operator should know
+## Three consequences the operator should know
 
 1. **Cash overlays are now out, not in.** They were rejected under v1-v4 by the deployment floor,
    which has gone - but they reduce Sharpe here, so the new objective rejects them on the merits.
@@ -34,7 +38,15 @@ Kept: the 20% CAGR floor, which is the operator's own number.
    dynamic and de-levers after volatility spikes, which on this data means selling after
    drawdowns. Measured: anchor 2.1598, `target_vol_0.15` 1.8488, `target_vol_0.10` 1.5335, falling
    monotonically as more cash is held.
-2. **Sharpe is below this window's resolution.** NB03a put the minimum detectable Sharpe
+2. **In this universe Sharpe IS return, so maximising it will not lower volatility.** Across all
+   57 runs, cycle Sharpe correlates **+0.985** with CAGR and only **-0.270** with cycle
+   volatility. Volatility across every candidate ever built spans a narrow 0.138 to 0.169, while
+   CAGR spans -0.23 to 0.49. Selection mechanisms move return; they barely move volatility. The
+   only thing in this track that has materially lowered volatility is holding cash - 0.105 at the
+   15% target and 0.085 at the 10% - and that lowers Sharpe. **So the operator can have lower
+   volatility or higher Sharpe, not both, until a mechanism exists that changes volatility without
+   changing deployment.** Nothing tested so far does.
+3. **Sharpe is below this window's resolution.** NB03a put the minimum detectable Sharpe
    difference at about 2.50 on 125 two-day cycles. The spread across every candidate ever run is
    roughly 1.5 to 2.7. Ranking runs by Sharpe is therefore ranking on noise, and the new objective
    makes that the explicit selection criterion. **The robustness gates below are now doing all the
@@ -45,9 +57,14 @@ Kept: the 20% CAGR floor, which is the operator's own number.
 A candidate is ADOPTED (= admitted to the prospective shadow protocol, never deployed on this
 evidence alone) only if every one of these holds.
 
-1. **Return floor.** `cagr >= 0.20`.
+1. **Positive return.** `cagr > 0`. Not a performance bar, a sanity one: Sharpe is not
+   meaningful for a losing strategy and the ratio is uninterpretable when the numerator is
+   negative.
 2. **Single-vault survival.** Re-simulate with the candidate's largest total-P&L contributor
-   masked. The masked run must still satisfy `cagr >= 0.20`. This is a GATE, evaluated before the
+   masked. The masked run must retain at least 70% of the unmasked run's cycle Sharpe, and must
+   still satisfy gate 1. The 70% is pre-registered here, before any run: the anchor retains
+   roughly 62% of its CAGR under this test and the best candidate retains 49%, so the bar sits
+   deliberately above both. This is a GATE, evaluated before the
    plateau, not a closing robustness note. NB26 established that masking one vault takes the
    anchor from 37.90% to 23.90% and takes the best candidate's edge from 11.10 points to 0.22;
    single-name dependence is the binding property of this book.
