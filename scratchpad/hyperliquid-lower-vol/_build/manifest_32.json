@@ -1951,6 +1951,7 @@
    "cycle_sharpe": 0.525625,
    "cycle_vol": 0.070264,
    "invested_vol": 0.128234,
+   "invested_vol_cycles": 106,
    "mean_invested": 0.7286,
    "ulcer": 0.008997,
    "max_dd": -0.034915
@@ -1964,6 +1965,7 @@
    "cycle_sharpe": 1.363141,
    "cycle_vol": 0.073241,
    "invested_vol": 0.131304,
+   "invested_vol_cycles": 106,
    "mean_invested": 0.725688,
    "ulcer": 0.007294,
    "max_dd": -0.033648
@@ -1977,6 +1979,7 @@
    "cycle_sharpe": -1.147845,
    "cycle_vol": 0.082754,
    "invested_vol": 0.098377,
+   "invested_vol_cycles": 106,
    "mean_invested": 0.815999,
    "ulcer": 0.040252,
    "max_dd": -0.084006
@@ -1990,6 +1993,7 @@
    "cycle_sharpe": -0.196893,
    "cycle_vol": 0.084779,
    "invested_vol": 0.100354,
+   "invested_vol_cycles": 106,
    "mean_invested": 0.815763,
    "ulcer": 0.018823,
    "max_dd": -0.045704
@@ -2003,6 +2007,7 @@
    "cycle_sharpe": 2.335572,
    "cycle_vol": 0.156096,
    "invested_vol": 0.163925,
+   "invested_vol_cycles": 124,
    "mean_invested": 0.961314,
    "ulcer": 0.015967,
    "max_dd": -0.051094
@@ -2016,6 +2021,7 @@
    "cycle_sharpe": 3.050539,
    "cycle_vol": 0.170439,
    "invested_vol": 0.179664,
+   "invested_vol_cycles": 124,
    "mean_invested": 0.957692,
    "ulcer": 0.013743,
    "max_dd": -0.053814
@@ -2029,6 +2035,7 @@
    "cycle_sharpe": 1.600071,
    "cycle_vol": 0.140268,
    "invested_vol": 0.143466,
+   "invested_vol_cycles": 124,
    "mean_invested": 0.980887,
    "ulcer": 0.028174,
    "max_dd": -0.067813
@@ -2042,6 +2049,7 @@
    "cycle_sharpe": 2.402942,
    "cycle_vol": 0.150612,
    "invested_vol": 0.154093,
+   "invested_vol_cycles": 124,
    "mean_invested": 0.980541,
    "ulcer": 0.024888,
    "max_dd": -0.070989
@@ -2055,6 +2063,7 @@
    "cycle_sharpe": 2.159792,
    "cycle_vol": 0.154278,
    "invested_vol": 0.16077,
+   "invested_vol_cycles": 124,
    "mean_invested": 0.971969,
    "ulcer": 0.017964,
    "max_dd": -0.044504
@@ -2068,6 +2077,7 @@
    "cycle_sharpe": 2.907625,
    "cycle_vol": 0.164801,
    "invested_vol": 0.172997,
+   "invested_vol_cycles": 124,
    "mean_invested": 0.96965,
    "ulcer": 0.013996,
    "max_dd": -0.039882
@@ -2081,6 +2091,7 @@
    "cycle_sharpe": 1.234834,
    "cycle_vol": 0.140232,
    "invested_vol": 0.143428,
+   "invested_vol_cycles": 124,
    "mean_invested": 0.981577,
    "ulcer": 0.037615,
    "max_dd": -0.072315
@@ -2094,9 +2105,40 @@
    "cycle_sharpe": 2.016219,
    "cycle_vol": 0.151541,
    "invested_vol": 0.155084,
+   "invested_vol_cycles": 124,
    "mean_invested": 0.981205,
    "ulcer": 0.032192,
    "max_dd": -0.071015
+  }
+ },
+ "invested_vol_common": {
+  "calm__floor15__n6": {
+   "common_cycles": 106,
+   "raw_vol_common": 0.076343,
+   "invested_vol_common": 0.128234,
+   "reduction_raw_vs_anchor": 0.534745,
+   "reduction_invested_vs_anchor": 0.247676
+  },
+  "calm__floor20__n6": {
+   "common_cycles": 106,
+   "raw_vol_common": 0.074252,
+   "invested_vol_common": 0.139256,
+   "reduction_raw_vs_anchor": 0.547485,
+   "reduction_invested_vs_anchor": 0.183011
+  },
+  "incumbent__floor15__n6": {
+   "common_cycles": 106,
+   "raw_vol_common": 0.16506,
+   "invested_vol_common": 0.17278,
+   "reduction_raw_vs_anchor": -0.005924,
+   "reduction_invested_vs_anchor": -0.013668
+  },
+  "anchor": {
+   "common_cycles": 106,
+   "raw_vol_common": 0.164088,
+   "invested_vol_common": 0.17045,
+   "reduction_raw_vs_anchor": 0.0,
+   "reduction_invested_vs_anchor": 0.0
   }
  },
  "lovo": [

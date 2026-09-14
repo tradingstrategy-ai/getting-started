@@ -5,6 +5,7 @@ from pathlib import Path
 
 m = json.load(open(Path(__file__).parent / "manifest_32.json"))
 g, b, lb, d, hc, fr = m["main_grid"], m["breadth"], m["lookback"], m["decomposition"], m["held_vol_common"], m["frontier"]
+ic = m["invested_vol_common"]
 lovo = {r["label"]: r for r in m["lovo"]}
 A = g["anchor"]
 
@@ -31,9 +32,10 @@ the harness, and the 2026-09-14 out-of-sample sketch that motivated it. Anchor
 [02-better-format.ipynb](02-better-format.ipynb). Full window 2026-01-01 to 2026-09-08,
 in-sample throughout. {n_runs} backtests: the anchor and {n_runs - 1} others (cell 38).
 
-**Revised twice after Codex review** (`gpt-5.6-sol`,
-[first](32-backtest-return-floor-stability-rank-codex-review.md) and
-[second](32-backtest-return-floor-stability-rank-codex-review-2.md)). Every number in this
+**Revised three times after Codex review** (`gpt-5.6-sol`,
+[first](32-backtest-return-floor-stability-rank-codex-review.md),
+[second](32-backtest-return-floor-stability-rank-codex-review-2.md) and
+[third](32-backtest-return-floor-stability-rank-codex-review-3.md)). Every number in this
 heading is generated from `_build/manifest_32.json` by `_build/write_heading_32.py`, because both
 reviews found figures typed by hand that belonged to an earlier run. The review log is in the
 Robustness section.
@@ -63,7 +65,8 @@ the window AND the last one is within 10 rows. Sizing is untouched.
 
 ## Key new insights and what did we learn from this experiment?
 
-**1. In this engine and this window, the stability rankers do not work (cell 24).** At the 15%
+**1. In this window, every tested stability-ranker configuration underperformed the incumbent
+ranker (cell 24).** At the 15%
 floor and six names: calm **{pc(g['calm__floor15__n6']['cagr'])}**, inverse downside
 {pc(g['downside__floor15__n6']['cagr'])}, inverse ulcer {pc(g['ulcer__floor15__n6']['cagr'])},
 Sortino {pc(g['sortino__floor15__n6']['cagr'])}, gain-to-pain {pc(g['gtp__floor15__n6']['cagr'])},
@@ -80,34 +83,45 @@ concentration limit, the sizing and the re-evaluation cadence, none of which thi
 and this notebook does not say which of those differences carries the gap. It says only that
 fees and the cap do not.
 
-**3. Fees are large for everyone and fall hardest on whatever earns most (cell 36).** Fees cost
-the calm ranker {(c15['cagr']-c_nofee['cagr'])*-100:.1f} points, the incumbent at the same floor
+**3. Fees are large for everyone, and they are profit-linked (cell 36).** Fees cost the calm
+ranker {(c15['cagr']-c_nofee['cagr'])*-100:.1f} points, the incumbent at the same floor
 {(i_nofee['cagr']-i15['cagr'])*100:.1f} ({pc(i15['cagr'])} to {pc(i_nofee['cagr'])}), and the
-anchor {(a_nofee['cagr']-A['cagr'])*100:.1f} ({pc(A['cagr'])} to {pc(a_nofee['cagr'])}). A 10%
-performance fee scales with profit. Both reviews called the fee model blocking on the grounds
-that vault fees are internalised in NAV; that holds for ERC-4626 vaults and not for Hyperliquid,
-where leader commission is charged on the follower's profit at withdrawal. The archive records
-**594 of 603** Hypercore vaults at a 10% commission (cell 36). The model stays.
+anchor {(a_nofee['cagr'])*100 - A['cagr']*100:.1f} ({pc(A['cagr'])} to {pc(a_nofee['cagr'])}). The
+CAGR differences include compounding and altered subsequent allocations, not the fee alone. Three
+reviews argued over the fee model; the third settled it in two parts. Hyperliquid's ordinary 10%
+leader commission is charged on the follower's profit at withdrawal, not internalised in NAV, so a
+performance fee at redemption models a real cost - the archive shows **594 of 603** Hypercore
+vaults at 10% and the local exporter models it the same way (cell 36). But the notebook charges
+every vault 10%, while the nine zero-commission vaults are the HLP protocol family (seven of them
+blacklisted by the provider), and the additional 10 bp capital fee inherited from NB01 has no
+documented basis. Whether HLP or its Liquidator was ever held is not established by any cell.
+Correcting the schedule changes `BASELINE` and breaks parity with NB03-NB31; it is a track-level
+decision and is not made here.
 
 **4. The pool cap is strongly protective (cell 36).** Genuinely removed (1e6 x TVL, which cannot
 bind), it costs the calm ranker {(c15['cagr']-c_nocap['cagr'])*100:.1f} points, the incumbent at
 15% {(i15['cagr']-i_nocap['cagr'])*100:.1f} and the anchor {(A['cagr']-a_nocap['cagr'])*100:.1f}
-({pc(A['cagr'])} to {pc(a_nocap['cagr'])}). It stops the book concentrating into a small vault
-that then fails. The first draft of this heading said the cap was a drag that left the calm runs
-in cash; it is neither - with the cap off the calm ranker still holds {(1-c_nocap['mean_invested'])*100:.0f}%
-cash, so the cash comes from somewhere else, and this notebook does not identify where.
+({pc(A['cagr'])} to {pc(a_nocap['cagr'])}). The mechanism is not shown - no cap-hit counts or
+position weights are printed - so this is direction and magnitude, not cause. The first draft of
+this heading said the cap was a drag that left the calm runs in cash; with the cap off the calm
+ranker still holds {(1-c_nocap['mean_invested'])*100:.0f}% cash, so the cash comes from somewhere
+else, and this notebook does not identify where.
 
-**5. Most of the stability rankers' low raw volatility is cash (cell 24).** Mean invested runs
+**5. Part of the stability rankers' low raw volatility is cash, and on common cycles the part
+is measurable (cell 36).** Mean invested runs
 {f4(min(r['mean_invested'] for r in stab.values()))} to {f4(max(r['mean_invested'] for r in stab.values()))}
-against the anchor's {f4(A['mean_invested'])}. Invested-basket volatility - cycle return over the
-prior cycle's invested fraction, on {c15['invested_vol_cycles'] if 'invested_vol_cycles' in c15 else 106} cycles -
-is **{f4(c15['invested_vol'])}** for the calm ranker at the 15% floor against {f4(i15['invested_vol'])}
-for the incumbent at the same floor and {f4(A['invested_vol'])} for the anchor: about
-{(1-c15['invested_vol']/A['invested_vol'])*100:.0f}% lower, not the
-{(1-c15['cycle_vol']/A['cycle_vol'])*100:.0f}% the raw column shows.
+against the anchor's {f4(A['mean_invested'])}. On the {int(ic['calm__floor15__n6']['common_cycles'])}
+cycles where both the calm ranker at the 15% floor and the anchor were at least 20% invested, raw
+volatility is {f4(ic['calm__floor15__n6']['raw_vol_common'])} against {f4(ic['anchor']['raw_vol_common'])}
+(a {ic['calm__floor15__n6']['reduction_raw_vs_anchor']*100:.0f}% reduction) and invested-basket
+volatility - cycle return over the prior cycle's invested fraction - is
+{f4(ic['calm__floor15__n6']['invested_vol_common'])} against {f4(ic['anchor']['invested_vol_common'])}
+(a {ic['calm__floor15__n6']['reduction_invested_vs_anchor']*100:.0f}% reduction). The gap between
+the two reductions is the share cash accounts for. Two earlier drafts compared these on different
+cycle samples.
 
 **6. They hold calmer vaults, by a factor of {1/hc['calm__floor15__n6']['ratio_to_anchor']:.1f} on
-common dates (cell 24).** Capital-weighted own daily volatility on the {hc['calm__floor15__n6']['common_dates']}
+common dates (cell 36).** Capital-weighted own daily volatility on the {hc['calm__floor15__n6']['common_dates']}
 dates both configurations cover: calm at the 15% floor {f4(hc['calm__floor15__n6']['held_vol_common'])},
 anchor on the same dates {f4(hc['calm__floor15__n6']['anchor_on_same_dates'])}. Two earlier drafts
 gave "five to twenty times" (conditioned on an unrelated indicator's coverage) and "2.4 times"
@@ -150,7 +164,7 @@ Calm ranker, 15% floor, six names: {' / '.join(f"{k.split('__lb')[-1] if '__lb' 
 
 | configuration | CAGR | Sharpe | vol | invested vol | invested | ulcer | max DD | cell |
 |---|---|---|---|---|---|---|---|---|
-| anchor | {f4(A['cagr'])} | {f4(A['cycle_sharpe'])} | {f4(A['cycle_vol'])} | {f4(A['invested_vol'])} | {f4(A['mean_invested'])} | {f4(A['ulcer'])} | {A['max_dd']:.4f} | 21 |
+| anchor | {f4(A['cagr'])} | {f4(A['cycle_sharpe'])} | {f4(A['cycle_vol'])} | {f4(A['invested_vol'])} | {f4(A['mean_invested'])} | {f4(A['ulcer'])} | {A['max_dd']:.4f} | 24 |
 """ + "".join(
     f"| incumbent, {f}% floor, 6 | {f4(inc[f]['cagr'])} | {f4(inc[f]['cycle_sharpe'])} | {f4(inc[f]['cycle_vol'])} | {f4(inc[f]['invested_vol'])} | {f4(inc[f]['mean_invested'])} | {f4(inc[f]['ulcer'])} | {inc[f]['max_dd']:.4f} | 23 |\n"
     for f in ("15", "20", "30")) + "".join(
@@ -190,8 +204,13 @@ recorded as the highest observed Sharpe in the grid and is not carried either.
   three minor. Applied: the cap genuinely removed (1.0 x TVL was still a cap), common-date held
   volatility, invested-volatility coverage counts, the anchor restored to the frontier's "none"
   row, the "flat across floors" claim withdrawn, the "gap is in the dynamics" inference
-  withdrawn, and four stale numbers replaced by generated ones. Rejected: the fee model, with the
-  leader-commission evidence above; the build-script finding, as before. Deferred: the fee audit.
+  withdrawn, and four stale numbers replaced by generated ones. Third review: one blocking (the
+  fee SCHEDULE - universal 10% and the 10 bp capital fee - after accepting that the commission is
+  externalised), two material, two minor. Applied: cap mechanism reduced to direction and
+  magnitude; invested-basket volatility on common cycles; `invested_vol_cycles` written to the
+  manifest so the generator has no fallback; two citations corrected; three sentences softened.
+  The third review accepted the build-script rejection. The fee schedule is recorded above as a
+  track-level decision. Deferred: the fee audit.
 - **Snapshot**: `vault-prices.parquet` 254,818,366 bytes, sha256 prefix `3e79966a`. Anchor parity
   holds against `BASELINE` at 1e-5 with the three new ranker indicators present (cell 21).
 """

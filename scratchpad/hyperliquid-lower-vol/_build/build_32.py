@@ -215,7 +215,31 @@ def invested_basket_vol(state_, equity_) -> dict:
     usable = invested.shift(1) > 0.2
     scaled = (r / invested.shift(1)).where(usable).dropna()
     return {"invested_vol": float(scaled.std(ddof=1) * np.sqrt(periods)) if len(scaled) > 10 else np.nan,
-            "invested_vol_cycles": int(len(scaled)), "invested_vol_excluded": int(len(r) - len(scaled))}
+            "invested_vol_cycles": int(len(scaled)), "invested_vol_excluded": int(len(r) - len(scaled)),
+            "invested_scaled_series": scaled, "raw_cycle_series": r}
+
+
+def invested_vol_common(labels: list) -> pd.DataFrame:
+    """Raw and invested-basket volatility for several configurations on the SAME cycles.
+
+    The third review found the invested-basket diagnostic compared 106 usable cycles for the
+    calm ranker against 124 for the anchor, so the difference mixed cash with calendar. This
+    intersects the usable cycles first and reports both volatilities on that common set.
+    """
+    common = None
+    for label in labels:
+        idx = run_by_label[label]["invested_scaled_series"].index
+        common = idx if common is None else common.intersection(idx)
+    rows = []
+    for label in labels:
+        e = run_by_label[label]
+        raw = e["raw_cycle_series"].reindex(common)
+        scaled = e["invested_scaled_series"].reindex(common)
+        rows.append({"label": label, "common_cycles": int(len(common)),
+                     "raw_vol_common": float(raw.std(ddof=1) * np.sqrt(PERIODS_PER_YEAR)),
+                     "invested_vol_common": float(scaled.std(ddof=1) * np.sqrt(PERIODS_PER_YEAR))})
+    frame = pd.DataFrame(rows).set_index("label")
+    return frame
 
 
 def run_slim(label: str, family: str, ranker: str, floor: str, size: int = 6, **extra) -> dict:
@@ -520,10 +544,23 @@ _fees = pd.read_parquet(PROVENANCE_PATHS[0], columns=["address", "chain", "leade
 _fees = _fees[_fees["chain"] == 9999].groupby("address", observed=True)["leader_commission"].last()
 print(f"\\nHyperliquid leader_commission in the archive, last value per vault ({len(_fees)} vaults):")
 display(_fees.value_counts().rename("vaults").to_frame())
-print("The 10% performance fee at redemption models this. It is not internalised in the NAV series.")
+print("This table shows the REPORTED commission rates. That the commission is charged on follower")
+print("profit at withdrawal, rather than internalised in the NAV series, is Hyperliquid's documented")
+print("mechanism (hyperliquid.gitbook.io/hyperliquid-docs/hypercore/vaults) and how the local")
+print("exporter models it (eth_defi/hyperliquid/vault_data_export.py); this cell does not test that.")
+print("The zero-commission vaults are the HLP protocol family. The notebook charges every vault 10%")
+print("plus a 10 bp capital fee inherited from NB01; the capital fee has no documented basis.")
 
 display(held_vol_common([label_for("calm", "15", 6), label_for("incumbent", "15", 6), "anchor"]).round(6))
 display(decomp[["invested_vol", "invested_vol_cycles"]].round(4))
+
+# Raw and invested-basket volatility on the SAME cycles, so the cash share is a like-for-like number.
+invested_common = invested_vol_common([label_for("calm", "15", 6), label_for("calm", "20", 6),
+                                       label_for("incumbent", "15", 6), "anchor"])
+invested_common["reduction_raw_vs_anchor"] = 1.0 - invested_common["raw_vol_common"] / invested_common.loc["anchor", "raw_vol_common"]
+invested_common["reduction_invested_vs_anchor"] = 1.0 - invested_common["invested_vol_common"] / invested_common.loc["anchor", "invested_vol_common"]
+print("\\nraw and invested-basket volatility on common cycles (the cash share is the gap between the two reductions):")
+display(invested_common.round(4))
 '''))
 
 cells.append(md("""## Part 7. Summary and manifest
@@ -561,7 +598,8 @@ manifest = {
     "top_by_sharpe": TOP,
     "held_vol_common": common_frame.round(6).to_dict(orient="index"),
     "decomposition": decomp[["ranker", "floor", "fees", "pool_cap", "cagr", "cycle_sharpe", "cycle_vol",
-                             "invested_vol", "mean_invested", "ulcer", "max_dd"]].round(6).to_dict(orient="index"),
+                             "invested_vol", "invested_vol_cycles", "mean_invested", "ulcer", "max_dd"]].round(6).to_dict(orient="index"),
+    "invested_vol_common": invested_common.round(6).to_dict(orient="index"),
     "lovo": lovo_rows,
     "frontier": frontier.round(6).to_dict(orient="index"),
     "all_runs": {
