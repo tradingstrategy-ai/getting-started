@@ -165,7 +165,7 @@ def held_vol_only(state_) -> dict:
     and reports how many dates that is.
     """
     weights = _position_weights(state_)
-    values, dropped = [], []
+    by_date, dropped = {}, []
     for timestamp in sorted(weights):
         holdings = weights[timestamp]
         total = sum(share for _p, share in holdings)
@@ -179,12 +179,31 @@ def held_vol_only(state_) -> dict:
                 covered += share
         dropped.append(1.0 - covered / total)
         if covered / total >= 0.75:
-            values.append(accumulated / covered)
-    return {"held_vol_only": float(np.mean(values)) if values else np.nan,
-            "held_vol_dates": len(values), "held_vol_dropped_weight": float(np.mean(dropped)) if dropped else np.nan}
+            by_date[pd.Timestamp(timestamp)] = accumulated / covered
+    series = pd.Series(by_date, dtype=float).sort_index()
+    return {"held_vol_only": float(series.mean()) if len(series) else np.nan,
+            "held_vol_dates": int(len(series)),
+            "held_vol_dropped_weight": float(np.mean(dropped)) if dropped else np.nan,
+            "held_vol_series": series}
 
 
-def invested_basket_vol(state_, equity_) -> float:
+def held_vol_common(labels: list) -> pd.DataFrame:
+    """Held volatility for several configurations on the INTERSECTION of their covered dates.
+
+    Averaging each configuration over its own covered dates mixes a composition difference with
+    a calendar-sample difference; the first review asked for this and the second found it still
+    missing. One row per label, all on the same dates.
+    """
+    series = {label: run_by_label[label]["held_only"]["held_vol_series"] for label in labels}
+    common = None
+    for s_ in series.values():
+        common = s_.index if common is None else common.intersection(s_.index)
+    rows = [{"label": label, "held_vol_common_dates": float(s_.reindex(common).mean()),
+             "own_dates": int(len(s_)), "common_dates": int(len(common))} for label, s_ in series.items()]
+    return pd.DataFrame(rows).set_index("label")
+
+
+def invested_basket_vol(state_, equity_) -> dict:
     """Annualised cycle volatility of the INVESTED part of the book: cycle return divided by the
     prior cycle's invested fraction, so cash does not mechanically lower it. Same construction as
     `invested_basket_beta()` in harness.py."""
@@ -193,8 +212,10 @@ def invested_basket_vol(state_, equity_) -> float:
             for s in state_.stats.portfolio if s.total_equity}
     invested = pd.Series(rows).sort_index()
     invested = invested[~invested.index.duplicated()].reindex(r.index).ffill()
-    scaled = (r / invested.shift(1)).where(invested.shift(1) > 0.2).dropna()
-    return float(scaled.std(ddof=1) * np.sqrt(periods)) if len(scaled) > 10 else np.nan
+    usable = invested.shift(1) > 0.2
+    scaled = (r / invested.shift(1)).where(usable).dropna()
+    return {"invested_vol": float(scaled.std(ddof=1) * np.sqrt(periods)) if len(scaled) > 10 else np.nan,
+            "invested_vol_cycles": int(len(scaled)), "invested_vol_excluded": int(len(r) - len(scaled))}
 
 
 def run_slim(label: str, family: str, ranker: str, floor: str, size: int = 6, **extra) -> dict:
@@ -207,7 +228,7 @@ def run_slim(label: str, family: str, ranker: str, floor: str, size: int = 6, **
     entry["inertness"] = inertness(entry)
     entry["character"] = held_book_character_cached(entry)
     entry["held_only"] = held_vol_only(entry["state"])
-    entry["invested_vol"] = invested_basket_vol(entry["state"], entry["equity"])
+    entry.update(invested_basket_vol(entry["state"], entry["equity"]))
     entry["largest_vault"] = largest_contributing_vault(entry["state"])
     entry["state"] = None
     return entry
@@ -229,6 +250,7 @@ def grid_frame(labels) -> pd.DataFrame:
         row["held_vol_only"] = (e.get("held_only") or {}).get("held_vol_only", np.nan)
         row["held_vol_dates"] = (e.get("held_only") or {}).get("held_vol_dates", np.nan)
         row["invested_vol"] = e.get("invested_vol", np.nan)
+        row["invested_vol_cycles"] = e.get("invested_vol_cycles", np.nan)
         rows.append(row)
     frame = pd.DataFrame(rows).set_index("label")
     return frame[~frame.index.duplicated()]
@@ -241,7 +263,7 @@ anchor_entry["diversification"] = diversification_cached(anchor_entry)
 anchor_entry["inertness"] = {"inert": True}
 anchor_entry["character"] = held_book_character_cached(anchor_entry)
 anchor_entry["held_only"] = held_vol_only(anchor_entry["state"])
-anchor_entry["invested_vol"] = invested_basket_vol(anchor_entry["state"], anchor_entry["equity"])
+anchor_entry.update(invested_basket_vol(anchor_entry["state"], anchor_entry["equity"]))
 anchor_entry["largest_vault"] = largest_contributing_vault(anchor_entry["state"])
 run_by_label[label_for("incumbent", "none", 6)] = anchor_entry
 '''))
@@ -276,10 +298,29 @@ def pivot(frame, metric):
     return p.reindex(index=ranker_order, columns=floor_order)
 
 
-for metric in ("cycle_sharpe", "cagr", "cycle_vol", "invested_vol", "mean_invested", "ulcer", "max_dd",
-               "mean_holdings", "distinct_vaults", "top_vault_pnl_share", "held_vol_only", "held_vol_dates"):
+for metric in ("cycle_sharpe", "cagr", "cycle_vol", "invested_vol", "invested_vol_cycles", "mean_invested",
+               "ulcer", "max_dd", "mean_holdings", "distinct_vaults", "top_vault_pnl_share",
+               "held_vol_only", "held_vol_dates"):
     print(f"\\n=== {metric}  (rows: ranker, columns: annualised floor) ===")
     display(pivot(main, metric).round(4))
+
+# Held volatility on COMMON dates: each grid run against the anchor on the dates both cover.
+common_rows = []
+for label in main.index:
+    if label == "anchor":
+        continue
+    pair_frame = held_vol_common([label, "anchor"])
+    common_rows.append({"label": label, "ranker": main.loc[label, "ranker"], "floor": main.loc[label, "floor"],
+                        "held_vol_common": pair_frame.loc[label, "held_vol_common_dates"],
+                        "anchor_on_same_dates": pair_frame.loc["anchor", "held_vol_common_dates"],
+                        "common_dates": pair_frame.loc[label, "common_dates"]})
+common_frame = pd.DataFrame(common_rows).set_index("label")
+common_frame["ratio_to_anchor"] = common_frame["held_vol_common"] / common_frame["anchor_on_same_dates"]
+print("\\n=== held volatility on dates common to the run AND the anchor (daily sigma) ===")
+display(common_frame.pivot(index="ranker", columns="floor", values="ratio_to_anchor")
+        .reindex(index=ranker_order, columns=floor_order).round(3))
+display(common_frame.pivot(index="ranker", columns="floor", values="common_dates")
+        .reindex(index=ranker_order, columns=floor_order))
 '''))
 
 cells.append(md("""## Part 2. Equity curves
@@ -442,7 +483,10 @@ floor, and for the anchor. A run with fees off is NOT comparable with the anchor
 it is comparable only with the other fee-off runs in this table.
 """))
 cells.append(code('''NO_FEE = dict(vault_performance_fee=0.0, vault_redemption_capital_fee=0.0)
-NO_CAP = dict(per_position_cap_of_pool_pct=1.0)
+# 1.0 is NOT "cap off": the size-risk model takes min(TVL x cap, asked), so 1.0 still caps a slot
+# at the vault's whole TVL, which binds for any vault smaller than a slot. 1e6 cannot bind for
+# any vault with more than a few dollars of TVL against a book of about $190k.
+NO_CAP = dict(per_position_cap_of_pool_pct=1_000_000.0)
 DECOMP = []
 for ranker, floor in (("calm", "15"), ("incumbent", "15"), ("incumbent", "none")):
     base = label_for(ranker, floor, 6)
@@ -453,7 +497,7 @@ for ranker, floor in (("calm", "15"), ("incumbent", "15"), ("incumbent", "none")
         DECOMP.append(label)
 decomp = grid_frame(DECOMP)
 decomp["fees"] = ["off" if "nofee" in l else "on" for l in decomp.index]
-decomp["pool_cap"] = ["off" if "nocap" in l else "0.33" for l in decomp.index]
+decomp["pool_cap"] = ["off (1e6 x TVL)" if "nocap" in l else "0.33 x TVL" for l in decomp.index]
 display(decomp[["ranker", "floor", "fees", "pool_cap", "cagr", "cycle_sharpe", "cycle_vol",
                 "invested_vol", "mean_invested", "ulcer", "max_dd", "distinct_vaults"]].round(4))
 
@@ -466,7 +510,20 @@ print(f"  as run (fees on, cap 0.33) : {calm_on*100:6.2f}%")
 print(f"  fees off                   : {calm_nofee*100:6.2f}%   ({(calm_nofee-calm_on)*100:+.2f} pp)")
 print(f"  pool cap off               : {calm_nocap*100:6.2f}%   ({(calm_nocap-calm_on)*100:+.2f} pp)")
 print(f"  both off                   : {calm_both*100:6.2f}%   ({(calm_both-calm_on)*100:+.2f} pp)")
-print(f"  the sketch, same rule      :  27.37%   (equal weight, 45-day hold, no gate re-evaluation)")
+print(f"  the sketch's figure        :  27.37%   (equal weight, 45-day hold, 45-day vol window, no engine)")
+print("  the sketch is NOT the same rule: it differs in the volatility window, admission rules,")
+print("  concentration limit, sizing and re-evaluation cadence, none of which this table varies.")
+
+# Why the fee model stays: Hyperliquid vaults charge a leader commission on follower profit at
+# withdrawal, which is NOT in the share price. The archive records it per vault.
+_fees = pd.read_parquet(PROVENANCE_PATHS[0], columns=["address", "chain", "leader_commission"]).reset_index()
+_fees = _fees[_fees["chain"] == 9999].groupby("address", observed=True)["leader_commission"].last()
+print(f"\\nHyperliquid leader_commission in the archive, last value per vault ({len(_fees)} vaults):")
+display(_fees.value_counts().rename("vaults").to_frame())
+print("The 10% performance fee at redemption models this. It is not internalised in the NAV series.")
+
+display(held_vol_common([label_for("calm", "15", 6), label_for("incumbent", "15", 6), "anchor"]).round(6))
+display(decomp[["invested_vol", "invested_vol_cycles"]].round(4))
 '''))
 
 cells.append(md("""## Part 7. Summary and manifest
@@ -476,7 +533,9 @@ Sharpe and the lowest volatility any ranker reached, and what they cost in CAGR.
 """))
 cells.append(code('''frontier = []
 for floor in FLOORS:
-    sub = main[(main["floor"] == floor) & ~main["inert"]]
+    # The anchor is marked inert only so Part 5 cannot pick it as a "top" candidate; it belongs
+    # in the frontier, as the incumbent at floor "none".
+    sub = main[(main["floor"] == floor) & (~main["inert"] | (main.index == "anchor"))]
     if not len(sub):
         continue
     best = sub["cycle_sharpe"].idxmax(); calmest = sub["cycle_vol"].idxmin()
@@ -500,6 +559,7 @@ manifest = {
     "breadth": breadth[COLUMNS].round(6).to_dict(orient="index"),
     "lookback": lookback_frame.round(6).to_dict(orient="index"),
     "top_by_sharpe": TOP,
+    "held_vol_common": common_frame.round(6).to_dict(orient="index"),
     "decomposition": decomp[["ranker", "floor", "fees", "pool_cap", "cagr", "cycle_sharpe", "cycle_vol",
                              "invested_vol", "mean_invested", "ulcer", "max_dd"]].round(6).to_dict(orient="index"),
     "lovo": lovo_rows,

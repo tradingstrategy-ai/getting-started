@@ -1479,6 +1479,7 @@
    "held_vol_only": 0.006954,
    "held_vol_dates": 107,
    "invested_vol": 0.1045,
+   "invested_vol_cycles": 106,
    "gate_lookback_days": 30,
    "inverse_vol_window": 90
   },
@@ -1520,6 +1521,7 @@
    "held_vol_only": 0.007462,
    "held_vol_dates": 107,
    "invested_vol": 0.128234,
+   "invested_vol_cycles": 106,
    "gate_lookback_days": 45,
    "inverse_vol_window": 90
   },
@@ -1561,6 +1563,7 @@
    "held_vol_only": 0.007132,
    "held_vol_dates": 107,
    "invested_vol": 0.116891,
+   "invested_vol_cycles": 106,
    "gate_lookback_days": 60,
    "inverse_vol_window": 90
   },
@@ -1602,6 +1605,7 @@
    "held_vol_only": 0.007447,
    "held_vol_dates": 107,
    "invested_vol": 0.082735,
+   "invested_vol_cycles": 105,
    "gate_lookback_days": 90,
    "inverse_vol_window": 90
   },
@@ -1643,6 +1647,7 @@
    "held_vol_only": 0.008909,
    "held_vol_dates": 68,
    "invested_vol": 0.092934,
+   "invested_vol_cycles": 100,
    "gate_lookback_days": 45,
    "inverse_vol_window": 45
   }
@@ -1654,12 +1659,294 @@
   "incumbent__floor10__n6",
   "incumbent__floor0__n6"
  ],
+ "held_vol_common": {
+  "incumbent__floor0__n6": {
+   "ranker": "incumbent",
+   "floor": "0",
+   "held_vol_common": 0.017041,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 0.935141
+  },
+  "incumbent__floor10__n6": {
+   "ranker": "incumbent",
+   "floor": "10",
+   "held_vol_common": 0.017467,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 0.958518
+  },
+  "incumbent__floor15__n6": {
+   "ranker": "incumbent",
+   "floor": "15",
+   "held_vol_common": 0.01801,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 0.988353
+  },
+  "incumbent__floor20__n6": {
+   "ranker": "incumbent",
+   "floor": "20",
+   "held_vol_common": 0.018933,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.039002
+  },
+  "incumbent__floor30__n6": {
+   "ranker": "incumbent",
+   "floor": "30",
+   "held_vol_common": 0.02105,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.155125
+  },
+  "calm__floornone__n6": {
+   "ranker": "calm",
+   "floor": "none",
+   "held_vol_common": 0.002503,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.133071
+  },
+  "calm__floor0__n6": {
+   "ranker": "calm",
+   "floor": "0",
+   "held_vol_common": 0.003575,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.190002
+  },
+  "calm__floor10__n6": {
+   "ranker": "calm",
+   "floor": "10",
+   "held_vol_common": 0.006402,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.34027
+  },
+  "calm__floor15__n6": {
+   "ranker": "calm",
+   "floor": "15",
+   "held_vol_common": 0.007462,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.396633
+  },
+  "calm__floor20__n6": {
+   "ranker": "calm",
+   "floor": "20",
+   "held_vol_common": 0.008853,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.470581
+  },
+  "calm__floor30__n6": {
+   "ranker": "calm",
+   "floor": "30",
+   "held_vol_common": 0.011076,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.588766
+  },
+  "ulcer__floornone__n6": {
+   "ranker": "ulcer",
+   "floor": "none",
+   "held_vol_common": 0.003265,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.173534
+  },
+  "ulcer__floor0__n6": {
+   "ranker": "ulcer",
+   "floor": "0",
+   "held_vol_common": 0.00435,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.231244
+  },
+  "ulcer__floor10__n6": {
+   "ranker": "ulcer",
+   "floor": "10",
+   "held_vol_common": 0.0079,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.419906
+  },
+  "ulcer__floor15__n6": {
+   "ranker": "ulcer",
+   "floor": "15",
+   "held_vol_common": 0.00907,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.482137
+  },
+  "ulcer__floor20__n6": {
+   "ranker": "ulcer",
+   "floor": "20",
+   "held_vol_common": 0.01054,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.560233
+  },
+  "ulcer__floor30__n6": {
+   "ranker": "ulcer",
+   "floor": "30",
+   "held_vol_common": 0.012965,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.68916
+  },
+  "downside__floornone__n6": {
+   "ranker": "downside",
+   "floor": "none",
+   "held_vol_common": 0.002752,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.146259
+  },
+  "downside__floor0__n6": {
+   "ranker": "downside",
+   "floor": "0",
+   "held_vol_common": 0.003938,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.209303
+  },
+  "downside__floor10__n6": {
+   "ranker": "downside",
+   "floor": "10",
+   "held_vol_common": 0.006854,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.364339
+  },
+  "downside__floor15__n6": {
+   "ranker": "downside",
+   "floor": "15",
+   "held_vol_common": 0.007976,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.42397
+  },
+  "downside__floor20__n6": {
+   "ranker": "downside",
+   "floor": "20",
+   "held_vol_common": 0.009284,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.493478
+  },
+  "downside__floor30__n6": {
+   "ranker": "downside",
+   "floor": "30",
+   "held_vol_common": 0.01136,
+   "anchor_on_same_dates": 0.018813,
+   "common_dates": 107,
+   "ratio_to_anchor": 0.603849
+  },
+  "gtp__floornone__n6": {
+   "ranker": "gtp",
+   "floor": "none",
+   "held_vol_common": 0.007273,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 0.399098
+  },
+  "gtp__floor0__n6": {
+   "ranker": "gtp",
+   "floor": "0",
+   "held_vol_common": 0.011152,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 0.611971
+  },
+  "gtp__floor10__n6": {
+   "ranker": "gtp",
+   "floor": "10",
+   "held_vol_common": 0.019511,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.070715
+  },
+  "gtp__floor15__n6": {
+   "ranker": "gtp",
+   "floor": "15",
+   "held_vol_common": 0.021644,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.187729
+  },
+  "gtp__floor20__n6": {
+   "ranker": "gtp",
+   "floor": "20",
+   "held_vol_common": 0.02223,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.219879
+  },
+  "gtp__floor30__n6": {
+   "ranker": "gtp",
+   "floor": "30",
+   "held_vol_common": 0.025751,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.413099
+  },
+  "sortino__floornone__n6": {
+   "ranker": "sortino",
+   "floor": "none",
+   "held_vol_common": 0.021589,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.184737
+  },
+  "sortino__floor0__n6": {
+   "ranker": "sortino",
+   "floor": "0",
+   "held_vol_common": 0.02202,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.208406
+  },
+  "sortino__floor10__n6": {
+   "ranker": "sortino",
+   "floor": "10",
+   "held_vol_common": 0.026644,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.462117
+  },
+  "sortino__floor15__n6": {
+   "ranker": "sortino",
+   "floor": "15",
+   "held_vol_common": 0.026972,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.480112
+  },
+  "sortino__floor20__n6": {
+   "ranker": "sortino",
+   "floor": "20",
+   "held_vol_common": 0.028014,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.537311
+  },
+  "sortino__floor30__n6": {
+   "ranker": "sortino",
+   "floor": "30",
+   "held_vol_common": 0.029533,
+   "anchor_on_same_dates": 0.018223,
+   "common_dates": 126,
+   "ratio_to_anchor": 1.620679
+  }
+ },
  "decomposition": {
   "calm__floor15__n6": {
    "ranker": "calm",
    "floor": "15",
    "fees": "on",
-   "pool_cap": "0.33",
+   "pool_cap": "0.33 x TVL",
    "cagr": 0.035084,
    "cycle_sharpe": 0.525625,
    "cycle_vol": 0.070264,
@@ -1672,7 +1959,7 @@
    "ranker": "calm",
    "floor": "15",
    "fees": "off",
-   "pool_cap": "0.33",
+   "pool_cap": "0.33 x TVL",
    "cagr": 0.102032,
    "cycle_sharpe": 1.363141,
    "cycle_vol": 0.073241,
@@ -1685,33 +1972,33 @@
    "ranker": "calm",
    "floor": "15",
    "fees": "on",
-   "pool_cap": "off",
-   "cagr": -0.019566,
-   "cycle_sharpe": -0.220299,
-   "cycle_vol": 0.07649,
-   "invested_vol": 0.099559,
-   "mean_invested": 0.805954,
-   "ulcer": 0.0246,
-   "max_dd": -0.040946
+   "pool_cap": "off (1e6 x TVL)",
+   "cagr": -0.093743,
+   "cycle_sharpe": -1.147845,
+   "cycle_vol": 0.082754,
+   "invested_vol": 0.098377,
+   "mean_invested": 0.815999,
+   "ulcer": 0.040252,
+   "max_dd": -0.084006
   },
   "calm__floor15__n6__nofee_nocap": {
    "ranker": "calm",
    "floor": "15",
    "fees": "off",
-   "pool_cap": "off",
-   "cagr": 0.060029,
-   "cycle_sharpe": 0.77824,
-   "cycle_vol": 0.078891,
-   "invested_vol": 0.101852,
-   "mean_invested": 0.804855,
-   "ulcer": 0.012397,
-   "max_dd": -0.040049
+   "pool_cap": "off (1e6 x TVL)",
+   "cagr": -0.020068,
+   "cycle_sharpe": -0.196893,
+   "cycle_vol": 0.084779,
+   "invested_vol": 0.100354,
+   "mean_invested": 0.815763,
+   "ulcer": 0.018823,
+   "max_dd": -0.045704
   },
   "incumbent__floor15__n6": {
    "ranker": "incumbent",
    "floor": "15",
    "fees": "on",
-   "pool_cap": "0.33",
+   "pool_cap": "0.33 x TVL",
    "cagr": 0.42232,
    "cycle_sharpe": 2.335572,
    "cycle_vol": 0.156096,
@@ -1724,7 +2011,7 @@
    "ranker": "incumbent",
    "floor": "15",
    "fees": "off",
-   "pool_cap": "0.33",
+   "pool_cap": "0.33 x TVL",
    "cagr": 0.657052,
    "cycle_sharpe": 3.050539,
    "cycle_vol": 0.170439,
@@ -1737,33 +2024,33 @@
    "ranker": "incumbent",
    "floor": "15",
    "fees": "on",
-   "pool_cap": "off",
-   "cagr": 0.336959,
-   "cycle_sharpe": 2.017475,
-   "cycle_vol": 0.149557,
-   "invested_vol": 0.152985,
-   "mean_invested": 0.981089,
-   "ulcer": 0.023685,
-   "max_dd": -0.052209
+   "pool_cap": "off (1e6 x TVL)",
+   "cagr": 0.23915,
+   "cycle_sharpe": 1.600071,
+   "cycle_vol": 0.140268,
+   "invested_vol": 0.143466,
+   "mean_invested": 0.980887,
+   "ulcer": 0.028174,
+   "max_dd": -0.067813
   },
   "incumbent__floor15__n6__nofee_nocap": {
    "ranker": "incumbent",
    "floor": "15",
    "fees": "off",
-   "pool_cap": "off",
-   "cagr": 0.553045,
-   "cycle_sharpe": 2.793329,
-   "cycle_vol": 0.162466,
-   "invested_vol": 0.16626,
-   "mean_invested": 0.980689,
-   "ulcer": 0.019142,
-   "max_dd": -0.054403
+   "pool_cap": "off (1e6 x TVL)",
+   "cagr": 0.419332,
+   "cycle_sharpe": 2.402942,
+   "cycle_vol": 0.150612,
+   "invested_vol": 0.154093,
+   "mean_invested": 0.980541,
+   "ulcer": 0.024888,
+   "max_dd": -0.070989
   },
   "anchor": {
    "ranker": "incumbent",
    "floor": "none",
    "fees": "on",
-   "pool_cap": "0.33",
+   "pool_cap": "0.33 x TVL",
    "cagr": 0.378971,
    "cycle_sharpe": 2.159792,
    "cycle_vol": 0.154278,
@@ -1776,7 +2063,7 @@
    "ranker": "incumbent",
    "floor": "none",
    "fees": "off",
-   "pool_cap": "0.33",
+   "pool_cap": "0.33 x TVL",
    "cagr": 0.592627,
    "cycle_sharpe": 2.907625,
    "cycle_vol": 0.164801,
@@ -1789,27 +2076,27 @@
    "ranker": "incumbent",
    "floor": "none",
    "fees": "on",
-   "pool_cap": "off",
-   "cagr": 0.282044,
-   "cycle_sharpe": 1.751078,
-   "cycle_vol": 0.148196,
-   "invested_vol": 0.151637,
-   "mean_invested": 0.981255,
-   "ulcer": 0.027531,
-   "max_dd": -0.054073
+   "pool_cap": "off (1e6 x TVL)",
+   "cagr": 0.177306,
+   "cycle_sharpe": 1.234834,
+   "cycle_vol": 0.140232,
+   "invested_vol": 0.143428,
+   "mean_invested": 0.981577,
+   "ulcer": 0.037615,
+   "max_dd": -0.072315
   },
   "incumbent__floornone__n6__nofee_nocap": {
    "ranker": "incumbent",
    "floor": "none",
    "fees": "off",
-   "pool_cap": "off",
-   "cagr": 0.486698,
-   "cycle_sharpe": 2.541361,
-   "cycle_vol": 0.161264,
-   "invested_vol": 0.165027,
-   "mean_invested": 0.980867,
-   "ulcer": 0.021577,
-   "max_dd": -0.054264
+   "pool_cap": "off (1e6 x TVL)",
+   "cagr": 0.341532,
+   "cycle_sharpe": 2.016219,
+   "cycle_vol": 0.151541,
+   "invested_vol": 0.155084,
+   "mean_invested": 0.981205,
+   "ulcer": 0.032192,
+   "max_dd": -0.071015
   }
  },
  "lovo": [
@@ -1876,10 +2163,10 @@
  ],
  "frontier": {
   "none": {
-   "best_sharpe_ranker": "sortino",
-   "best_sharpe": -0.42063,
-   "its_cagr": -0.09129,
-   "its_vol": 0.186275,
+   "best_sharpe_ranker": "incumbent",
+   "best_sharpe": 2.159792,
+   "its_cagr": 0.378971,
+   "its_vol": 0.154278,
    "calmest_ranker": "downside",
    "lowest_vol": 0.042937,
    "calmest_cagr": -0.050596,
@@ -3281,16 +3568,16 @@
     "max_assets_in_portfolio": 6,
     "gate_lookback_days": 45,
     "gate_threshold": 0.01738023312324377,
-    "per_position_cap_of_pool_pct": 1.0
+    "per_position_cap_of_pool_pct": 1000000.0
    },
    "panel": {
-    "cagr": -0.019566352909975993,
-    "cycle_sharpe": -0.22029883837423844,
-    "cycle_vol": 0.07649015784353523,
-    "ulcer": 0.024600390595828248,
-    "max_dd": -0.04094625654617634,
-    "abs_invested_beta": 0.01984459245201385,
-    "mean_invested": 0.8059535951876017
+    "cagr": -0.09374261720816568,
+    "cycle_sharpe": -1.147845243639552,
+    "cycle_vol": 0.08275391808649926,
+    "ulcer": 0.04025244992942814,
+    "max_dd": -0.0840061470363721,
+    "abs_invested_beta": 0.01728599895364006,
+    "mean_invested": 0.8159986834666448
    }
   },
   "calm__floor15__n6__nofee_nocap": {
@@ -3303,16 +3590,16 @@
     "gate_threshold": 0.01738023312324377,
     "vault_performance_fee": 0.0,
     "vault_redemption_capital_fee": 0.0,
-    "per_position_cap_of_pool_pct": 1.0
+    "per_position_cap_of_pool_pct": 1000000.0
    },
    "panel": {
-    "cagr": 0.060029460962526704,
-    "cycle_sharpe": 0.7782397032136966,
-    "cycle_vol": 0.07889085217533903,
-    "ulcer": 0.012396966118217171,
-    "max_dd": -0.04004865062817553,
-    "abs_invested_beta": 0.021139096519356686,
-    "mean_invested": 0.8048545622603295
+    "cagr": -0.020068466334345225,
+    "cycle_sharpe": -0.19689284697310175,
+    "cycle_vol": 0.08477900073040154,
+    "ulcer": 0.018823046108976216,
+    "max_dd": -0.045703587562846315,
+    "abs_invested_beta": 0.0198182693707849,
+    "mean_invested": 0.8157631521588514
    }
   },
   "incumbent__floor15__n6__nofee": {
@@ -3344,16 +3631,16 @@
     "max_assets_in_portfolio": 6,
     "gate_lookback_days": 45,
     "gate_threshold": 0.01738023312324377,
-    "per_position_cap_of_pool_pct": 1.0
+    "per_position_cap_of_pool_pct": 1000000.0
    },
    "panel": {
-    "cagr": 0.3369586292473523,
-    "cycle_sharpe": 2.0174752703879175,
-    "cycle_vol": 0.14955730239290116,
-    "ulcer": 0.02368539915605485,
-    "max_dd": -0.052208808064592716,
-    "abs_invested_beta": 0.013096328105980026,
-    "mean_invested": 0.9810885311503906
+    "cagr": 0.23915026639454795,
+    "cycle_sharpe": 1.6000712235591878,
+    "cycle_vol": 0.14026755553812673,
+    "ulcer": 0.02817428025445065,
+    "max_dd": -0.06781317946907561,
+    "abs_invested_beta": 0.0395856497037112,
+    "mean_invested": 0.9808870418241601
    }
   },
   "incumbent__floor15__n6__nofee_nocap": {
@@ -3366,16 +3653,16 @@
     "gate_threshold": 0.01738023312324377,
     "vault_performance_fee": 0.0,
     "vault_redemption_capital_fee": 0.0,
-    "per_position_cap_of_pool_pct": 1.0
+    "per_position_cap_of_pool_pct": 1000000.0
    },
    "panel": {
-    "cagr": 0.5530447929535134,
-    "cycle_sharpe": 2.79332936535525,
-    "cycle_vol": 0.16246603212838018,
-    "ulcer": 0.019142008401001023,
-    "max_dd": -0.05440264235537973,
-    "abs_invested_beta": 0.015194469173864926,
-    "mean_invested": 0.9806893613784715
+    "cagr": 0.4193324828485878,
+    "cycle_sharpe": 2.4029423449842113,
+    "cycle_vol": 0.15061169711114117,
+    "ulcer": 0.024888233599980936,
+    "max_dd": -0.0709885196591179,
+    "abs_invested_beta": 0.043276117622155635,
+    "mean_invested": 0.9805414914275802
    }
   },
   "incumbent__floornone__n6__nofee": {
@@ -3403,16 +3690,16 @@
     "selection_score_indicator": "cagr_sortino_weight",
     "require_scored_candidates": false,
     "max_assets_in_portfolio": 6,
-    "per_position_cap_of_pool_pct": 1.0
+    "per_position_cap_of_pool_pct": 1000000.0
    },
    "panel": {
-    "cagr": 0.2820441712404358,
-    "cycle_sharpe": 1.751077940031207,
-    "cycle_vol": 0.14819554985838548,
-    "ulcer": 0.02753106723450947,
-    "max_dd": -0.054073450161352454,
-    "abs_invested_beta": 0.01856146069250608,
-    "mean_invested": 0.9812545121712954
+    "cagr": 0.17730584880413214,
+    "cycle_sharpe": 1.2348337039891248,
+    "cycle_vol": 0.14023240789163158,
+    "ulcer": 0.03761489481390931,
+    "max_dd": -0.07231523565600328,
+    "abs_invested_beta": 0.03437174755996702,
+    "mean_invested": 0.9815771817836519
    }
   },
   "incumbent__floornone__n6__nofee_nocap": {
@@ -3423,16 +3710,16 @@
     "max_assets_in_portfolio": 6,
     "vault_performance_fee": 0.0,
     "vault_redemption_capital_fee": 0.0,
-    "per_position_cap_of_pool_pct": 1.0
+    "per_position_cap_of_pool_pct": 1000000.0
    },
    "panel": {
-    "cagr": 0.4866978301381477,
-    "cycle_sharpe": 2.5413607582532816,
-    "cycle_vol": 0.1612638584329062,
-    "ulcer": 0.02157656868852052,
-    "max_dd": -0.05426373694838449,
-    "abs_invested_beta": 0.028118364175907528,
-    "mean_invested": 0.9808672723995716
+    "cagr": 0.3415320987315722,
+    "cycle_sharpe": 2.0162185680987363,
+    "cycle_vol": 0.1515414837732484,
+    "ulcer": 0.03219208248924959,
+    "max_dd": -0.07101465233859738,
+    "abs_invested_beta": 0.04440043686889263,
+    "mean_invested": 0.9812047223859739
    }
   }
  }
