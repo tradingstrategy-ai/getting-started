@@ -11,7 +11,30 @@
   "return_critical": 2.563314157497544,
   "tail_critical": 2.885720220925142,
   "stability_family_used": 39,
-  "return_family_used": 13
+  "return_family_used": 13,
+  "families": {
+   "stability": {
+    "critical": 2.8591473764736266,
+    "n_draws": 499,
+    "n_draws_incomplete": 1,
+    "family_size_used": 39,
+    "family_size_total": 39
+   },
+   "returns": {
+    "critical": 2.563314157497544,
+    "n_draws": 499,
+    "n_draws_incomplete": 1,
+    "family_size_used": 13,
+    "family_size_total": 13
+   },
+   "tails": {
+    "critical": 2.885720220925142,
+    "n_draws": 499,
+    "n_draws_incomplete": 1,
+    "family_size_used": 39,
+    "family_size_total": 39
+   }
+  }
  },
  "eligible_decisions": 111,
  "logged_decisions": 126,
@@ -35,7 +58,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "3e04105"
+   "sha256": "048d888"
   }
  },
  "gate_5": {
@@ -801,6 +824,22 @@
    "stability_clause": true,
    "return_clause": false,
    "gate_5": false
+  },
+  "oracle_gate5": {
+   "dates": 110,
+   "evaluated": true,
+   "rho_forward_vol": 0.5129431183680668,
+   "lo_forward_vol": 0.36415029427787027,
+   "rho_forward_downside": 0.6491277327555293,
+   "lo_forward_downside": 0.5289609871739163,
+   "rho_forward_event_top5": 0.44022660888400833,
+   "lo_forward_event_top5": 0.29861832447653386,
+   "rho_forward_return": 0.8121977856900631,
+   "return_contrast_pp": 266.9893801092373,
+   "return_lo_pp": 51.716116420975055,
+   "stability_clause": true,
+   "return_clause": true,
+   "gate_5": true
   }
  },
  "targets_pre_registered": [

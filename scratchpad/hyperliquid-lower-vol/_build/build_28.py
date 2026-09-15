@@ -274,6 +274,8 @@ signals are appended to the panel and run through the same bootstrap and simulta
 - `oracle_return`: the forward return itself plus 5% noise (direction 'low').
 - `oracle_all`: the per-date mean rank of ALL THREE forward stability targets plus noise
   (direction 'high') - a signal that knows every target the stability clause requires.
+- `oracle_gate5`: stability rank plus return rank plus noise (direction 'low') - a signal that
+  knows everything BOTH clauses require, so the whole gate can be shown passable or not.
 
 The noise is there because a signal that equals its target has a bootstrap standard error of
 exactly zero, which the studentised max-T cannot evaluate; a first version without it was
@@ -300,10 +302,16 @@ cells.append(code('''def oracle_reachability_v3(panel_frame, concentration="pre_
     # Per-date mean rank across the three targets the stability clause names, higher = less stable.
     ranks = frame.groupby("date")[["forward_vol", "forward_downside", target_conc]].rank(pct=True)
     frame["oracle_all"] = jitter(ranks.mean(axis=1))
+    # A JOINT oracle: high when a vault is stable on all three targets AND earns more. Direction
+    # 'low' so the excluded tail is the unstable, low-return end - the one construction that can
+    # satisfy both clauses of gate 5 at once, if anything can.
+    return_rank = frame.groupby("date")["forward_return"].rank(pct=True)
+    frame["oracle_gate5"] = jitter((1.0 - ranks.mean(axis=1)) + return_rank)
     SIGNALS = list(SIGNALS) + [
         {"name": "oracle_vol", "direction": "high", "time_base": "foresight", "note": "= forward_vol + noise"},
         {"name": "oracle_return", "direction": "low", "time_base": "foresight", "note": "= forward_return + noise"},
         {"name": "oracle_all", "direction": "high", "time_base": "foresight", "note": "= mean rank of three targets + noise"},
+        {"name": "oracle_gate5", "direction": "low", "time_base": "foresight", "note": "= stability rank + return rank + noise"},
     ]
     SIGNAL_NAMES = [s["name"] for s in SIGNALS]
     SIGNAL_DIRECTION = {s["name"]: s["direction"] for s in SIGNALS}
@@ -313,7 +321,7 @@ cells.append(code('''def oracle_reachability_v3(panel_frame, concentration="pre_
         SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION = saved
     keep = ["dates", "evaluated"] + [c for c in table.columns if c.startswith("rho_") or c.startswith("lo_")] + \\
            ["return_contrast_pp", "return_lo_pp", "stability_clause", "return_clause", "gate_5"]
-    return table.loc[["oracle_vol", "oracle_return", "oracle_all"], keep].copy()
+    return table.loc[["oracle_vol", "oracle_return", "oracle_all", "oracle_gate5"], keep].copy()
 
 
 oracle = oracle_reachability_v3(panel_frame, "pre_registered", draws=200)
@@ -325,8 +333,13 @@ for name in ("oracle_vol", "oracle_all"):
 print(f" oracle_return: evaluated {bool(oracle.loc['oracle_return', 'evaluated'])}, return clause "
       f"{bool(oracle.loc['oracle_return', 'return_clause'])}  (contrast {oracle.loc['oracle_return', 'return_contrast_pp']:+.1f} pp, "
       f"lower bound {oracle.loc['oracle_return', 'return_lo_pp']:+.1f} pp, margin -{DELTA_ANNUALISED_PP:.0f})")
+print(f"  oracle_gate5: evaluated {bool(oracle.loc['oracle_gate5', 'evaluated'])}, stability clause "
+      f"{bool(oracle.loc['oracle_gate5', 'stability_clause'])}, return clause {bool(oracle.loc['oracle_gate5', 'return_clause'])}, "
+      f"GATE 5 {bool(oracle.loc['oracle_gate5', 'gate_5'])}")
 print(f"\\nforward volatility foresight vs forward event concentration: rho {oracle.loc['oracle_vol', 'rho_forward_event_top5']:+.4f} "
       f"- the two targets are {'nearly orthogonal' if abs(oracle.loc['oracle_vol', 'rho_forward_event_top5']) < 0.2 else 'related'} on this panel")
+print("\\noracle construction: 5% of each target's standard deviation of Gaussian noise added, seed "
+      f"{SCREEN_SEED + 1}; directions: oracle_vol high, oracle_return low, oracle_all high, oracle_gate5 low")
 '''))
 
 cells.append(md("""## Part 4. The tail-aligned contrast
@@ -474,7 +487,13 @@ manifest = {
                   "return_critical": float(detail["returns"]["critical"]),
                   "tail_critical": float(detail["tails"]["critical"]),
                   "stability_family_used": int(detail["stability"]["family_size_used"]),
-                  "return_family_used": int(detail["returns"]["family_size_used"])},
+                  "return_family_used": int(detail["returns"]["family_size_used"]),
+                  "families": {name: {"critical": float(detail[name]["critical"]),
+                                      "n_draws": int(detail[name]["n_draws"]),
+                                      "n_draws_incomplete": int(detail[name]["n_draws_incomplete"]),
+                                      "family_size_used": int(detail[name]["family_size_used"]),
+                                      "family_size_total": int(detail[name]["family_size_total"])}
+                               for name in ("stability", "returns", "tails")}},
     "eligible_decisions": int(eligibility["eligible"].sum()),
     "logged_decisions": int(len(eligibility)),
     "panel_rows": int(len(panel_frame)),

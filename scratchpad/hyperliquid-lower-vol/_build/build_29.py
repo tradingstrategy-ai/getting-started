@@ -112,8 +112,9 @@ print("bootstrap:", {k: manifest_28["bootstrap"][k] for k in ("draws", "stabilit
       "| complete draws:", manifest_28["draws_complete"])
 display(pd.DataFrame(manifest_28["decomposition"]).T[["stability_targets_cleared", "missing", "return_half_width_pp"]])
 display(pd.DataFrame(manifest_28["missing_reasons"]).set_index("target"))
-print("oracle reachability (NB28):")
-display(pd.DataFrame(manifest_28["oracle"]).T[["stability_clause", "return_clause", "return_lo_pp"]])
+print("oracle reachability (NB28), complete: construction is forward target + 5% noise; directions "
+      "vol high, return low, all high, gate5 low")
+display(pd.DataFrame(manifest_28["oracle"]).T)
 '''))
 
 cells.append(md("""## Part 1. The family: five fractions per carried signal
@@ -364,6 +365,30 @@ verdicts = verdict_table_rules(verdict_rows)
 gate_columns = ["gate_1_positive", "gate_2_lovo", "gate_3_held_book", "gate_4_luck",
                 "gate_5_screen", "gate_6_plateau", "gate_7_subperiod",
                 "gate_8_diversification", "gate_9_null"]
+def concentration_per_vault_date(entry):
+    """Both concentration indicators for every (decision date, held vault), unrounded, so
+    'identical' is checked row by row rather than on capital-weighted aggregates in which
+    offsetting differences could cancel."""
+    rows = []
+    for timestamp, holdings in _position_weights(entry["state"]).items():
+        for pair, share in holdings:
+            rows.append({
+                "date": pd.Timestamp(timestamp), "address": str(pair.pool_address).lower(), "share": share,
+                "original": value_at_prior(indicator_series("residual_event_concentration", pair), timestamp),
+                "corrected": value_at_prior(indicator_series("residual_event_concentration_positive", pair), timestamp),
+            })
+    frame = pd.DataFrame(rows)
+    both = np.isfinite(frame["original"]) & np.isfinite(frame["corrected"])
+    return {
+        "rows": int(len(frame)),
+        "finite_original": int(np.isfinite(frame["original"]).sum()),
+        "finite_corrected": int(np.isfinite(frame["corrected"]).sum()),
+        "finite_masks_identical": bool((np.isfinite(frame["original"]) == np.isfinite(frame["corrected"])).all()),
+        "max_abs_diff_where_both_finite": float((frame.loc[both, "original"] - frame.loc[both, "corrected"]).abs().max()) if both.any() else float("nan"),
+        "frame": frame,
+    }
+
+
 # Gate 3 with the CORRECTED concentration indicator, beside the pre-registered one. Not the
 # verdict gate: RESEARCH-RULES.md names `residual_event_concentration`, whose numerator takes the
 # five largest residuals rather than the five largest POSITIVE residuals (an NB08 defect the
@@ -371,8 +396,16 @@ gate_columns = ["gate_1_positive", "gate_2_lovo", "gate_3_held_book", "gate_4_lu
 for label in verdicts.index:
     for k, v in gate_3_corrected(label).items():
         verdicts.loc[label, k] = v
+    per_row = concentration_per_vault_date(run_by_label[label])
+    for k, v in per_row.items():
+        if k != "frame":
+            verdicts.loc[label, f"pervault_{k}"] = v
+anchor_per_row = concentration_per_vault_date(run_by_label["anchor"])
 display(verdicts[["signal", "cycle_sharpe", "cagr", "cycle_vol", "ulcer"] + gate_columns
                  + ["gate_3_corrected", "verdict"]])
+print("per (date, vault) comparison of the two concentration indicators on the HELD book, unrounded:")
+display(verdicts[[c for c in verdicts.columns if c.startswith("pervault_")]])
+print("anchor:", {k: v for k, v in anchor_per_row.items() if k != "frame"})
 display(verdicts[["held_held_vol", "anchor_held_vol", "held_held_concentration", "anchor_held_concentration",
                   "held_concentration_corrected", "anchor_held_concentration_corrected",
                   "held_dates_used", "dates_used_corrected", "indicators_same_dates",
@@ -437,6 +470,8 @@ cells.append(code('''summary = {
                                "anchor_held_concentration", "held_concentration_corrected",
                                "anchor_held_concentration_corrected", "held_dates_used",
                                "dates_used_corrected", "indicators_same_dates", "indicators_max_abs_diff_per_date",
+                               "pervault_rows", "pervault_finite_original", "pervault_finite_corrected",
+                               "pervault_finite_masks_identical", "pervault_max_abs_diff_where_both_finite",
                                "luck_ratio", "top5_gross_share",
                                "mean_holdings", "mean_largest_weight", "mean_herfindahl",
                                "distinct_vaults", "top_vault_pnl_share", "diversification_failures"]].to_dict(orient="index"),
@@ -449,6 +484,7 @@ cells.append(code('''summary = {
     "anchor_reference": {k: float(v) for k, v in reference_row.items()},
     "provenance": provenance_record(),
     "strict_checks": strict_checks.to_dict(orient="index"),
+    "anchor_pervault_concentration": {k: v for k, v in anchor_per_row.items() if k != "frame"},
     "nulls": [{k: v for k, v in row.items()} for row in null_rows],
     "lovo": [{k: v for k, v in row.items()} for row in lovo_rows],
     # Every executed configuration, with the overrides needed to reproduce it. NB31 re-runs from
@@ -493,5 +529,57 @@ bad = audit_all[(audit_all["destroyed"] > 0) | (audit_all["stranded"] > 0)
                 | (audit_all["cash + holdings - equity"].abs() > 1.0)]
 print(f"runs audited: {len(audit_all)}; runs failing the integrity screen: {len(bad)}")
 assert len(bad) == 0, f"integrity screen failed for: {list(bad.index)}"
+
+
+def independent_fee_audit(state_) -> dict:
+    """Recompute each redemption's fee from cost basis and gross proceeds, independently of the
+    rate the engine stored, and compare. The base audit checks execution against the STORED rate,
+    which is circular; three reviews asked for this."""
+    perf_rate = float(Parameters.vault_performance_fee)
+    cap_rate = float(Parameters.vault_redemption_capital_fee)
+    worst_rate, worst_proceeds, n = 0.0, 0.0, 0
+    for position in state_.portfolio.get_all_positions():
+        if not position.pair.is_vault():
+            continue
+        quantity, cost_basis = 0.0, 0.0
+        for trade in sorted(position.get_successful_trades(), key=lambda t: t.executed_at):
+            q = abs(float(trade.get_position_quantity()))
+            if trade.is_buy():
+                quantity += q; cost_basis += q * float(trade.executed_price); continue
+            if not trade.is_sell() or quantity <= 0:
+                continue
+            gross = q * float(trade.planned_mid_price)
+            released = cost_basis * q / quantity
+            expected_rate = cap_rate + perf_rate * max(gross - released, 0.0) / gross if gross > 0 else cap_rate
+            stored_rate = float(trade.other_data["backtest_vault_redemption_fee"])
+            worst_rate = max(worst_rate, abs(stored_rate - expected_rate))
+            worst_proceeds = max(worst_proceeds, abs(q * float(trade.executed_price) - gross * (1.0 - expected_rate)))
+            n += 1
+            cost_basis -= released; quantity -= q
+    return {"redemptions": n, "max_abs_rate_diff": worst_rate, "max_abs_proceeds_diff_usd": worst_proceeds}
+
+
+fee_rows = []
+for entry in runs:
+    if entry.get("state") is None:
+        continue
+    fee_rows.append({"label": entry["label"], **independent_fee_audit(entry["state"])})
+fee_all = pd.DataFrame(fee_rows).set_index("label")
+print("\\nindependent redemption-fee recomputation, every run (stored rate vs 10% of positive released profit + 10 bps):")
+display(fee_all)
+print(f"worst |stored - recomputed| fee rate across all runs: {fee_all['max_abs_rate_diff'].max():.2e}; "
+      f"worst net-proceeds difference ${fee_all['max_abs_proceeds_diff_usd'].max():,.6f}")
+
+# Write the audit results into the manifest, so the heading's audit sentence is generated from it.
+manifest_path = Path("_build/manifest_29.json")
+manifest_now = json.loads(manifest_path.read_text())
+manifest_now["audit"] = {
+    "runs_audited": int(len(audit_all)), "integrity_failures": int(len(bad)),
+    "fee_runs_audited": int(len(fee_all)), "fee_redemptions": int(fee_all["redemptions"].sum()),
+    "fee_worst_rate_diff": float(fee_all["max_abs_rate_diff"].max()),
+    "fee_worst_proceeds_diff_usd": float(fee_all["max_abs_proceeds_diff_usd"].max()),
+}
+manifest_path.write_text(json.dumps(manifest_now, indent=1, default=str))
+print("manifest updated with audit results")
 '''))
 write_notebook(cells, TRACK_DIR / "29-backtest-stability-prefilter.ipynb")

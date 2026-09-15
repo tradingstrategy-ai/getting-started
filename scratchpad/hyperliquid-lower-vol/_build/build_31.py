@@ -155,17 +155,33 @@ GATE_5_REDERIVED = {s: bool(screen.loc[s, "gate_5"]) for s in SIGNAL_NAMES}
 # Compare EVERY persisted numeric field of the screen, unrounded, plus the bootstrap diagnostics.
 nb28_full = pd.DataFrame(manifest_28["screen_full"]).T
 numeric = [c for c in screen.columns if screen[c].dtype.kind in "fi" and c in nb28_full.columns]
+booleans = [c for c in ("evaluated", "enough_dates", "stability_clause", "return_clause", "gate_5") if c in nb28_full.columns]
 diffs = (screen[numeric].astype(float) - nb28_full[numeric].astype(float)).abs()
+bool_agree = pd.DataFrame({c: screen[c].astype(bool) == nb28_full[c].astype(bool) for c in booleans}).all(axis=1)
 comparison = pd.DataFrame({
     "nb28": pd.Series(GATE_5), "here": pd.Series(GATE_5_REDERIVED),
     "max_abs_diff_any_field": diffs.max(axis=1),
-    "evaluated_here": screen["evaluated"], "evaluated_nb28": nb28_full["evaluated"].astype(bool),
+    "all_booleans_agree": bool_agree,
 })
-comparison["agree"] = comparison["nb28"] == comparison["here"]
+comparison["agree"] = (comparison["nb28"] == comparison["here"]) & comparison["all_booleans_agree"]
+# All three bootstrap families' diagnostics, here against NB28.
+fam_rows = []
+for name in ("stability", "returns", "tails"):
+    there = manifest_28["bootstrap"]["families"][name]
+    fam_rows.append({"family": name,
+                     "critical_here": float(detail[name]["critical"]), "critical_nb28": there["critical"],
+                     "draws_here": int(detail[name]["n_draws"]), "draws_nb28": there["n_draws"],
+                     "family_here": int(detail[name]["family_size_used"]), "family_nb28": there["family_size_used"]})
+families = pd.DataFrame(fam_rows).set_index("family")
+families["critical_diff"] = (families["critical_here"] - families["critical_nb28"]).abs()
+display(families)
+assert bool((families["draws_here"] == families["draws_nb28"]).all()), "complete-draw counts differ from NB28"
+assert bool((families["family_here"] == families["family_nb28"]).all()), "family sizes differ from NB28"
+assert float(families["critical_diff"].max()) < 1e-9, "critical values differ from NB28"
 display(comparison.round(10))
 worst_lo = float(diffs.to_numpy().max())
 worst_field = diffs.stack().idxmax()
-print(f"gate-5 flags agree with NB28 on {int(comparison['agree'].sum())} of {len(comparison)} signals")
+print(f"gate-5 flags AND {len(booleans)} clause/evaluation booleans agree with NB28 on {int(comparison['agree'].sum())} of {len(comparison)} signals")
 print(f"largest |difference| over {len(numeric)} numeric screen fields x 13 signals: {worst_lo:.2e} at {worst_field}")
 print(f"bootstrap here: critical {detail['stability']['critical']:.6f} on {detail['stability']['n_draws']} complete draws, "
       f"family {detail['stability']['family_size_used']}; NB28: critical "
@@ -353,6 +369,8 @@ cells.append(code('''manifest = {
     "gate_5_rederived_agrees": bool(comparison["agree"].all()),
     "gate_5_worst_lo_diff": worst_lo,
     "gate_5_fields_compared": int(len(numeric)),
+    "gate_5_booleans_compared": booleans,
+    "gate_5_families_agree": True,
     "provenance": provenance_record(),
     "gate_3_detail": verdicts[["held_held_vol", "anchor_held_vol", "held_held_concentration",
                                "anchor_held_concentration", "held_concentration_corrected",
@@ -389,5 +407,40 @@ display(audit_all)
 bad = audit_all[(audit_all["destroyed"] > 0) | (audit_all["stranded"] > 0) | (audit_all["cash + holdings - equity"].abs() > 1.0)]
 print(f"runs audited: {len(audit_all)}; failing: {len(bad)}")
 assert len(bad) == 0, f"integrity screen failed for: {list(bad.index)}"
+
+
+def independent_fee_audit(state_) -> dict:
+    perf_rate = float(Parameters.vault_performance_fee); cap_rate = float(Parameters.vault_redemption_capital_fee)
+    worst_rate, worst_proceeds, n = 0.0, 0.0, 0
+    for position in state_.portfolio.get_all_positions():
+        if not position.pair.is_vault():
+            continue
+        quantity, cost_basis = 0.0, 0.0
+        for trade in sorted(position.get_successful_trades(), key=lambda t: t.executed_at):
+            q = abs(float(trade.get_position_quantity()))
+            if trade.is_buy():
+                quantity += q; cost_basis += q * float(trade.executed_price); continue
+            if not trade.is_sell() or quantity <= 0:
+                continue
+            gross = q * float(trade.planned_mid_price); released = cost_basis * q / quantity
+            expected_rate = cap_rate + perf_rate * max(gross - released, 0.0) / gross if gross > 0 else cap_rate
+            stored_rate = float(trade.other_data["backtest_vault_redemption_fee"])
+            worst_rate = max(worst_rate, abs(stored_rate - expected_rate))
+            worst_proceeds = max(worst_proceeds, abs(q * float(trade.executed_price) - gross * (1.0 - expected_rate)))
+            n += 1; cost_basis -= released; quantity -= q
+    return {"redemptions": n, "max_abs_rate_diff": worst_rate, "max_abs_proceeds_diff_usd": worst_proceeds}
+
+
+fee_all = pd.DataFrame([{"label": e["label"], **independent_fee_audit(e["state"])} for e in runs if e.get("state") is not None]).set_index("label")
+print("\\nindependent redemption-fee recomputation, every run:")
+display(fee_all)
+manifest_path = Path("_build/manifest_31.json")
+manifest_now = json.loads(manifest_path.read_text())
+manifest_now["audit"] = {"runs_audited": int(len(audit_all)), "integrity_failures": int(len(bad)),
+                         "fee_runs_audited": int(len(fee_all)), "fee_redemptions": int(fee_all["redemptions"].sum()),
+                         "fee_worst_rate_diff": float(fee_all["max_abs_rate_diff"].max()),
+                         "fee_worst_proceeds_diff_usd": float(fee_all["max_abs_proceeds_diff_usd"].max())}
+manifest_path.write_text(json.dumps(manifest_now, indent=1, default=str))
+print("manifest updated with audit results")
 '''))
 write_notebook(cells, TRACK_DIR / "31-backtest-stability-closeout.ipynb")

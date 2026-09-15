@@ -6,7 +6,8 @@ here = Path(__file__).parent
 m = json.load(open(here / "manifest_29.json")); m28 = json.load(open(here / "manifest_28.json"))
 F, G, D, C, ST, A, N, I = (m["family"], m["gates"], m["gate_3_detail"], m["cheap_gates"], m["strict"],
                            m["anchor_reference"], m["nulls"], m["inertness"])
-PB = m["paired_bootstrap"]; SCK = m["strict_checks"]
+PB = m["paired_bootstrap"]; SCK = m["strict_checks"]; AU = m.get("audit", {}); APV = m["anchor_pervault_concentration"]
+changed = sorted(int(v["dates_with_a_different_basket"]) for v in I.values())
 def _prov(m):
     for path, rec in m["provenance"].items():
         if path.endswith("vault-prices.parquet"):
@@ -111,9 +112,10 @@ so gate 3 fails. By the corrected indicator - `residual_event_concentration_posi
 numerator takes the five largest POSITIVE residuals as the original's docstring claimed - it is
 {f4(d['held_concentration_corrected'])} against the anchor's {f4(d['anchor_held_concentration_corrected'])}
 on {int(d['dates_used_corrected'])} dates, and `gate_3_corrected` is **{g['gate_3_corrected']}**.
-{f"The two indicators are compared PER HELD VAULT-DATE at full precision (cell 35): same covered dates on both books ({d['indicators_same_dates']}), largest absolute difference on any date {d['indicators_max_abs_diff_per_date']:.1e}. On every held vault-date where the original is finite, the window already holds at least five positive residual days, so the two constructions coincide. The NB08 defect is real in the code and unreachable on this book - shown per date, not inferred from two rounded aggregates." if d['indicators_same_dates'] and d['indicators_max_abs_diff_per_date'] < 1e-9 else f"The two indicators differ on this book (largest per-date difference {d['indicators_max_abs_diff_per_date']:.2e}); the verdict gate uses the pre-registered one as the rules name it."}
+{f"The two indicators are compared PER (DATE, HELD VAULT) row, unrounded (cell 35): {int(d['pervault_rows'])} rows on the candidate book and {int(APV['rows'])} on the anchor's, finite masks identical ({d['pervault_finite_masks_identical']} / {APV['finite_masks_identical']}), largest absolute difference where both are finite {d['pervault_max_abs_diff_where_both_finite']:.1e} / {APV['max_abs_diff_where_both_finite']:.1e}. On every held vault-date where the original is finite, the window already holds at least five positive residual days, so the two constructions coincide. The NB08 defect is real in the code and unreachable on this book - shown row by row, not inferred from aggregates in which differences could cancel." if d['pervault_finite_masks_identical'] and APV['finite_masks_identical'] and d['pervault_max_abs_diff_where_both_finite'] < 1e-9 and APV['max_abs_diff_where_both_finite'] < 1e-9 else f"The two indicators differ on this book at the (date, vault) level (largest difference {d['pervault_max_abs_diff_where_both_finite']:.2e}, masks identical {d['pervault_finite_masks_identical']}); the verdict gate uses the pre-registered one as the rules name it."}
 
-**6. Nothing is inert and everything changes a lot (cell 26).** At the centre the prefilter
+**6. No configuration is inert; the basket changes on {changed[0]} to {changed[-1]} of 126 decisions across
+the five fractions (cell 26).** At the centre the prefilter
 changes the selected basket on {int(I[centre]['dates_with_a_different_basket'])} of
 {int(I[centre]['dates_matched_to_reference'])} decisions, excludes
 {int(I[centre]['excluded_names_the_reference_held'])} names the anchor was holding, and reaches a basket
@@ -164,10 +166,19 @@ Paired block bootstrap against the anchor, context only (cell 38): observed Shar
 - **Snapshot**: `vault-prices.parquet` {PV['bytes']:,} bytes, sha256 prefix `{PV['sha256']}`, read
   from this run's provenance via the manifest, and asserted equal to NB28's before the screen was
   imported (cell 22). Anchor parity holds at 1e-5 (cell 22).
-- **Every run is now audited**, not only the anchor: the integrity screen runs over all recorded
-  states in the final cell and asserts none destroyed or stranded capital. The redemption-fee
-  audit still verifies execution against the stored rate rather than recomputing 10% of profit
-  independently; that is the base notebook's audit and a track-level fix.
+- **Every run is audited, and the fee is recomputed independently** (cell 45, written back to the
+  manifest): {AU.get('runs_audited', '?')} runs pass the integrity screen with
+  {AU.get('integrity_failures', '?')} failures, and over {AU.get('fee_redemptions', '?')} redemptions
+  across {AU.get('fee_runs_audited', '?')} runs the stored fee rate differs from
+  `10% x max(gross - released cost basis, 0) + 10 bps` by at most {AU.get('fee_worst_rate_diff', float('nan')):.2e},
+  with a worst net-proceeds difference of ${AU.get('fee_worst_proceeds_diff_usd', float('nan')):,.2f} on one
+  redemption. The discrepancy is not an accounting error: the engine fixes the rate at DECISION
+  time from that bar's gross price and the position's remaining average-cost basis
+  (`refresh_vault_redemption_accounting`), while the trade executes at the next bar's price, so
+  the profit share is charged on decision-time profit rather than executed profit. It is a known
+  one-bar approximation whose worst case is now measured. The base notebook's own fee audit
+  verifies execution against the stored rate and cannot see this; this cell is the independent
+  check three reviews asked for.
 """
 out = here.parent / "29-backtest-stability-prefilter.ipynb"
 nb = json.load(open(out))

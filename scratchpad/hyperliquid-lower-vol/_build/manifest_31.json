@@ -37,6 +37,14 @@
  "gate_5_rederived_agrees": true,
  "gate_5_worst_lo_diff": 0.0,
  "gate_5_fields_compared": 17,
+ "gate_5_booleans_compared": [
+  "evaluated",
+  "enough_dates",
+  "stability_clause",
+  "return_clause",
+  "gate_5"
+ ],
+ "gate_5_families_agree": true,
  "provenance": {
   "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-prices.parquet": {
    "bytes": 255136297,
@@ -56,7 +64,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "3e04105"
+   "sha256": "048d888"
   }
  },
  "gate_3_detail": {
@@ -110,5 +118,13 @@
   },
   "nb29_shortlisted": [],
   "nb30_fold_stability": "VACUOUS - 2 of 5 folds were evaluable walk-forward and none selected any signal, so there is no mechanism to cross-fit and the stitched path is the anchor's own"
+ },
+ "audit": {
+  "runs_audited": 8,
+  "integrity_failures": 0,
+  "fee_runs_audited": 8,
+  "fee_redemptions": 1897,
+  "fee_worst_rate_diff": 0.0025749359975344166,
+  "fee_worst_proceeds_diff_usd": 93.4864603194801
  }
 }

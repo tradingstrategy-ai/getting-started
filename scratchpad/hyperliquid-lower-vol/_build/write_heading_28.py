@@ -104,7 +104,7 @@ the gate; the second review was right to insist on that distinction.
 ## Key new insights and what did we learn from this experiment?
 
 **{len(passers)} of 13 signals pass the pre-registered gate 5, and {len(cor_passers)} of 13 pass
-the corrected diagnostic screen (cell 29, cell 30, cell 41).**{' None is carried into NB29 as a candidate; `inverse_vol` goes forward only as the labelled reference.' if not passers else ' Carried: ' + ', '.join(passers) + '.'}
+the corrected diagnostic screen (cell 29, cell 30, cell 43).**{' None is carried into NB29 as a candidate; `inverse_vol` goes forward only as the labelled reference.' if not passers else ' Carried: ' + ', '.join(passers) + '.'}
 "Fails gate 5" is up to four separate facts, and the decomposition (cell 32) is the actual finding:
 
 **1. Trailing volatility predicts forward volatility, and the evidence is not marginal.**
@@ -125,10 +125,14 @@ targets, {'PASSES' if OR['oracle_all']['stability_clause'] else 'FAILS'} the sta
 while `oracle_vol`, which knows only the forward volatility, {'PASSES' if OR['oracle_vol']['stability_clause'] else 'FAILS'} it
 ({OR['oracle_vol']['lo_forward_vol']:+.3f} / {OR['oracle_vol']['lo_forward_downside']:+.3f} / {OR['oracle_vol']['lo_forward_event_top5']:+.3f}).
 Forward volatility and forward event concentration correlate {OR['oracle_vol']['rho_forward_event_top5']:+.4f} on
-this panel - nearly orthogonal - so no amount of volatility foresight satisfies a conjunction
-that includes concentration. The clause is reachable; the thirteen real signals, which are all
-volatility-family or return-family measures, fail it because none predicts concentration
-independently. The target is missing on
+this panel - nearly orthogonal - so volatility foresight alone does not satisfy a conjunction
+that includes concentration. `oracle_gate5`, which knows both clauses' targets,
+{'PASSES' if OR['oracle_gate5']['gate_5'] else 'FAILS'} the complete gate (stability
+{OR['oracle_gate5']['stability_clause']}, return {OR['oracle_gate5']['return_clause']}). So the
+implemented screen {'can emit a pass' if OR['oracle_gate5']['gate_5'] else 'did not emit a pass even with joint foresight'};
+none of the thirteen signals established a positive association with this raw concentration
+target under the simultaneous screen. That is the whole of what the null shows - not conditional
+independence, and not that the target is a sound stability measure. The target is missing on
 {int(miss['forward_event_top5']['missing'])} of {int(miss['forward_event_top5']['finite'] + miss['forward_event_top5']['missing']):,}
 rows (cell 26), and neither construction is count-neutral for unequal events, so this remains a
 failure to establish, not evidence of absence.
@@ -170,28 +174,28 @@ inverted effect.
 On {m['calendar_vs_fresh_common_rows']:,} (date, vault) rows where BOTH signals are finite, with one
 bootstrap on that sample, the paired difference on forward volatility is
 {cvf['spearman_forward_vol']['difference']:+.4f} with a 95% interval of
-[{cvf['spearman_forward_vol']['ci_lo']:+.4f}, {cvf['spearman_forward_vol']['ci_hi']:+.4f}] (cell 37); every
+[{cvf['spearman_forward_vol']['ci_lo']:+.4f}, {cvf['spearman_forward_vol']['ci_hi']:+.4f}] (cell 39); every
 one of the eight statistics' intervals contains zero. The first build differenced two
 different complete-case samples; the review was right that this is the comparison the question needs.
 
 **7. The rule and the mechanism agree in direction.** The tail-aligned contrast - what the 30% the
 prefilter would exclude actually did - has the same sign as the Spearman on forward volatility for
-every signal (cell 35).
+every signal (cell 37).
 
 **8. Persistence discriminates nothing and the volatility family is entangled with staleness.**
 Median rank persistence runs {min(v['median_persistence'] for v in pers.values()):.4f} to
 {max(v['median_persistence'] for v in pers.values()):.4f}, and the staleness control sits at
-{pers['fresh_observation_count']['median_persistence']:.4f} (cell 39). `btc_beta` correlates
+{pers['fresh_observation_count']['median_persistence']:.4f} (cell 41). `btc_beta` correlates
 {conf['btc_beta']['rho_vs_fresh_observation_count']:+.4f} with `fresh_observation_count`,
 `downside_deviation_90` {conf['downside_deviation_90']['rho_vs_fresh_observation_count']:+.4f} and
 `inverse_vol` {conf['inverse_vol']['rho_vs_fresh_observation_count']:+.4f}; `ulcer_index_180` correlates
-{conf['ulcer_index_180']['rho_vs_tvl']:+.4f} with TVL (cell 39).
+{conf['ulcer_index_180']['rho_vs_tvl']:+.4f} with TVL (cell 41).
 
 **9. The corrected NB08 indicator behaves like its parent.** `residual_event_concentration_positive`,
 which takes its top five from the positive residuals as its docstring always claimed, has a
 descriptive mean Spearman of {corr['forward_vol']['mean_raw_spearman']:+.4f} against forward
 volatility and {corr['forward_event_top5_excess']['mean_raw_spearman']:+.4f} against forward
-event-concentration excess (cell 37) - outside the pre-registered family and without
+event-concentration excess (cell 39) - outside the pre-registered family and without
 multiplicity control.
 
 ## Summary of results
@@ -207,6 +211,7 @@ multiplicity control.
 | Clearing forward event concentration, raw / excess | **{len(conc_clear)} / {len(cor_clear)}** (cell 32, cell 29) |
 | Oracle: stability clause reachable (all-targets / vol-only) | {OR['oracle_all']['stability_clause']} / {OR['oracle_vol']['stability_clause']} (cell 35) |
 | Oracle: return clause reachable | {OR['oracle_return']['return_clause']} (cell 35) |
+| Oracle: complete gate 5 reachable (joint foresight) | {OR['oracle_gate5']['gate_5']} (cell 35) |
 | Forward volatility vs forward event concentration | rho {OR['oracle_vol']['rho_forward_event_top5']:+.4f} (cell 35) |
 | Critical value, stability family ({crit['stability_family_used']} of 39 evaluated) | {crit['stability_critical']:.4f} on {draws['stability']} complete draws (cell 29) |
 | Critical value, return family ({crit['return_family_used']} of 13 evaluated) | {crit['return_critical']:.4f} on {draws['returns']} complete draws (cell 29) |
@@ -244,8 +249,10 @@ multiplicity control.
   mechanism's tail rather than reproducing it.
 - **`fresh_event_concentration` window spans vary widely (cell 27)**: median {m['spans']['50%']:.0f}
   calendar days, 95th percentile {m['spans']['95%']:.0f}, maximum {m['spans']['max']:.0f}.
-- **Snapshot**: `vault-prices.parquet` 254,818,366 bytes, sha256 prefix `3e79966a`. Anchor parity
-  holds against `BASELINE` at 1e-5 with all three splices present and none firing (cell 22).
+- **Snapshot**: `vault-prices.parquet` {PV['bytes']:,} bytes, sha256 prefix `{PV['sha256']}`, read
+  from this run's provenance cell via the manifest (cell 22); two earlier headings hard-coded a
+  prior snapshot's hash. Anchor parity holds against `BASELINE` at 1e-5 with all three splices
+  present and none firing (cell 22).
 - **What this notebook does not establish.** It does not show these signals are useless - {len(vol_down)}
   of them predict forward volatility and downside with intervals well clear of zero. It shows
   that gate 5 as written was not satisfied on this cohort, because one of its three targets was

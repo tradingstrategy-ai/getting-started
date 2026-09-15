@@ -107,13 +107,29 @@ print(f"eligible decisions: {len(eligible_dates)}, "
 
 # The full-sample screen, reproduced here so the fold screens have something to be compared
 # against in the same kernel and on the same resamples machinery.
+def leading_signal_v3(screen: pd.DataFrame) -> str | None:
+    """`leading_signal()` reads `lo_forward_event_top5_excess`, which the pre-registered screen does
+    not carry (the third review found the latent KeyError). This derives the concentration column
+    from the screen's own recorded target."""
+    target = screen.attrs.get("concentration_target", "forward_event_top5")
+    targets = ["forward_vol", "forward_downside", target]
+    passers = [s for s in screen.index if bool(screen.loc[s, "gate_5"])]
+    if not passers:
+        return None
+    scored = [(min(float(screen.loc[s, f"lo_{t}"]) for t in targets), s) for s in passers]
+    best = max(score for score, _s in scored)
+    return sorted(s for score, s in scored if score == best)[0]
+
+
 full_screen, full_detail, full_bootstrap = run_screen(panel_frame, "pre_registered", draws=CROSSFIT_DRAWS)
-FULL_LEADER = leading_signal(full_screen)
+FULL_LEADER = leading_signal_v3(full_screen)
+FULL_GATE_5 = {s: bool(full_screen.loc[s, "gate_5"]) for s in SIGNAL_NAMES}
 print(f"full-sample family: {full_detail['stability']['family_size_used']} of "
       f"{full_detail['stability']['family_size_total']} hypotheses evaluated, "
       f"{full_detail['stability']['n_draws']} complete draws")
 print(f"full-sample leading signal at {CROSSFIT_DRAWS} draws: {FULL_LEADER}")
-print(f"NB28 recorded gate-5 passers: {[s for s, v in manifest_28['gate_5'].items() if v] or 'none'}")
+print(f"full-sample gate-5 passers, THIS kernel: {[s for s, v in FULL_GATE_5.items() if v] or 'none'}")
+print(f"(NB28 recorded, historical context: {[s for s, v in manifest_28['gate_5'].items() if v] or 'none'})")
 display(full_screen[["dates", "stability_clause", "return_clause", "gate_5"]])
 '''))
 
@@ -147,7 +163,7 @@ for fold in folds:
         continue
     subset = panel_frame[panel_frame["date"].isin(training)]
     screen, detail, bootstrap = run_screen(subset, "pre_registered", draws=CROSSFIT_DRAWS, verbose=False)
-    chosen = leading_signal(screen)
+    chosen = leading_signal_v3(screen)
     fold_rows.append({
         "fold": fold["fold"], "start": fold["start"], "end_inclusive": fold["end_inclusive"],
         "fold_decisions": len(fold["fold_dates"]), "training_decisions": len(fold["training_dates"]),
@@ -282,7 +298,7 @@ for signal in SIGNAL_NAMES:
         "folds_passing_gate_5": len(passed_in),
         "folds_leading": len(chosen_in),
         "leading_in": ", ".join(str(f) for f in chosen_in) or "-",
-        "full_sample_gate_5": bool(manifest_28["gate_5"].get(signal, False)),
+        "full_sample_gate_5": bool(FULL_GATE_5.get(signal, False)),
     })
 display(pd.DataFrame(stability_rows).set_index("signal").sort_values(
     ["folds_leading", "folds_passing_gate_5"], ascending=False))

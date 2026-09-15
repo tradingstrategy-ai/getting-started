@@ -186,6 +186,11 @@
    "dates_used_corrected": 50.0,
    "indicators_same_dates": true,
    "indicators_max_abs_diff_per_date": 0.0,
+   "pervault_rows": 755.0,
+   "pervault_finite_original": 383.0,
+   "pervault_finite_corrected": 383.0,
+   "pervault_finite_masks_identical": true,
+   "pervault_max_abs_diff_where_both_finite": 0.0,
    "luck_ratio": NaN,
    "top5_gross_share": 0.5174816843714505,
    "mean_holdings": 5.992063492063492,
@@ -313,7 +318,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "3e04105"
+   "sha256": "048d888"
   }
  },
  "strict_checks": {
@@ -326,6 +331,13 @@
    "held_sets_identical": true,
    "max_abs_metric_diff": 0.0
   }
+ },
+ "anchor_pervault_concentration": {
+  "rows": 756,
+  "finite_original": 384,
+  "finite_corrected": 384,
+  "finite_masks_identical": true,
+  "max_abs_diff_where_both_finite": 0.0
  },
  "nulls": [],
  "lovo": [],
@@ -450,5 +462,13 @@
     "mean_invested": 0.9798495718717734
    }
   }
+ },
+ "audit": {
+  "runs_audited": 7,
+  "integrity_failures": 0,
+  "fee_runs_audited": 7,
+  "fee_redemptions": 1653,
+  "fee_worst_rate_diff": 0.0025749359975344166,
+  "fee_worst_proceeds_diff_usd": 93.4864603194801
  }
 }

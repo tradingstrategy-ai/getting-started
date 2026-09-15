@@ -5,7 +5,7 @@ from pathlib import Path
 here = Path(__file__).parent
 m = json.load(open(here / "manifest_31.json"))
 m28 = json.load(open(here / "manifest_28.json")); m29 = json.load(open(here / "manifest_29.json")); m30 = json.load(open(here / "manifest_30.json"))
-R, G, SP = m["reproduction"], m["gates"], m["specification"]
+R, G, SP = m["reproduction"], m["gates"], m["specification"]; AU = m.get("audit", {})
 S28 = m28["screen_full"]; G3 = m["gate_3_detail"]
 def _prov(m):
     for path, rec in m["provenance"].items():
@@ -52,17 +52,18 @@ uses it. This heading is generated from `_build/manifest_31.json` by `_build/wri
 {R['configurations']} configurations re-run to a worst absolute difference of {R['worst_abs_diff']:.1e}
 across CAGR, cycle Sharpe, cycle volatility, ulcer, max drawdown, invested beta and mean invested.
 
-**2. Gate 5 re-derived here agrees with NB28 on every field (cell 26).** The panel is rebuilt
-from this kernel's own logging run and the joint bootstrap and simultaneous bounds recomputed with
-the same pre-registered target: the gate-5 flags agree on all thirteen signals
-({'True' if m['gate_5_rederived_agrees'] else 'FALSE'}), and across {m['gate_5_fields_compared']} unrounded
-numeric screen fields x 13 signals the largest absolute difference is {m['gate_5_worst_lo_diff']:.1e}.
-The first round compared three fields against a six-decimal manifest; the review was right that
-4e-07 was serialisation, not floating-point noise.
+**2. Gate 5 re-derived here agrees with NB28 (cell 26).** The panel is rebuilt from this
+kernel's own logging run and the joint bootstrap and simultaneous bounds recomputed with the same
+pre-registered target. Agreement is asserted on the gate-5 flags, on {len(m['gate_5_booleans_compared'])}
+clause and evaluation booleans, on {m['gate_5_fields_compared']} unrounded numeric screen fields
+(largest absolute difference {m['gate_5_worst_lo_diff']:.1e}), and on all three bootstrap families'
+critical values, complete-draw counts and family sizes - for all thirteen signals
+({'True' if m['gate_5_rederived_agrees'] and m['gate_5_families_agree'] else 'FALSE'}).
 
 **3. The two kernels agree on the verdict (cell 28).** `{centre}` fails the same gates here as in
-NB29 - **{g['failed_gates']}** - with gates 1-4 and 6-9 re-derived from this kernel's states and
-gate 5 from Part 1b. `gate_3_corrected`, using the concentration indicator whose numerator takes
+NB29 - **{g['failed_gates']}** - with gates 1, 3, 4, 6, 7 and 8 re-derived from this kernel's
+states, gate 5 from Part 1b, and gates 2 and 9 failing closed as unexecuted because no cheaper
+gate survived. `gate_3_corrected`, using the concentration indicator whose numerator takes
 the five largest POSITIVE residuals, is **{g['gate_3_corrected']}**: held concentration
 {G3[centre]['held_held_concentration']:.6f} (original) against {G3[centre]['held_concentration_corrected']:.6f}
 (corrected), anchor {G3[centre]['anchor_held_concentration']:.6f} against {G3[centre]['anchor_held_concentration_corrected']:.6f},
@@ -101,8 +102,9 @@ What this batch established, across NB28-NB31, after review:
   a near-perfect-foresight oracle that knows all three targets {'passes' if m28['oracle']['oracle_all']['stability_clause'] else 'fails'}
   the stability clause, one that knows only forward volatility {'passes' if m28['oracle']['oracle_vol']['stability_clause'] else 'fails'} it
   (forward volatility and forward concentration correlate {m28['oracle']['oracle_vol']['rho_forward_event_top5']:+.3f}),
-  and one that knows the forward return {'passes' if m28['oracle']['oracle_return']['return_clause'] else 'fails'} the return clause
-  (NB28 cell 35). Both clauses are reachable; no real signal reaches them.
+  one that knows the forward return {'passes' if m28['oracle']['oracle_return']['return_clause'] else 'fails'} the return clause,
+  and one that knows both clauses' targets {'PASSES' if m28['oracle']['oracle_gate5']['gate_5'] else 'FAILS'} the complete
+  gate (NB28 cell 35). {'The whole gate is reachable on this panel; no real signal reaches it.' if m28['oracle']['oracle_gate5']['gate_5'] else 'Each clause is reachable separately; the complete gate was not shown reachable, and the null is stated no more strongly than that.'}
 - Gate 5's return clause has a half-width of {min(hw.values()):.0f} to {max(hw.values()):.0f}
   compounded annual percentage points against a {m28['delta_annualised_pp']:.0f}-point margin
   (NB28 cell 32).
@@ -135,9 +137,16 @@ What this batch established, across NB28-NB31, after review:
   {f4(m29['anchor_reference']['top_vault_pnl_share'])}.
 - **All four notebooks ran on one snapshot, asserted rather than assumed**: `vault-prices.parquet`
   {PV['bytes']:,} bytes, sha256 prefix `{PV['sha256']}`, with each upstream manifest's provenance
-  checked against this kernel's before it was read (cell 22). The previous heading hard-coded a
-  prior snapshot's hash; the review caught it.
-- **Every re-run configuration is audited** for destroyed or stranded capital in the final cell.
+  checked against this kernel's before any of its results were used (cell 22). An earlier heading
+  hard-coded a prior snapshot's hash; the review caught it.
+- **Every re-run configuration is audited, and the fee recomputed independently** (cell 41,
+  written back to the manifest): {AU.get('runs_audited', '?')} runs, {AU.get('integrity_failures', '?')}
+  integrity failures; over {AU.get('fee_redemptions', '?')} redemptions the stored fee rate differs
+  from `10% x max(gross - released cost basis, 0) + 10 bps` by at most
+  {AU.get('fee_worst_rate_diff', float('nan')):.2e}, a worst net-proceeds difference of
+  ${AU.get('fee_worst_proceeds_diff_usd', float('nan')):,.2f} on one redemption. That is the engine
+  fixing the rate at decision time from that bar's price while the trade executes at the next
+  bar's - a one-bar approximation, now measured, not an accounting error.
 - **What would change the conclusion.** Gate 5 fails on a third target nothing established and a
   return clause far wider than its margin. A rule change addressing either is a legitimate
   pre-registration for a NEXT plan and is not made here.

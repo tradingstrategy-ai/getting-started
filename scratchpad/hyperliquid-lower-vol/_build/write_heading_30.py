@@ -117,6 +117,12 @@ was wrong to call it a self-test of that code.
   reaches NB28's verdict on all thirteen signals, from this kernel's own `full_screen` (cell 24).
 - **This notebook cannot distinguish "no effect" from "gate 5 is mis-specified".** It only
   re-applies the same gate to prefixes of the same sample.
+- **The stitched-path construction is valid only for the vacuous case it met.** Each fold's
+  segment comes from a separate backtest that is the anchor until that fold starts, so if two
+  folds had ever activated, the second's segment would not carry the first's book forward, and
+  a boundary return belongs to the decision before it rather than the segment its timestamp
+  falls in. A non-vacuous cross-fit needs one stateful run driven by a date-to-signal schedule.
+  The review found this; nothing here depended on it.
 - **The activation-window splice was never exercised.** `stability_prefilter_active_from` and
   `_active_to` are in `decide_trades` and defaulted off; no fold chose a signal, so no run set
   them. Their inertness on the anchor path is asserted (cell 22); their behaviour inside a fold
@@ -124,8 +130,8 @@ was wrong to call it a self-test of that code.
 - **The screens use the PRE-REGISTERED raw concentration target**, as NB28's verdict does; the
   corrected excess target is NB28's post-review diagnostic and is not used here.
 - **Snapshot**: `vault-prices.parquet` {PV['bytes']:,} bytes, sha256 prefix `{PV['sha256']}`, from
-  this run's provenance via the manifest, asserted equal to NB28's and NB29's before their
-  manifests were read (cell 22). Anchor parity holds at 1e-5 (cell 22).
+  this run's provenance via the manifest, asserted equal to NB28's and NB29's before any of their
+  results were used (cell 22). Anchor parity holds at 1e-5 (cell 22).
 """
 out = here.parent / "30-backtest-stability-crossfit.ipynb"
 nb = json.load(open(out))
