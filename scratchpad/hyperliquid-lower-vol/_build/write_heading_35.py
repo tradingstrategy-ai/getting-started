@@ -58,9 +58,11 @@ the calendar reference, gated identically; and `calm_8_strict` as the inertness 
 A1-A6 of [34-volatility-tail-exclusion-plan.md](34-volatility-tail-exclusion-plan.md) Draft 2.
 Gate 5 was imported from NB34 after the snapshot was asserted equal; it is False for both
 signals, and each centre fails one further cheap gate. The expensive gates were then run as
-labelled DIAGNOSTICS, and the null is the finding that matters: **random exclusion of eight
-measured vaults reaches the centre's Sharpe or better in {em["null_rank_of_centre"] - 1} of 19 draws
-for `measured_8` and {ec["null_rank_of_centre"] - 1} of 19 for `calm_8`.**
+labelled DIAGNOSTICS, and the null is the finding that matters: **neither centre clears the
+pre-registered random-exclusion hurdle. The count-8 permissive mechanism with its ranking
+information destroyed - up to eight finite-signal candidates per date, chosen by a within-date
+permutation - reaches the centre's Sharpe or better in {em["null_rank_of_centre"] - 1} of 19 draws for
+`measured_8` and {ec["null_rank_of_centre"] - 1} of 19 for `calm_8`.**
 
 **Based on:** [29-backtest-stability-prefilter.ipynb](29-backtest-stability-prefilter.ipynb)
 for the gate machinery, [33-research-lead-comparison.ipynb](33-research-lead-comparison.ipynb)
@@ -80,29 +82,36 @@ consistency check on overlapping windows, not a gate.
 
 ## Key new insights and what did we learn from this experiment?
 
-**1. The mechanism is not distinguishable from removing eight measured vaults at random.**
-Nineteen seeds, each permuting the finite signal values within every decision so that the
-exclusion keeps its size and its missingness pattern but loses its ranking information, all
-nineteen distinct on the realised cycle-return series (cell 33). `measured_8`'s cycle Sharpe
+**1. Neither centre clears the random-exclusion hurdle.** Nineteen seeds, each permuting the
+finite signal values within every decision so that the exclusion keeps its size (up to eight
+per date; `calm_8` excludes on {I["calm_8"]["decisions_with_exclusions"]} of 126 decisions, `measured_8` on
+{I["measured_8"]["decisions_with_exclusions"]}) and its missingness pattern but loses its ranking
+information AND its temporal persistence; all nineteen reported distinct on the realised
+cycle-return series, the excluded sets and the baskets (cell 33; NB36 asserts it). `measured_8`'s cycle Sharpe
 {f3(em["centre_sharpe"])} ranks {em["null_rank_of_centre"]}th of 20 against its null: the best random
 exclusion reaches {f3(em["null_best"])}, the median {f3(em["null_median"])}. `calm_8`'s
 {f3(ec["centre_sharpe"])} ranks {ec["null_rank_of_centre"]}th of 20 (best {f3(ec["null_best"])}, median
 {f3(ec["null_median"])}). Gate 9 would fail for both. NB26 had already found that a random removal
 of nine vaults ranks seventh of 57 configurations; this is the same fact measured properly, with
 the null's structure matched to the mechanism's. The null's median is below the anchor's
-{f3(A["cycle_sharpe"])}, so removing eight random names usually hurts and the volatility
-ordering does place the centre in the upper part of the distribution - but three or five random
-orderings out of nineteen do as well or better, and that is not a mechanism.
+{f3(A["cycle_sharpe"])}, so a random exclusion usually hurts and the volatility ordering does
+place the centre in the upper part of the distribution - but three or five random orderings out
+of nineteen do as well or better. This is a failure to clear the hurdle the plan set, not an
+equivalence test: it does not show that the ranking information contributes nothing.
 
-**2. What the null runs look like tells you why.** The centre's book persists at Jaccard
-{f3(em["centre_persistence"])} between consecutive decisions with {pc(em["centre_turnover"])} of names
-replaced per decision; the null's books persist at {f3(em["null_persistence_mean"])} with
-{pc(em["null_turnover_mean"])} replaced (cell 33). The permutation destroys temporal persistence as
-well as ranking - a vault excluded today is kept tomorrow - so the null books churn more and
-trade more, and still a fair share of them beat the centre. The ranking information in trailing
-volatility, which NB34 showed predicts forward volatility at rho 0.66-0.68, is not what
-produces `measured_8`'s Sharpe. What produces it is which eight names happen to be out of the
-pool when the incumbent ranks - and random draws find equally good eights often enough.
+**2. What the null runs look like, and what that does and does not mean.** The centre's book
+persists at Jaccard {f3(em["centre_persistence"])} between consecutive decisions with
+{pc(em["centre_turnover"])} of names replaced per decision; the null's books persist at
+{f3(em["null_persistence_mean"])} with {pc(em["null_turnover_mean"])} replaced (cell 33). The permutation
+destroys temporal persistence as well as ranking - a vault excluded today is kept tomorrow - so
+the null books churn more and pay more redemption fees, which biases the comparison in the
+centre's FAVOUR; that a fair share of null draws beat the centre anyway is the striking part.
+But because the null removes two things at once, it cannot say which of them the centre's
+Sharpe depends on. What it says is narrower: on this window, the specific eight names the
+volatility ordering removes are not reliably better to remove than eight chosen by a
+persistence-free random rule. NB34 showed the ordering predicts forward volatility at rho
+0.66-0.68; the null shows that predicting forward volatility is not, by itself, enough to
+produce a Sharpe that a random exclusion cannot match.
 
 **3. Each centre also fails a cheap gate of its own, and the two failures are different.**
 `calm_8` fails gate 4: luck ratio {f4(c8["luck_ratio"])} against the anchor's {f4(A["luck_ratio"])} -
@@ -183,10 +192,11 @@ specification with status NOTHING SHORTLISTED.
 
 - Anchor parity at 1e-5 with every splice inert; `calm_8` and `measured_8` reproduce NB34's runs
   at 1e-9 on five metrics (cells 24, 26).
-- All 19 null draws per centre are distinct on the realised cycle-return series, the excluded
-  sets and the baskets (cell 33). The null's persistence and turnover are printed beside the
-  centre's so the null's extra churn is visible; it makes the null HARDER to beat on
-  transaction cost, not easier, and the centre still does not beat it.
+- All 19 null draws per centre are reported distinct on the realised cycle-return series, the
+  excluded sets and the baskets (cell 33); NB36 asserts the three counts. The null's persistence
+  and turnover are printed beside the centre's: the null churns more and pays more redemption
+  fees, an extra-cost bias in the centre's favour, and it also differs from the mechanism in
+  persistence, which is a confound the null cannot separate from the ranking information.
 - Gate 3's volatility leg is reported on three date sets (all common, post-break, fully
   post-break lookback) and passes on all three; the verdict does not depend on the scope choice
   (cell 28).

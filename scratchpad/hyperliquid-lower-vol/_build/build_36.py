@@ -207,6 +207,35 @@ if len(SHORTLISTED) == 2:
     print("tie-break:", tie_break(SHORTLISTED[0], SHORTLISTED[1]))
 '''))
 
+cells.append(md("""### The null, re-derived and asserted distinct
+
+NB35 REPORTED the distinct-draw counts; this asserts them: nineteen distinct realised
+cycle-return series, nineteen distinct excluded-set digests and nineteen distinct basket
+digests per centre, and the centre's rank against the re-run null equal to NB35's.
+"""))
+cells.append(code('''null_check_rows = []
+nb35_diag = manifest_35["expensive_diagnostic"]
+for signal in SIGNAL_NAMES:
+    label = label_for(signal, CENTRE)
+    labels = sorted(l for l in run_by_label if l.startswith(f"{label}_null"))
+    assert len(labels) == NULL_MIN_DISTINCT_V3, f"{label}: {len(labels)} null runs re-run, expected {NULL_MIN_DISTINCT_V3}"
+    result = null_effectiveness_v3(label, labels)
+    assert result["distinct_cycle_return_series"] == len(labels), f"{label}: null cycle-return series are not all distinct"
+    assert result["distinct_excluded_sets"] == len(labels), f"{label}: null excluded sets are not all distinct"
+    assert result["distinct_baskets"] == len(labels), f"{label}: null baskets are not all distinct"
+    assert result["null_sharpe_rank_of_centre"] == nb35_diag[label]["null_rank_of_centre"], \\
+        f"{label}: rank {result['null_sharpe_rank_of_centre']} here vs {nb35_diag[label]['null_rank_of_centre']} in NB35"
+    assert abs(result["null_best"] - nb35_diag[label]["null_best"]) < 1e-9
+    null_check_rows.append({"label": label, "draws": len(labels), "distinct_series": result["distinct_cycle_return_series"],
+                            "distinct_excluded_sets": result["distinct_excluded_sets"], "distinct_baskets": result["distinct_baskets"],
+                            "centre_sharpe": result["centre_sharpe"], "null_best": result["null_best"], "null_median": result["null_median"],
+                            "rank_of_centre": result["null_sharpe_rank_of_centre"], "would_pass": result["passes"],
+                            "centre_persistence": result["centre_persistence"], "null_persistence_mean": result["null_persistence_mean"]})
+null_check = pd.DataFrame(null_check_rows).set_index("label")
+display(null_check.round(6))
+print("all three distinctness counts asserted at 19 for both centres; ranks equal NB35's (DIAGNOSTIC - gate 9 is False by protocol)")
+'''))
+
 cells.append(md("""## Part 4. The fee differential, every run
 
 Amendment A6 in full: the independent recomputation for every re-run configuration, the
@@ -298,6 +327,7 @@ cells.append(code('''manifest = {
     "fees": fees.round(10).to_dict(orient="index"),
     "anchor_fee": anchor_fee,
     "fee_one_sided": one_sided,
+    "null_check": null_check.round(10).to_dict(orient="index"),
     "provenance": provenance_record(),
     "specification": specification,
 }
