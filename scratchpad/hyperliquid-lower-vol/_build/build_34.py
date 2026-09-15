@@ -274,6 +274,65 @@ print(f"\\ncrash observations (forward 30-day log return < {CRASH_LOG_RETURN}): 
 display(crash_by_vault.round(3))
 '''))
 
+cells.append(md("""### Can the return clause be passed at all? Two foresight oracles
+
+Standing rule 9: a surprising null must be shown unreachable, not merely unobserved. Two
+oracle signals go through the identical machinery on the post-break panel - exclusion flags
+set at eight on the full pool, same families, same margin:
+
+- `oracle_vol`: the forward volatility itself plus 5% noise, direction 'high', so the eight
+  excluded are the eight that WILL be most volatile. It carries no return information beyond
+  what forward volatility carries. If the clause fails for it, the clause fails for a signal
+  with essentially zero return cost by construction: the failure is resolution, not cost.
+- `oracle_return`: the forward return itself plus 5% noise, direction 'low', so the eight
+  excluded are the eight that WILL earn least. If the clause passes for it, the machinery can
+  pass the clause on this panel, and the bar is simply where finding 1 says it is.
+
+The noise is there because a signal equal to its target has a bootstrap standard error of
+exactly zero, which the studentised max-T cannot evaluate. Both are DIAGNOSTIC.
+"""))
+cells.append(code('''def oracle_return_clause(panel, draws=200, seed=SCREEN_SEED + 1):
+    """Two noisy foresight oracles through the v3 screen. Defined here, not in the module, so
+    NB35 and NB36, which embed harness_rules_v3.py, stay regenerable."""
+    global SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION
+    saved = (SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION)
+    rng = np.random.default_rng(seed)
+    frame = panel.copy()
+
+    def jitter(series):
+        scale = 0.05 * float(series.std())
+        return series + rng.normal(0.0, scale, len(series))
+
+    frame["oracle_vol"] = jitter(frame["forward_vol"])
+    frame["oracle_return"] = jitter(frame["forward_return"])
+    SIGNALS = [
+        {"name": "oracle_vol", "direction": "high", "time_base": "foresight", "note": "= forward_vol + noise; no return information"},
+        {"name": "oracle_return", "direction": "low", "time_base": "foresight", "note": "= forward_return + noise"},
+    ]
+    SIGNAL_NAMES = [s["name"] for s in SIGNALS]
+    SIGNAL_DIRECTION = {s["name"]: s["direction"] for s in SIGNALS}
+    try:
+        add_exclusion_flags(frame)
+        table, detail, _ = run_screen_v3(frame, draws=draws, seed=seed, verbose=False)
+    finally:
+        SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION = saved
+    return table, detail
+
+
+oracle, oracle_detail = oracle_return_clause(post)
+display(oracle[["rows", "dates", "evaluated", "rho_forward_vol", "lo_forward_vol", "rho_forward_downside", "lo_forward_downside",
+                "stability_clause"]].round(4))
+display(oracle[["rho_forward_return", "median_return_contrast", "median_return_se", "median_return_lo",
+                "crash_share_retained", "crash_share_excluded", "return_clause", "gate_5"]].round(4))
+print(f"oracle return family: critical {oracle_detail['returns']['critical']:.4f} on {oracle_detail['returns']['n_draws']} complete draws of 200; "
+      f"margin {-RETURN_MARGIN_LOG:+.3f}")
+for name in ("oracle_vol", "oracle_return"):
+    r = oracle.loc[name]
+    print(f"{name:>14}: stability clause {bool(r['stability_clause'])}, median contrast {r['median_return_contrast']:+.4f} "
+          f"(se {r['median_return_se']:.4f}, lower bound {r['median_return_lo']:+.4f}), return clause {bool(r['return_clause'])}, "
+          f"GATE 5 {bool(r['gate_5'])}")
+'''))
+
 cells.append(md("""## Part 4. The pre-break decisions and the whole period - DIAGNOSTIC
 
 Before 2026-04-01 a 30-day forward path is mostly unobserved, so the downside target is not the
@@ -366,6 +425,10 @@ manifest = {
     "crashes": {"rows": int(len(crashes)), "vaults": int(crashes["address"].nunique()), "post_rows": int(len(post)),
                 "by_vault": crash_by_vault.round(6).reset_index().to_dict(orient="records")},
     "concentration_diagnostic": concentration_diag.round(6).reset_index().to_dict(orient="records"),
+    "oracle": oracle.round(6).to_dict(orient="index"),
+    "oracle_bootstrap": {"draws": 200, "seed": int(SCREEN_SEED + 1),
+                         "return_critical": float(oracle_detail["returns"]["critical"]),
+                         "return_complete_draws": int(oracle_detail["returns"]["n_draws"])},
     "missing_reasons": missing_reason_table(panel_frame).to_dict(orient="records"),
     "flag_checks": {"calm_score": {"comparable_dates": int(flag_check_calm["comparable_pool"].sum()), "dates": int(len(flag_check_calm))},
                     "inverse_vol": {"comparable_dates": int(flag_check_iv["comparable_pool"].sum()), "dates": int(len(flag_check_iv))}},

@@ -36,6 +36,11 @@ masked_post = cov["post_break"]["masked_share_of_measured"]
 masked_pre = cov["pre_break"]["masked_share_of_measured"]
 unadj_c = next(r for r in R if r["signal"] == "calm_score" and r["hypothesis"] == "median_return_contrast")["lo_unadjusted"]
 unadj_v = next(r for r in R if r["signal"] == "inverse_vol" and r["hypothesis"] == "median_return_contrast")["lo_unadjusted"]
+O = m["oracle"]
+ov, orr = O["oracle_vol"], O["oracle_return"]
+OB = m["oracle_bootstrap"]
+assert ov["return_clause"] and orr["return_clause"] and ov["stability_clause"], "oracle results changed; finding 2 must be rewritten"
+assert c["median_return_contrast"] > 0 and v["median_return_contrast"] > 0, "return contrast sign changed; findings 1-2 must be rewritten"
 
 HEADING = f"""# NB34 - coverage and the two-target screen for the volatility tail exclusion
 
@@ -90,27 +95,39 @@ than the ones it removes. But its bootstrap standard error is {f3(c["median_retu
 {f2(F["returns"]["critical"])}, and the lower bounds land at {f3(c["median_return_lo"])} and
 {f3(v["median_return_lo"])} against a margin of -{m["constants"]["return_margin_log_30d"]}. To pass, the
 observed contrast would have had to exceed about +{f2(needed_c)} and +{f2(needed_v)} - the retained
-set out-earning the excluded set by roughly {pc(needed_c)} at the median over 30 days. That is a
-superiority test with a large bar, not the non-inferiority test the clause was written to be.
-Even the unadjusted single-hypothesis bounds, {f3(unadj_c)} and {f3(unadj_v)}, sit below the margin
+set out-earning the excluded set by roughly {pc(needed_c)} at the median over 30 days. The clause
+is still a one-sided non-inferiority test; on this sample's realised uncertainty it is
+operationally as demanding as a large superiority result. Even the unadjusted single-hypothesis bounds, {f3(unadj_c)} and {f3(unadj_v)}, sit below the margin
 (cell 34). The verdict is what the pre-registered rule returns, and the rule stands as written;
 standing rule 2 says a badly placed threshold is recorded, not moved.
 
-**2. Why the return clause cannot resolve here: the excluded eight are the most volatile vaults
-on the book, and the median of eight wild numbers is itself wild.** Per date, the median
-contrast has a standard deviation of {f3(m["median_contrasts"]["calm_score"]["contrast"]["std"])} across
-{post_dates} decisions for `calm_score` (10th to 90th percentile {f2(m["median_contrasts"]["calm_score"]["contrast"]["10%"])}
-to {f2(m["median_contrasts"]["calm_score"]["contrast"]["90%"])}); {pc(c["crash_share_excluded"])} of the
-excluded candidate-dates end the 30 days below -0.5 log against {pc(c["crash_share_retained"])} of the
-retained (cell 32). Those {crash["rows"]} crash rows come from {crash["vaults"]} vaults on
-overlapping windows (cell 34). The margin is 0.5% of return; the noise is 17%. NB28 found the
-same ratio - half-width 20-60x the margin - on the mean-based clause in different units, and
-this notebook establishes that switching to a median did not repair it: the sample is {post_dates}
-decisions, about four months, with very few non-overlapping 30-day horizons, and no clause on a
-forward return of the excluded tail can be resolved on it.
+**2. The clause is reachable - a foresight oracle passes it - so the failure is "not
+demonstrated by a trailing signal on this sample", not "unresolvable".** Standing rule 9 asks
+that a surprising failure be shown unreachable rather than merely observed, so two oracles go
+through the identical machinery on the same post-break panel (cell 36). `oracle_vol` - the
+forward volatility itself plus 5% noise, excluding the eight that WILL be most volatile - passes
+BOTH clauses: stability lower bounds {f3(ov["lo_forward_vol"])} / {f3(ov["lo_forward_downside"])}, median
+return contrast {f3(ov["median_return_contrast"])} with lower bound {f3(ov["median_return_lo"])}. That
+contrast is large because, on this panel, the vaults that will be most volatile are largely the
+vaults that will crash: {pc(ov["crash_share_excluded"])} of its excluded candidate-dates end the 30 days
+below -0.5 log, against {pc(ov["crash_share_retained"])} of its retained. `oracle_return` passes the
+return clause too (contrast {f3(orr["median_return_contrast"])}, lower bound {f3(orr["median_return_lo"])}).
+So the machinery can pass the clause and the bar is where finding 1 says it is. The trailing
+signals reach a contrast of {f3(c["median_return_contrast"])} and {f3(v["median_return_contrast"])} with
+{pc(c["crash_share_excluded"])} and {pc(v["crash_share_excluded"])} of their excluded candidate-dates
+crashing: they remove some of the future crashers, and the median of the eight they remove is
+below the median of what they keep, but on {post_dates} decisions the sample cannot tell that
+positive contrast from zero. Per date the median contrast has a standard deviation of
+{f3(m["median_contrasts"]["calm_score"]["contrast"]["std"])} (10th to 90th percentile
+{f2(m["median_contrasts"]["calm_score"]["contrast"]["10%"])} to {f2(m["median_contrasts"]["calm_score"]["contrast"]["90%"])});
+the {crash["rows"]} crash rows come from {crash["vaults"]} vaults on overlapping windows (cell 34). NB28
+found the same width-to-margin ratio on the mean-based clause in different units; the median
+did not repair it. What this notebook does NOT establish is that the mechanism has a return
+cost: the point estimate says the opposite, and the oracle says a better volatility signal would
+pass with room to spare.
 
-**3. The guard masks far more than "a few percent", and it masks the OLD silent vaults, not the
-young ones.** H1 expected `calm_score` to cover a few percent fewer candidate-dates than
+**3. The guard masks far more than "a few percent", and what it masks is older than the measured
+set and often sparsely observed or recently silent - not the young vaults.** H1 expected `calm_score` to cover a few percent fewer candidate-dates than
 `inverse_vol`. It covers {pc(masked_post)} fewer on post-break decisions and {pc(masked_pre)} fewer
 before the break; {tot["masked_by_guard"]:,} of {tot["measured"]:,} measured candidate-dates over
 the whole panel, {pc(tot["masked_share"])} (cell 29). The masked candidates have a median age of
@@ -119,8 +136,8 @@ measured set: post-break, {reasons.get(("post_break", "both"), 0)} rows have NO 
 (a constant NAV - the vault is dead or its feed is), {reasons.get(("post_break", "fewer_than_30_fresh"), 0)}
 have a recent mark but fewer than 30 in the window, and {reasons.get(("post_break", "stale_over_10_rows"), 0)}
 have enough marks but none in the last ten rows (cell 30). The guard is doing what it was built
-to do - refusing a volatility estimate on a vault that barely reports - and the cost is a third
-of the measured pool.
+to do - refusing a volatility estimate on a vault that reports thinly or has stopped - and the
+cost is a third of the measured pool.
 
 **4. The guard changes the exclusion set enough to remove most of the mechanism's effect.**
 `calm_8` on the track window: CAGR {pc(runs["calm_8"]["cagr"])}, cycle Sharpe {f3(runs["calm_8"]["cycle_sharpe"])},
@@ -130,13 +147,14 @@ H2 expected the two within 0.05 Sharpe of each other; the gap is
 {f2(runs["measured_8"]["cycle_sharpe"] - runs["calm_8"]["cycle_sharpe"])}. `calm_score` equals
 `inverse_vol` wherever it is finite, so the two exclusion sets can differ on a date only when one
 of the eight most volatile candidates by raw `inverse_vol` is masked by the guard - and then, under
-permissive exclusion, that vault is KEPT and the ninth most volatile goes instead. The two runs
+permissive exclusion, that vault is KEPT and the next most volatile unmasked candidate goes
+instead (the ninth if one is masked, further down if more are). The two runs
 differ, so that happens; and since it is the only way they can differ, the whole gap between
 `measured_8` and `calm_8` is the effect of excluding vaults the guard calls unmeasurable: sparsely
 polled or recently silent, AND at the volatile end of what can be measured. Their forward
 volatility is nonetheless predicted - `inverse_vol`'s stability clause passes on the whole panel
 too, lower bound {f3(alls["inverse_vol"]["lo_forward_vol"])} over {alls["inverse_vol"]["dates"]}
-decisions (cell 36). Which of the two guards fires on those particular vaults, and on how many
+decisions (cell 38). Which of the two guards fires on those particular vaults, and on how many
 dates, is not measured here; NB35's inertness table gives the dates on which the two books differ.
 
 **5. The eight the mechanism actually removes ARE the ones that misbehave.** At the actual
@@ -167,14 +185,22 @@ data, not evidence of a cost.
 | masked by the guard, post-break (share of measured) | {pc(masked_post)} | - |
 | track-window run at count 8: CAGR / Sharpe | {pc(runs["calm_8"]["cagr"])} / {f3(runs["calm_8"]["cycle_sharpe"])} | {pc(runs["measured_8"]["cagr"])} / {f3(runs["measured_8"]["cycle_sharpe"])} |
 
+Oracles on the same post-break panel, DIAGNOSTIC (cell 36; {OB["draws"]} draws, seed {OB["seed"]}):
+
+| | `oracle_vol` (foresight vol, no return information) | `oracle_return` (foresight return) |
+|---|---|---|
+| stability clause | {ov["stability_clause"]} | {orr["stability_clause"]} |
+| median return contrast (se; lower bound) | {f3(ov["median_return_contrast"])} ({f3(ov["median_return_se"])}; {f3(ov["median_return_lo"])}) | {f3(orr["median_return_contrast"])} ({f3(orr["median_return_se"])}; {f3(orr["median_return_lo"])}) |
+| return clause | {ov["return_clause"]} | {orr["return_clause"]} |
+
 Pre-break decisions ({pre_dates}), DIAGNOSTIC: `calm_score` is unevaluable ({pre["calm_score"]["dates"]}
 usable dates, below the 40 minimum) and `inverse_vol` shows the same picture as post-break -
 stability lower bounds {f3(pre["inverse_vol"]["lo_forward_vol"])} / {f3(pre["inverse_vol"]["lo_forward_downside"])},
-return lower bound {f3(pre["inverse_vol"]["median_return_lo"])} (cell 36). Whole period: gate 5 False for
-both, same shape (cell 36). Forward event concentration, kept in view: per-date Spearman of either
-signal against the excess top-five share is within 0.07 of zero either way, and the two remaining
-targets correlate with it at under 0.1 (cell 38) - the gate no longer asks about it, and nothing
-here suggests a price signal could answer.
+return lower bound {f3(pre["inverse_vol"]["median_return_lo"])} (cell 38). Whole period: gate 5 False for
+both, same shape (cell 38). Forward event concentration, kept in view: the descriptive per-date
+Spearman of either signal against the excess top-five share is within 0.07 of zero, and the two
+remaining targets correlate with it at under 0.1 in this panel (cell 40) - unbootstrapped, on
+overlapping windows, context for dropping the target and nothing more.
 
 **What goes to NB35:** gate 5 False for both signals. Under the rules a candidate failing gate 5
 is REJECTED; NB35 scores the remaining gates and reports the expensive ones as diagnostics so the
@@ -195,9 +221,10 @@ plan's open questions are still answered.
   complete (cell 32). The stability result does not depend on the multiplicity control: the
   unadjusted bounds are within 0.005 of the simultaneous ones (cell 34).
 - The return clause's failure is robust in the unhelpful direction: it fails unadjusted, it fails
-  on the pre-break sample, it fails on the whole period, and it would fail for any contrast below
-  about +{f2(needed_v)}. A clause that cannot be passed by a true zero effect is not measuring
-  non-inferiority, and this is recorded for the next plan rather than corrected here.
+  on the pre-break sample, it fails on the whole period, it would fail for any contrast below
+  about +{f2(needed_v)} - and a foresight volatility oracle clears that bar (cell 36), so the
+  clause is reachable and the machinery is not the reason. The margin is recorded as badly
+  placed for this sample size and left where it was, per standing rule 2.
 - The guard's masking is not a bug in the indicator: every masked row is explained by one of the
   two guards, none is unexplained (cell 30), and `calm_score` never scores a candidate that
   `inverse_vol` does not (cell 29).

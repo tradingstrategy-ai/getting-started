@@ -262,6 +262,12 @@ def gate_row_v3(
     anchor = run_by_label[anchor_label]["panel"]
     anchor_entry = run_by_label[anchor_label]
     out = {"label": label, "signal": signal}
+    # Every null field is present on every row, NaN when the null was not run for this
+    # candidate, so a table can select the column without a KeyError on a rejected row.
+    out.update({"null_best": float("nan"), "null_median": float("nan"), "null_sharpe_rank_of_centre": None,
+                "centre_persistence": float("nan"), "null_persistence_mean": float("nan"),
+                "centre_turnover": float("nan"), "null_turnover_mean": float("nan"),
+                "null_draws": 0, "distinct_cycle_return_series": 0})
     out.update({k: float(row[k]) for k in
                 ("cycle_sharpe", "cagr", "cycle_vol", "ulcer", "max_dd", "abs_invested_beta",
                  "mean_invested", "sparse_cagr", "dense_cagr", "late_cagr", "luck_ratio", "top5_gross_share")})

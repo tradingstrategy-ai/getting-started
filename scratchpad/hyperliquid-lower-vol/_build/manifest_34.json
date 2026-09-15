@@ -34,7 +34,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "4c8f108"
+   "sha256": "3d45a52"
   }
  },
  "eligible_decisions": 111,
@@ -1313,6 +1313,68 @@
    "signed_stable_end_less_concentrated": 0.075078
   }
  ],
+ "oracle": {
+  "oracle_vol": {
+   "direction": "high",
+   "rows": 10257,
+   "dates": 66,
+   "rho_forward_vol": 0.976451,
+   "lo_forward_vol": 0.969502,
+   "p_forward_vol": 0.004975,
+   "tail_forward_vol": 0.503103,
+   "tail_lo_forward_vol": 0.50275,
+   "rho_forward_downside": 0.944464,
+   "lo_forward_downside": 0.931641,
+   "p_forward_downside": 0.004975,
+   "tail_forward_downside": 0.498809,
+   "tail_lo_forward_downside": 0.493417,
+   "rho_forward_return": 0.069175,
+   "median_return_contrast": 0.865233,
+   "median_return_lo": 0.26934,
+   "median_return_se": 0.291148,
+   "crash_share_retained": 0.01666,
+   "crash_share_excluded": 0.577652,
+   "excluded_in_sample_mean": 8.0,
+   "enough_dates": true,
+   "evaluated": true,
+   "stability_clause": true,
+   "return_clause": true,
+   "gate_5": true
+  },
+  "oracle_return": {
+   "direction": "low",
+   "rows": 10257,
+   "dates": 66,
+   "rho_forward_vol": 0.066921,
+   "lo_forward_vol": -0.057301,
+   "p_forward_vol": 0.18408,
+   "tail_forward_vol": 0.468279,
+   "tail_lo_forward_vol": 0.44763,
+   "rho_forward_downside": 0.208284,
+   "lo_forward_downside": 0.0923,
+   "p_forward_downside": 0.00995,
+   "tail_forward_downside": 0.479986,
+   "tail_lo_forward_downside": 0.464875,
+   "rho_forward_return": 0.94325,
+   "median_return_contrast": 1.003212,
+   "median_return_lo": 0.48031,
+   "median_return_se": 0.255485,
+   "crash_share_retained": 0.011439,
+   "crash_share_excluded": 0.674242,
+   "excluded_in_sample_mean": 8.0,
+   "enough_dates": true,
+   "evaluated": true,
+   "stability_clause": false,
+   "return_clause": true,
+   "gate_5": false
+  }
+ },
+ "oracle_bootstrap": {
+  "draws": 200,
+  "seed": 20260915,
+  "return_critical": 2.046702972481104,
+  "return_complete_draws": 200
+ },
  "missing_reasons": [
   {
    "target": "forward_vol",
