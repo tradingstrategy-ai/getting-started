@@ -196,9 +196,11 @@ print(f"same signal in every fold: {len(distinct) == 1 and all(chosen_signals)}"
 cells.append(md("""## Part 3. The stitched out-of-fold path
 
 Each fold gets its own backtest, with the prefilter active only during that fold. Before the fold
-starts the run is bit-identical to the anchor, so the fold's returns begin from a book the
-mechanism did not build - which is what makes the five segments stitchable into one coherent
-path.
+starts the run is bit-identical to the anchor. That makes the segments stitchable ONLY in the
+vacuous case met here: if two folds had activated, the second's run would still be the anchor up
+to its own start and would not carry the first fold's book forward, and a boundary return belongs
+to the decision before it rather than to the segment its timestamp falls in. A non-vacuous
+cross-fit needs one stateful run driven by a date-to-signal schedule.
 
 A fold whose screen chose no signal contributes the anchor's own returns for that segment, and
 that is stated rather than hidden: a fold with nothing to run is not evidence for the mechanism.

@@ -58,7 +58,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "048d888"
+   "sha256": "4c6873e"
   }
  },
  "gate_5": {
@@ -841,6 +841,11 @@
    "return_clause": true,
    "gate_5": true
   }
+ },
+ "oracle_bootstrap": {
+  "draws": 200,
+  "signals_in_family": 17,
+  "stability_hypotheses": 51
  },
  "targets_pre_registered": [
   "forward_vol",

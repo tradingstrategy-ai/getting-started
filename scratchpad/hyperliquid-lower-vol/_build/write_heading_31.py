@@ -28,8 +28,9 @@ def f4(x): return f"{x:.4f}"
 H = f"""# NB31 - close-out, and the frozen prospective specification
 
 Re-runs every configuration NB29 and NB30 executed, in ONE kernel on ONE snapshot; re-derives
-gate 5 from a rebuilt panel and the corrected bootstrap; re-derives gates 1-4 and 6-9 from the
-re-run states; and cross-checks each run against the manifest it was first recorded in at 1e-9.
+gate 5 from a rebuilt panel; re-derives gates 1, 3, 4, 6, 7 and 8 from the re-run states, with
+gates 2 and 9 failing closed as unexecuted; and cross-checks each run against the manifest it
+was first recorded in at 1e-9.
 
 **Verdict: {SP['status'].split(' - ')[0]}.** {SP['status'].split(' - ', 1)[1] if ' - ' in SP['status'] else ''}
 ADOPT is not in this batch's vocabulary and SHORTLIST was the strongest verdict available;
@@ -56,8 +57,9 @@ across CAGR, cycle Sharpe, cycle volatility, ulcer, max drawdown, invested beta 
 kernel's own logging run and the joint bootstrap and simultaneous bounds recomputed with the same
 pre-registered target. Agreement is asserted on the gate-5 flags, on {len(m['gate_5_booleans_compared'])}
 clause and evaluation booleans, on {m['gate_5_fields_compared']} unrounded numeric screen fields
-(largest absolute difference {m['gate_5_worst_lo_diff']:.1e}), and on all three bootstrap families'
-critical values, complete-draw counts and family sizes - for all thirteen signals
+(largest absolute difference {m['gate_5_worst_lo_diff']:.1e}), and on all six persisted diagnostics
+of all three bootstrap families - critical value, complete, total and incomplete draw counts,
+family size used and total - for all thirteen signals
 ({'True' if m['gate_5_rederived_agrees'] and m['gate_5_families_agree'] else 'FALSE'}).
 
 **3. The two kernels agree on the verdict (cell 28).** `{centre}` fails the same gates here as in
@@ -144,9 +146,11 @@ What this batch established, across NB28-NB31, after review:
   integrity failures; over {AU.get('fee_redemptions', '?')} redemptions the stored fee rate differs
   from `10% x max(gross - released cost basis, 0) + 10 bps` by at most
   {AU.get('fee_worst_rate_diff', float('nan')):.2e}, a worst net-proceeds difference of
-  ${AU.get('fee_worst_proceeds_diff_usd', float('nan')):,.2f} on one redemption. That is the engine
-  fixing the rate at decision time from that bar's price while the trade executes at the next
-  bar's - a one-bar approximation, now measured, not an accounting error.
+  ${AU.get('fee_worst_proceeds_diff_usd', float('nan')):,.2f} on one redemption, {AU.get('fee_over_1bp', '?')}
+  redemptions over 1 bp, a net signed difference of ${AU.get('fee_net_signed_proceeds_diff_usd', float('nan')):+,.2f}
+  across the eight runs{" - one-sided: the engine charged more than the formula on every affected redemption, never less" if abs(AU.get('fee_sum_abs_proceeds_diff_usd', 0) + AU.get('fee_net_signed_proceeds_diff_usd', 0)) < 1e-6 else ""}. The cause is NOT decomposed - the engine stores its rate at the decision
+  timestamp and this recomputation uses the trade's planned mid-price, and separating price drift
+  from basis mismatch needs decision-time inputs recorded on the trade. Track-level item.
 - **What would change the conclusion.** Gate 5 fails on a third target nothing established and a
   return clause far wider than its margin. A rule change addressing either is a legitimate
   pre-registration for a NEXT plan and is not made here.

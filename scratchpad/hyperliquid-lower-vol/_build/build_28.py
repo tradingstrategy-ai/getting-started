@@ -122,10 +122,10 @@ are dropped and counted rather than evaluated on a truncated window, which would
 late-window vault look artificially calm. The notebook never claims 126 decisions.
 
 Every target carries an explicit missing-reason code. The event-concentration target needs at
-least 8 positive residual events in the window. The gate target is the EXCESS of the top-five
-share over the uniform-events value `min(5, n)/n`: the raw share is bounded below by 5/n - 0.625
-at eight events, 0.10 at fifty - so it partly measured how often a vault reported, which the
-first review of this notebook caught. The raw share and the event count are kept as diagnostics.
+least 8 positive residual events in the window. The PRE-REGISTERED gate target is the raw
+top-five share. The first review showed it is bounded below by 5/n - 0.625 at eight events, 0.10
+at fifty - so it partly measures how often a vault reported; the EXCESS over the uniform-events
+value `min(5, n)/n` is computed alongside as a post-review diagnostic, and the event count is kept.
 """))
 cells.append(code('''panel_frame, eligibility = build_screen_panel(logging_run)
 display(eligibility.groupby("eligible").agg(decisions=("date", "size"),
@@ -241,10 +241,10 @@ display(decomposition.round(4))
 forward = panel_frame["forward_return"].replace([np.inf, -np.inf], np.nan).dropna()
 print(f"forward 30-day log NAV return over {len(forward)} (candidate, date) rows:")
 display(forward.describe(percentiles=[0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99]).round(4).to_frame("log return"))
-print(f"annualising factor applied to the contrast: 365/{FORWARD_HORIZON_DAYS} x 100 = "
-      f"{365.0 / FORWARD_HORIZON_DAYS * 100:.1f}")
-print(f"so a 1 percentage-point 30-day gap reads as {365.0 / FORWARD_HORIZON_DAYS:.2f} "
-      f"annualised percentage points")
+print(f"the return contrast is 100 x (exp({365.0 / FORWARD_HORIZON_DAYS:.3f} x mean_log_retained) "
+      f"- exp({365.0 / FORWARD_HORIZON_DAYS:.3f} x mean_log_excluded)): a difference of COMPOUNDED "
+      f"annual returns, not a linear rescaling. It depends on both group means, and a mean 30-day "
+      f"log return of the size the tail shows compounds to a very large annual figure.")
 '''))
 
 cells.append(code('''# Unadjusted per-hypothesis bounds, DESCRIPTIVE only, for the pre-registered screen. Printed
@@ -267,7 +267,7 @@ display(unadjusted.round(4))
 
 cells.append(md("""### Can this screen pass anything? Near-perfect-foresight oracles
 
-Standing rule 9: a surprising null must be shown unreachable, not merely unobserved. Three oracle
+Standing rule 9: a surprising null must be shown unreachable, not merely unobserved. Four oracle
 signals are appended to the panel and run through the same bootstrap and simultaneous bounds:
 
 - `oracle_vol`: the forward volatility itself plus 5% noise (direction 'high').
@@ -506,6 +506,8 @@ manifest = {
                                    "n_draws": int(detail_cor["stability"]["n_draws"]),
                                    "family_size_used": int(detail_cor["stability"]["family_size_used"])},
     "oracle": oracle.to_dict(orient="index"),
+    "oracle_bootstrap": {"draws": 200, "signals_in_family": len(SIGNAL_NAMES) + 4,
+                         "stability_hypotheses": (len(SIGNAL_NAMES) + 4) * 3},
     "targets_pre_registered": PRE_TARGETS, "targets_corrected": COR_TARGETS,
     "carried_to_nb29": [s for s in summary.index if bool(summary.loc[s, "carried_to_nb29"])],
     "screen": screen.round(6).to_dict(orient="index"),

@@ -171,13 +171,18 @@ for name in ("stability", "returns", "tails"):
     fam_rows.append({"family": name,
                      "critical_here": float(detail[name]["critical"]), "critical_nb28": there["critical"],
                      "draws_here": int(detail[name]["n_draws"]), "draws_nb28": there["n_draws"],
-                     "family_here": int(detail[name]["family_size_used"]), "family_nb28": there["family_size_used"]})
+                     "draws_total_here": int(detail[name]["n_draws_total"]), "draws_total_nb28": int(there["n_draws"] + there["n_draws_incomplete"]),
+                     "incomplete_here": int(detail[name]["n_draws_incomplete"]), "incomplete_nb28": there["n_draws_incomplete"],
+                     "family_here": int(detail[name]["family_size_used"]), "family_nb28": there["family_size_used"],
+                     "family_total_here": int(detail[name]["family_size_total"]), "family_total_nb28": there["family_size_total"]})
 families = pd.DataFrame(fam_rows).set_index("family")
 families["critical_diff"] = (families["critical_here"] - families["critical_nb28"]).abs()
 display(families)
-assert bool((families["draws_here"] == families["draws_nb28"]).all()), "complete-draw counts differ from NB28"
-assert bool((families["family_here"] == families["family_nb28"]).all()), "family sizes differ from NB28"
+for a, b in (("draws_here", "draws_nb28"), ("draws_total_here", "draws_total_nb28"), ("incomplete_here", "incomplete_nb28"),
+             ("family_here", "family_nb28"), ("family_total_here", "family_total_nb28")):
+    assert bool((families[a] == families[b]).all()), f"{a} differs from NB28"
 assert float(families["critical_diff"].max()) < 1e-9, "critical values differ from NB28"
+print("all six persisted diagnostics agree for all three families")
 display(comparison.round(10))
 worst_lo = float(diffs.to_numpy().max())
 worst_field = diffs.stack().idxmax()
@@ -411,7 +416,7 @@ assert len(bad) == 0, f"integrity screen failed for: {list(bad.index)}"
 
 def independent_fee_audit(state_) -> dict:
     perf_rate = float(Parameters.vault_performance_fee); cap_rate = float(Parameters.vault_redemption_capital_fee)
-    worst_rate, worst_proceeds, n = 0.0, 0.0, 0
+    worst_rate, worst_proceeds, n, over_1bp, sum_abs, signed = 0.0, 0.0, 0, 0, 0.0, 0.0
     for position in state_.portfolio.get_all_positions():
         if not position.pair.is_vault():
             continue
@@ -425,21 +430,27 @@ def independent_fee_audit(state_) -> dict:
             gross = q * float(trade.planned_mid_price); released = cost_basis * q / quantity
             expected_rate = cap_rate + perf_rate * max(gross - released, 0.0) / gross if gross > 0 else cap_rate
             stored_rate = float(trade.other_data["backtest_vault_redemption_fee"])
-            worst_rate = max(worst_rate, abs(stored_rate - expected_rate))
-            worst_proceeds = max(worst_proceeds, abs(q * float(trade.executed_price) - gross * (1.0 - expected_rate)))
+            rate_diff = stored_rate - expected_rate; proceeds_diff = q * float(trade.executed_price) - gross * (1.0 - expected_rate)
+            worst_rate = max(worst_rate, abs(rate_diff)); worst_proceeds = max(worst_proceeds, abs(proceeds_diff))
+            over_1bp += int(abs(rate_diff) > 1e-4); sum_abs += abs(proceeds_diff); signed += proceeds_diff
             n += 1; cost_basis -= released; quantity -= q
-    return {"redemptions": n, "max_abs_rate_diff": worst_rate, "max_abs_proceeds_diff_usd": worst_proceeds}
+    return {"redemptions": n, "over_1bp": over_1bp, "max_abs_rate_diff": worst_rate, "max_abs_proceeds_diff_usd": worst_proceeds,
+            "sum_abs_proceeds_diff_usd": sum_abs, "net_signed_proceeds_diff_usd": signed}
 
 
 fee_all = pd.DataFrame([{"label": e["label"], **independent_fee_audit(e["state"])} for e in runs if e.get("state") is not None]).set_index("label")
-print("\\nindependent redemption-fee recomputation, every run:")
+print("\\nindependent redemption-fee recomputation, every run (gross = the trade's planned mid-price; the engine's")
+print("stored rate uses the decision-timestamp gross; this measures the discrepancy and does not decompose it):")
 display(fee_all)
 manifest_path = Path("_build/manifest_31.json")
 manifest_now = json.loads(manifest_path.read_text())
 manifest_now["audit"] = {"runs_audited": int(len(audit_all)), "integrity_failures": int(len(bad)),
                          "fee_runs_audited": int(len(fee_all)), "fee_redemptions": int(fee_all["redemptions"].sum()),
                          "fee_worst_rate_diff": float(fee_all["max_abs_rate_diff"].max()),
-                         "fee_worst_proceeds_diff_usd": float(fee_all["max_abs_proceeds_diff_usd"].max())}
+                         "fee_worst_proceeds_diff_usd": float(fee_all["max_abs_proceeds_diff_usd"].max()),
+                         "fee_over_1bp": int(fee_all["over_1bp"].sum()),
+                         "fee_sum_abs_proceeds_diff_usd": float(fee_all["sum_abs_proceeds_diff_usd"].sum()),
+                         "fee_net_signed_proceeds_diff_usd": float(fee_all["net_signed_proceeds_diff_usd"].sum())}
 manifest_path.write_text(json.dumps(manifest_now, indent=1, default=str))
 print("manifest updated with audit results")
 '''))

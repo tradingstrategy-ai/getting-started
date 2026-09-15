@@ -1,0 +1,14 @@
+## Review outcome
+
+The third-round bootstrap, p-value, common-sample comparison, provenance, citations, and oracle reachability fixes are correctly implemented. T−1 signal access and the shared two-way resamples also look sound.
+
+| Severity | Cell | Finding and concrete fix |
+|---|---:|---|
+| Material | 25 | The markdown says the “gate target is the EXCESS” top-five measure. This is false: cell 29 correctly uses raw `forward_event_top5` for the pre-registered gate verdict, with excess only diagnostic. This directly contradicts the method and can mislead readers about which result rejected all 13 signals. Fix the text to say raw share is the gate target and excess is the post-review diagnostic. |
+| Material | 32 | The explanation of annualisation is arithmetically wrong. The implemented contrast is `100 * (exp(A*mean(retained_log_return)) - exp(A*mean(excluded_log_return)))`; it is not a linear `A × 100` conversion. Thus “a 1 percentage-point 30-day gap reads as 12.17 annualised percentage points” is false and depends on both group means. Fix by displaying the actual formula, or label the linear factor as an obsolete local approximation and do not use it to interpret the reported contrasts. |
+| Material | 47 | NB28’s redemption-fee audit is circular. It reads `backtest_vault_redemption_fee` from the trade, derives “performance fee” from that same stored rate, then confirms settlement matched that stored rate. It does not independently test whether the stored rate equals 10 bps plus 10% of positive profit over released average cost basis. This audit therefore cannot detect the later-reported 25.7-bp discrepancy. Fix by using the independent per-sale recomputation already added to NB29/NB31, or relabel this cell as a settlement-versus-stored-rate reconciliation only. |
+| Minor | 0, 34 | Both locations call these “three” oracles but list and execute four: `oracle_vol`, `oracle_return`, `oracle_all`, and `oracle_gate5`. Fix the count. |
+
+The NB29/NB31 attribution for the independent fee discrepancy is correct from cell 14’s code: `refresh_vault_redemption_accounting()` computes the rate using decision-time gross value and `get_remaining_cost_basis()`, stores it by pair in `_vault_redemption_fee_by_pair_id`, and the wrapped sell-pricing method applies that stored rate when settlement occurs on the next bar. It is therefore not recomputed from execution-time gross proceeds.
+
+The oracle is a valid reachability calibration: `oracle_gate5` uses forward stability ranks and forward-return rank, with the correct `low` direction so its high-valued end is stable and high-returning. Its pass under the expanded family shows the implemented screen can emit a pass; it does not validate the raw concentration target as an economically sound stability measure.

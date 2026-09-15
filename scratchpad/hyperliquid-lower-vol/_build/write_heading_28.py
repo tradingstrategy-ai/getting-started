@@ -118,8 +118,8 @@ pre-registered raw target, {len(conc_clear)} of 13 clear it; the largest point e
 `{best_conc}` at {f4(S[best_conc]['rho_forward_event_top5'])} with an unadjusted lower bound of
 {f4(u_best['lo_unadjusted'])} and a simultaneous lower bound of {f4(S[best_conc]['lo_forward_event_top5'])}
 (cell 33). On the corrected excess target, {len(cor_clear)} of 13 clear it; the largest is
-`{best_cor}` at {f4(SC[best_cor]['rho_forward_event_top5_excess'])} (cell 29). Three near-perfect-foresight
-oracles settle whether the clause is reachable (cell 35): `oracle_all`, which knows all three
+`{best_cor}` at {f4(SC[best_cor]['rho_forward_event_top5_excess'])} (cell 29). Four near-perfect-foresight
+oracles settle whether the clauses are reachable (cell 35): `oracle_all`, which knows all three
 targets, {'PASSES' if OR['oracle_all']['stability_clause'] else 'FAILS'} the stability clause (lower bounds
 {OR['oracle_all']['lo_forward_vol']:+.3f} / {OR['oracle_all']['lo_forward_downside']:+.3f} / {OR['oracle_all']['lo_forward_event_top5']:+.3f}),
 while `oracle_vol`, which knows only the forward volatility, {'PASSES' if OR['oracle_vol']['stability_clause'] else 'FAILS'} it

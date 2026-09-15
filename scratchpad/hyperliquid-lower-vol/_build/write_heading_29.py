@@ -80,8 +80,9 @@ Cycle volatility falls monotonically from {f4(A['cycle_vol'])} to {f4(fam[50]['c
 mean invested stays between {f4(min(v['mean_invested'] for v in fam.values()))} and
 {f4(max(v['mean_invested'] for v in fam.values()))}. `RESEARCH-RULES.md` consequence 2 said the only
 thing in this track that had ever materially lowered volatility was holding cash; this lowers it
-further than the 10% volatility target did (0.085) while staying invested. Sharpe falls with it,
-from {f4(A['cycle_sharpe'])} to {f4(fam[50]['cycle_sharpe'])}.
+further than the 10% volatility target did (0.085) while staying invested. Sharpe is below the
+q = 0.10 value at every larger fraction and reaches {f4(fam[50]['cycle_sharpe'])} at q = 0.50,
+against the anchor's {f4(A['cycle_sharpe'])}; it is not monotone (q = 0.40 is above q = 0.30).
 
 **2. At q = 0.10 the mechanism beats the anchor on all four headline metrics, and that is not
 evidence of anything.** CAGR {f4(fam[10]['cagr'])} against {f4(A['cagr'])}, Sharpe
@@ -172,13 +173,17 @@ Paired block bootstrap against the anchor, context only (cell 38): observed Shar
   across {AU.get('fee_runs_audited', '?')} runs the stored fee rate differs from
   `10% x max(gross - released cost basis, 0) + 10 bps` by at most {AU.get('fee_worst_rate_diff', float('nan')):.2e},
   with a worst net-proceeds difference of ${AU.get('fee_worst_proceeds_diff_usd', float('nan')):,.2f} on one
-  redemption. The discrepancy is not an accounting error: the engine fixes the rate at DECISION
-  time from that bar's gross price and the position's remaining average-cost basis
-  (`refresh_vault_redemption_accounting`), while the trade executes at the next bar's price, so
-  the profit share is charged on decision-time profit rather than executed profit. It is a known
-  one-bar approximation whose worst case is now measured. The base notebook's own fee audit
-  verifies execution against the stored rate and cannot see this; this cell is the independent
-  check three reviews asked for.
+  redemption; {AU.get('fee_over_1bp', '?')} redemptions differ by more than 1 bp, the sum of absolute
+  proceeds differences is ${AU.get('fee_sum_abs_proceeds_diff_usd', float('nan')):,.2f} and the net signed
+  difference ${AU.get('fee_net_signed_proceeds_diff_usd', float('nan')):+,.2f} across all seven runs
+  (anchor alone {AU.get('fee_anchor_net_signed_proceeds_diff_usd', float('nan')):+,.2f}).
+  {"**The discrepancy is ONE-SIDED**: the summed absolute and the net signed differences are equal in magnitude, so on every one of the " + str(AU.get('fee_over_1bp', '?')) + " affected redemptions the engine charged MORE than the formula, never less. That rules out symmetric price drift as the explanation." if abs(AU.get('fee_sum_abs_proceeds_diff_usd', 0) + AU.get('fee_net_signed_proceeds_diff_usd', 0)) < 1e-6 else "The differences are of mixed sign."} **The cause is not
+  decomposed.** The engine stores the rate at the decision timestamp from that bar's gross value
+  and the position's remaining average-cost basis; this recomputation uses the trade's planned
+  mid-price as the gross. Two reviewers read the gap as settlement-price drift and two as a
+  possible rate/basis mismatch; separating them needs the decision-time gross and basis recorded
+  on the trade, which the engine does not do. It is a track-level item, recorded here. The base
+  notebook's own fee audit checks execution against the stored rate and cannot see it.
 """
 out = here.parent / "29-backtest-stability-prefilter.ipynb"
 nb = json.load(open(out))

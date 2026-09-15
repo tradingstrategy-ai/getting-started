@@ -114,6 +114,7 @@ display(pd.DataFrame(manifest_28["decomposition"]).T[["stability_targets_cleared
 display(pd.DataFrame(manifest_28["missing_reasons"]).set_index("target"))
 print("oracle reachability (NB28), complete: construction is forward target + 5% noise; directions "
       "vol high, return low, all high, gate5 low")
+print("oracle bootstrap:", manifest_28["oracle_bootstrap"])
 display(pd.DataFrame(manifest_28["oracle"]).T)
 '''))
 
@@ -537,7 +538,7 @@ def independent_fee_audit(state_) -> dict:
     which is circular; three reviews asked for this."""
     perf_rate = float(Parameters.vault_performance_fee)
     cap_rate = float(Parameters.vault_redemption_capital_fee)
-    worst_rate, worst_proceeds, n = 0.0, 0.0, 0
+    worst_rate, worst_proceeds, n, over_1bp, sum_abs_proceeds, signed_proceeds = 0.0, 0.0, 0, 0, 0.0, 0.0
     for position in state_.portfolio.get_all_positions():
         if not position.pair.is_vault():
             continue
@@ -552,11 +553,17 @@ def independent_fee_audit(state_) -> dict:
             released = cost_basis * q / quantity
             expected_rate = cap_rate + perf_rate * max(gross - released, 0.0) / gross if gross > 0 else cap_rate
             stored_rate = float(trade.other_data["backtest_vault_redemption_fee"])
-            worst_rate = max(worst_rate, abs(stored_rate - expected_rate))
-            worst_proceeds = max(worst_proceeds, abs(q * float(trade.executed_price) - gross * (1.0 - expected_rate)))
+            rate_diff = stored_rate - expected_rate
+            proceeds_diff = q * float(trade.executed_price) - gross * (1.0 - expected_rate)
+            worst_rate = max(worst_rate, abs(rate_diff))
+            worst_proceeds = max(worst_proceeds, abs(proceeds_diff))
+            over_1bp += int(abs(rate_diff) > 1e-4)
+            sum_abs_proceeds += abs(proceeds_diff); signed_proceeds += proceeds_diff
             n += 1
             cost_basis -= released; quantity -= q
-    return {"redemptions": n, "max_abs_rate_diff": worst_rate, "max_abs_proceeds_diff_usd": worst_proceeds}
+    return {"redemptions": n, "over_1bp": over_1bp, "max_abs_rate_diff": worst_rate,
+            "max_abs_proceeds_diff_usd": worst_proceeds, "sum_abs_proceeds_diff_usd": sum_abs_proceeds,
+            "net_signed_proceeds_diff_usd": signed_proceeds}
 
 
 fee_rows = []
@@ -568,7 +575,11 @@ fee_all = pd.DataFrame(fee_rows).set_index("label")
 print("\\nindependent redemption-fee recomputation, every run (stored rate vs 10% of positive released profit + 10 bps):")
 display(fee_all)
 print(f"worst |stored - recomputed| fee rate across all runs: {fee_all['max_abs_rate_diff'].max():.2e}; "
-      f"worst net-proceeds difference ${fee_all['max_abs_proceeds_diff_usd'].max():,.6f}")
+      f"worst net-proceeds difference ${fee_all['max_abs_proceeds_diff_usd'].max():,.2f}; "
+      f"redemptions differing by more than 1 bp: {int(fee_all['over_1bp'].sum())} of {int(fee_all['redemptions'].sum())}")
+print("This recomputation uses the trade's planned mid-price as the gross; the engine's stored rate uses the")
+print("gross at the decision timestamp. The audit measures the discrepancy; it does NOT decompose it into")
+print("price drift versus basis mismatch, which would need the decision-time gross and basis recorded on the trade.")
 
 # Write the audit results into the manifest, so the heading's audit sentence is generated from it.
 manifest_path = Path("_build/manifest_29.json")
@@ -578,6 +589,10 @@ manifest_now["audit"] = {
     "fee_runs_audited": int(len(fee_all)), "fee_redemptions": int(fee_all["redemptions"].sum()),
     "fee_worst_rate_diff": float(fee_all["max_abs_rate_diff"].max()),
     "fee_worst_proceeds_diff_usd": float(fee_all["max_abs_proceeds_diff_usd"].max()),
+    "fee_over_1bp": int(fee_all["over_1bp"].sum()),
+    "fee_sum_abs_proceeds_diff_usd": float(fee_all["sum_abs_proceeds_diff_usd"].sum()),
+    "fee_net_signed_proceeds_diff_usd": float(fee_all["net_signed_proceeds_diff_usd"].sum()),
+    "fee_anchor_net_signed_proceeds_diff_usd": float(fee_all.loc["anchor", "net_signed_proceeds_diff_usd"]) if "anchor" in fee_all.index else float("nan"),
 }
 manifest_path.write_text(json.dumps(manifest_now, indent=1, default=str))
 print("manifest updated with audit results")

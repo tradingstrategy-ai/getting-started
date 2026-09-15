@@ -64,7 +64,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "048d888"
+   "sha256": "4c6873e"
   }
  },
  "gate_3_detail": {
@@ -125,6 +125,9 @@
   "fee_runs_audited": 8,
   "fee_redemptions": 1897,
   "fee_worst_rate_diff": 0.0025749359975344166,
-  "fee_worst_proceeds_diff_usd": 93.4864603194801
+  "fee_worst_proceeds_diff_usd": 93.4864603194801,
+  "fee_over_1bp": 857,
+  "fee_sum_abs_proceeds_diff_usd": 2898.229466769496,
+  "fee_net_signed_proceeds_diff_usd": -2898.2294667682854
  }
 }

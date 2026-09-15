@@ -318,7 +318,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "048d888"
+   "sha256": "4c6873e"
   }
  },
  "strict_checks": {
@@ -469,6 +469,10 @@
   "fee_runs_audited": 7,
   "fee_redemptions": 1653,
   "fee_worst_rate_diff": 0.0025749359975344166,
-  "fee_worst_proceeds_diff_usd": 93.4864603194801
+  "fee_worst_proceeds_diff_usd": 93.4864603194801,
+  "fee_over_1bp": 734,
+  "fee_sum_abs_proceeds_diff_usd": 2366.071427758091,
+  "fee_net_signed_proceeds_diff_usd": -2366.0714277570137,
+  "fee_anchor_net_signed_proceeds_diff_usd": -532.1580390112719
  }
 }
