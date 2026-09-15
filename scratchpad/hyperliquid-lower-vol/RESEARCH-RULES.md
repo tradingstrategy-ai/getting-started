@@ -175,6 +175,44 @@ mistake constraint 7 made.
   have no volatility estimate at all and that half is exactly inert. Call it the
   data-availability drop family and treat it as a set of candidates, not a placebo.
 
+## Amendments for plan 34, recorded 2026-09-16 before NB34 was built
+
+These are EVIDENCE-INFORMED revisions made after NB28-NB33 exposed defects in the gates as
+written. They apply to NB34 onward. Verdicts reached under the original text stand as recorded
+and are not revised. See [34-volatility-tail-exclusion-plan.md](34-volatility-tail-exclusion-plan.md)
+for the evidence behind each.
+
+- **A1. Gate 5 targets.** Forward volatility and forward downside variation only. Forward event
+  concentration is dropped as a TARGET because its measurement is compromised on this archive
+  (raw share bounded below by 5/n; path inside unobserved gaps not identifiable) - a narrowing of
+  the objective, not a claim that concentration is unpredictable. Simultaneous lower bound of
+  zero over the family of 2 x signals screened, shared date-block and vault-cluster resamples,
+  complete 30-day forward windows only.
+- **A2. Gate 5 return clause: typical-vault return non-inferiority.** Per date, the median
+  forward 30-day log NAV return of the retained set minus that of the excluded set at the
+  mechanism's own exclusion, averaged over dates, same bootstrap; lower bound must exceed
+  -0.005. Protects against "stable because dead" only; the share of retained and excluded
+  vaults with forward return below -0.5 log is reported beside it as a diagnostic. Replaces the
+  mean-based 5 pp annualised clause of plan 28 Draft 3, whose half-width was 20-60x its margin.
+- **A3. Gate 8 tolerance.** `mean_holdings` at least 5.95 rather than at least 6.00: a five-name
+  book on no more than one decision in twenty. A policy choice about breadth, stated as one.
+- **A4. Gate 3 scope.** The concentration leg's 180-row trailing indicator is not identifiable
+  before late September 2026 (mostly forward-filled history), so gate 3 is scored on its
+  volatility leg alone, on decisions from 2026-04-01; both concentration indicators are reported
+  as diagnostics with coverage. Fewer than 40 evaluable dates means unevaluable, which FAILS.
+- **A5. Gate 9 count and scope.** At least nineteen distinct draws (add-one p = 0.05). The null
+  permutes finite signal values within each date and so destroys temporal persistence as well
+  as ranking; the null runs' turnover and basket persistence are reported beside the centre's,
+  and a failure means "did not clear this hurdle", not "selects on no information".
+- **A6. Fee differential.** The net signed discrepancy between the engine's stored redemption
+  fee and `10% x max(gross - released cost basis, 0) + 10 bps`, candidate minus anchor, must be
+  below 0.25 of the candidate-minus-anchor final-equity difference in absolute value for a
+  SHORTLIST. Above that the verdict is DIAGNOSTIC.
+- **Scope.** Gate 5 is evaluated on decisions on or after 2026-04-01 only; pre-break decisions
+  are screened as a diagnostic.
+- **Vocabulary.** From plan 34, the passing verdict is SHORTLIST (admission to the frozen
+  prospective specification), not ADOPT.
+
 ## Standing method rules, unchanged from the previous plans
 
 1. Never select or tune towards a vault by name.

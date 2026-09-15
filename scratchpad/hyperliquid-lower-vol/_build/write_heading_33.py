@@ -102,9 +102,11 @@ floor flips which side of the anchor it lands on, on both windows. That is noise
 
 **4. The proposed combination is bad, and this is the notebook that found out.**
 `floor15 + measured_8` returns {pc(A['combo_floor15_measured8']['cumulative_return'])} at Sharpe
-{f2(A['combo_floor15_measured8']['cycle_sharpe'])} on the incumbent's window, where each component
-alone beats the anchor (cell 28). Two mechanisms that help separately hurt together - the floor
-and the drop remove overlapping candidates and leave too thin a pool. It was proposed for the next
+{f2(A['combo_floor15_measured8']['cycle_sharpe'])} on the incumbent's window (cell 28). It is worse
+than `measured_8` alone ({pc(A['measured_8']['cumulative_return'])} / {f2(A['measured_8']['cycle_sharpe'])})
+and worse than `floor15` alone ({pc(A['floor15']['cumulative_return'])} / {f2(A['floor15']['cycle_sharpe'])}),
+and `floor15` itself does not beat the anchor on this window (finding 3). The floor and the drop
+remove overlapping candidates and leave too thin a pool. It was proposed for the next
 pre-registration in the previous message of this track; it should not be.
 
 **5. `drop_30` looks ordinary on the incumbent's window and is the only configuration whose
