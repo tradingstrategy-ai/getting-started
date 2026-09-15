@@ -6,10 +6,12 @@ from blocks_evidence import PARAM_ANCHOR, INDICATOR_ADDITIONS_EVIDENCE
 from blocks_stability import INDICATOR_ADDITIONS_STABILITY
 from blocks_prefilter import INDICATOR_ADDITIONS_PREFILTER
 from blocks_crossfit import PARAM_ADDITIONS_CROSSFIT, CELL14_REPLACEMENTS_CROSSFIT
+from blocks_rules_fixes import INDICATOR_ADDITIONS_RULES_FIXES
 
 HARNESS_EVIDENCE = (BUILD_DIR / "harness_evidence.py").read_text()
 HARNESS_STABILITY = (BUILD_DIR / "harness_stability.py").read_text()
 HARNESS_RULES = (BUILD_DIR / "harness_rules.py").read_text()
+HARNESS_RULES_V2 = (BUILD_DIR / "harness_rules_v2.py").read_text()
 
 HEADING = """# NB30 - cross-fitted evaluation of the leading signal
 
@@ -55,7 +57,7 @@ cells += common_prefix_cells(
     "30-backtest-stability-crossfit",
     cell6_replacements={PARAM_ANCHOR: PARAM_ADDITIONS_CROSSFIT},
     cell10_extra=INDICATOR_ADDITIONS_EVIDENCE + INDICATOR_ADDITIONS_STABILITY
-    + INDICATOR_ADDITIONS_PREFILTER,
+    + INDICATOR_ADDITIONS_PREFILTER + INDICATOR_ADDITIONS_RULES_FIXES,
 )
 cells += common_suffix_cells(cell14_replacements=CELL14_REPLACEMENTS_CROSSFIT)
 cells.append(md("# Harness\n"))
@@ -63,6 +65,7 @@ cells.append(harness_cell())
 cells.append(code(HARNESS_EVIDENCE))
 cells.append(code(HARNESS_STABILITY))
 cells.append(code(HARNESS_RULES))
+cells.append(code(HARNESS_RULES_V2))
 
 cells.append(md("""## Part 0. Provenance, parity, and the activation window
 
@@ -112,9 +115,12 @@ display(full_screen[["dates", "stability_clause", "return_clause", "gate_5"]])
 
 cells.append(md("""## Part 2. Five folds, each with its own screen
 
-The training set for a fold excludes the fold itself and every decision within 30 days of it,
-because a decision just before a fold has a forward window that overlaps the fold's returns -
-which is the whole reason a plain split does not make this out of sample.
+Training is WALK-FORWARD: only decisions strictly before the fold, minus a 30-day embargo so no
+training decision's forward window reaches into the fold. The first build of this notebook also
+used dates AFTER the fold, purged by 30 days - which covers the forward targets and nothing else,
+because the signals use trailing windows of 45 to 360 rows and a date after the fold carries the
+fold's returns inside its signal values. The review caught that. Walk-forward means the earliest
+folds have too little history to screen on and are marked unevaluable rather than screened.
 
 The fold's leading signal is chosen by a rule pre-registered before any fold ran: among gate-5
 passers, the one whose WEAKEST simultaneous lower bound across the three stability targets is
@@ -125,6 +131,16 @@ cells.append(code('''folds = fold_schedule(eligible_dates)
 fold_rows = []
 for fold in folds:
     training = set(fold["training_dates"])
+    if not fold["evaluable"]:
+        # Walk-forward: the earliest folds have too little history before them to screen on.
+        # They are reported as unevaluable, not screened on a handful of dates.
+        fold["screen"], fold["chosen"] = None, None
+        fold_rows.append({
+            "fold": fold["fold"], "start": fold["start"], "end_inclusive": fold["end_inclusive"],
+            "fold_decisions": len(fold["fold_dates"]), "training_decisions": len(fold["training_dates"]),
+            "evaluable": False, "gate_5_passers": "(unevaluable)", "leading_signal": "(unevaluable)",
+        })
+        continue
     subset = panel_frame[panel_frame["date"].isin(training)]
     bootstrap = joint_cluster_bootstrap(subset, draws=CROSSFIT_DRAWS, verbose=False)
     screen, detail = screen_table(bootstrap)
@@ -132,7 +148,7 @@ for fold in folds:
     fold_rows.append({
         "fold": fold["fold"], "start": fold["start"], "end_inclusive": fold["end_inclusive"],
         "fold_decisions": len(fold["fold_dates"]), "training_decisions": len(fold["training_dates"]),
-        "purged_decisions": len(eligible_dates) - len(fold["fold_dates"]) - len(fold["training_dates"]),
+        "evaluable": True,
         "gate_5_passers": ", ".join(s for s in screen.index if bool(screen.loc[s, "gate_5"])) or "(none)",
         "leading_signal": chosen if chosen else "(none)",
     })
@@ -164,7 +180,8 @@ for fold in folds:
     start, end = fold["start"], fold["end_exclusive"]
     if fold["chosen"] is None:
         source = run_by_label["anchor"]
-        label = "anchor (no signal passed this fold's screen)"
+        label = ("anchor (fold unevaluable - too little prior history)" if not fold["evaluable"]
+                 else "anchor (no signal passed this fold's screen)")
     else:
         label = f"fold{fold['fold']}_{fold['chosen']}"
         source = run_and_record(
@@ -245,7 +262,7 @@ not by the vaults.
 cells.append(code('''stability_rows = []
 for signal in SIGNAL_NAMES:
     chosen_in = [f["fold"] for f in folds if f["chosen"] == signal]
-    passed_in = [f["fold"] for f in folds if bool(f["screen"].loc[signal, "gate_5"])]
+    passed_in = [f["fold"] for f in folds if f["screen"] is not None and bool(f["screen"].loc[signal, "gate_5"])]
     stability_rows.append({
         "signal": signal,
         "folds_passing_gate_5": len(passed_in),
@@ -258,9 +275,13 @@ display(pd.DataFrame(stability_rows).set_index("signal").sort_values(
 
 n_distinct = len(distinct)
 n_chose = sum(1 for s in chosen_signals if s)
-if n_chose == 0:
-    verdict = (f"VACUOUS - no fold's screen selected any signal, so there is no mechanism to "
-               f"cross-fit and the stitched path is the anchor's own")
+n_evaluable = sum(1 for f in folds if f["evaluable"])
+if n_evaluable == 0:
+    verdict = "UNEVALUABLE - no fold has enough prior history to screen walk-forward"
+elif n_chose == 0:
+    verdict = (f"VACUOUS - {n_evaluable} of {len(folds)} folds were evaluable walk-forward and none "
+               f"selected any signal, so there is no mechanism to cross-fit and the stitched path "
+               f"is the anchor's own")
 elif n_chose < len(folds):
     verdict = (f"UNSTABLE - {len(folds) - n_chose} of {len(folds)} folds selected no signal "
                f"at all; the folds that did chose {n_distinct} distinct signal(s)")
@@ -273,6 +294,7 @@ print(verdict)
 manifest = {
     "verdict": "DIAGNOSTIC",
     "fold_stability": verdict,
+    "folds_evaluable": n_evaluable,
     "folds": CROSSFIT_FOLDS, "purge_days": CROSSFIT_PURGE_DAYS, "draws": CROSSFIT_DRAWS,
     "centre": CENTRE,
     "full_sample_leader": FULL_LEADER,

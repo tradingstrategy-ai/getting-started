@@ -6,10 +6,12 @@ from blocks_evidence import PARAM_ANCHOR, INDICATOR_ADDITIONS_EVIDENCE
 from blocks_stability import INDICATOR_ADDITIONS_STABILITY
 from blocks_prefilter import INDICATOR_ADDITIONS_PREFILTER
 from blocks_crossfit import PARAM_ADDITIONS_CROSSFIT, CELL14_REPLACEMENTS_CROSSFIT
+from blocks_rules_fixes import INDICATOR_ADDITIONS_RULES_FIXES
 
 HARNESS_EVIDENCE = (BUILD_DIR / "harness_evidence.py").read_text()
 HARNESS_STABILITY = (BUILD_DIR / "harness_stability.py").read_text()
 HARNESS_RULES = (BUILD_DIR / "harness_rules.py").read_text()
+HARNESS_RULES_V2 = (BUILD_DIR / "harness_rules_v2.py").read_text()
 
 HEADING = """# NB31 - close-out, and the frozen prospective specification
 
@@ -49,7 +51,7 @@ cells += common_prefix_cells(
     "31-backtest-stability-closeout",
     cell6_replacements={PARAM_ANCHOR: PARAM_ADDITIONS_CROSSFIT},
     cell10_extra=INDICATOR_ADDITIONS_EVIDENCE + INDICATOR_ADDITIONS_STABILITY
-    + INDICATOR_ADDITIONS_PREFILTER,
+    + INDICATOR_ADDITIONS_PREFILTER + INDICATOR_ADDITIONS_RULES_FIXES,
 )
 cells += common_suffix_cells(cell14_replacements=CELL14_REPLACEMENTS_CROSSFIT)
 cells.append(md("# Harness\n"))
@@ -57,6 +59,7 @@ cells.append(harness_cell())
 cells.append(code(HARNESS_EVIDENCE))
 cells.append(code(HARNESS_STABILITY))
 cells.append(code(HARNESS_RULES))
+cells.append(code(HARNESS_RULES_V2))
 
 cells.append(md("""## Part 0. Provenance and the three manifests
 
@@ -137,10 +140,38 @@ else:
     print(f"\\nall {len(crosscheck)} configurations reproduce at 1e-9 across kernels")
 '''))
 
+cells.append(md("""## Part 1b. Gate 5, re-derived
+
+The first build of this notebook imported gate 5 from NB28's manifest and called every gate
+"re-derived"; the review caught it. Here the screen panel is rebuilt from this kernel's own
+logging run, the joint bootstrap and simultaneous bounds are recomputed, and the resulting gate-5
+flags are compared with NB28's before anything downstream uses them.
+"""))
+cells.append(code('''panel_frame, eligibility = build_screen_panel(run_by_label["screen_log"])
+bootstrap = joint_cluster_bootstrap(panel_frame)
+screen, detail = screen_table(bootstrap)
+GATE_5_REDERIVED = {s: bool(screen.loc[s, "gate_5"]) for s in SIGNAL_NAMES}
+comparison = pd.DataFrame({
+    "nb28": pd.Series(GATE_5), "here": pd.Series(GATE_5_REDERIVED),
+    "nb28_lo_vol": {s: manifest_28["screen"][s]["lo_forward_vol"] for s in SIGNAL_NAMES},
+    "here_lo_vol": screen["lo_forward_vol"],
+    "nb28_return_lo": {s: manifest_28["screen"][s]["return_lo_pp"] for s in SIGNAL_NAMES},
+    "here_return_lo": screen["return_lo_pp"],
+})
+comparison["agree"] = comparison["nb28"] == comparison["here"]
+display(comparison.round(4))
+worst_lo = float((comparison["nb28_lo_vol"] - comparison["here_lo_vol"]).abs().max())
+print(f"gate-5 flags agree with NB28 on {int(comparison['agree'].sum())} of {len(comparison)} signals; "
+      f"largest |difference| in the forward-vol lower bound {worst_lo:.2e} "
+      f"(same seed, so anything above floating-point noise means the panel differs)")
+assert bool(comparison["agree"].all()), "re-derived gate 5 disagrees with NB28"
+GATE_5 = GATE_5_REDERIVED
+'''))
+
 cells.append(md("""## Part 2. Every gate, re-derived
 
-Not copied from NB29's manifest. Re-derived from this kernel's runs, so a gate that passed there
-because of a stale cache or a leaked log fails here.
+Not copied from NB29's manifest. Re-derived from this kernel's runs, with gate 5 from Part 1b, so
+a gate that passed there because of a stale cache or a leaked log fails here.
 """))
 cells.append(code('''def label_for(signal: str, fraction: float, suffix: str = "") -> str:
     return f"{signal}_q{int(round(fraction * 100)):02d}{suffix}"
@@ -162,9 +193,12 @@ verdicts = verdict_table_rules(verdict_rows)
 gate_columns = ["gate_1_positive", "gate_2_lovo", "gate_3_held_book", "gate_4_luck",
                 "gate_5_screen", "gate_6_plateau", "gate_7_subperiod",
                 "gate_8_diversification", "gate_9_null"]
+for label in verdicts.index:
+    for k, v in gate_3_corrected(label).items():
+        verdicts.loc[label, k] = v
 pd.set_option("display.max_colwidth", None)
 display(verdicts[["signal", "cycle_sharpe", "cagr", "cycle_vol", "ulcer"] + gate_columns
-                 + ["verdict"]])
+                 + ["gate_3_corrected", "verdict"]])
 print("\\ncomplete failure strings:")
 for label, row in verdicts.iterrows():
     print(f"  {label}: {row['failed_gates'] or '(none)'}")
@@ -303,7 +337,9 @@ cells.append(code('''manifest = {
     },
     "family_membership": family_labels,
     "family_excluded": {label: run_by_label[label]["family"] for label in excluded_labels},
-    "gates": verdicts[["signal"] + gate_columns + ["failed_gates", "verdict"]].to_dict(orient="index"),
+    "gates": verdicts[["signal"] + gate_columns + ["gate_3_corrected", "failed_gates", "verdict"]].to_dict(orient="index"),
+    "gate_5_rederived_agrees": bool(comparison["agree"].all()),
+    "gate_5_worst_lo_diff": worst_lo,
     "specification": specification,
     "upstream": {
         "nb28_gate_5": GATE_5,

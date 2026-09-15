@@ -4,12 +4,14 @@ from builder import md, code, common_prefix_cells, common_suffix_cells, harness_
     integrity_and_audit_cells, write_notebook, TRACK_DIR, BUILD_DIR
 from blocks_evidence import PARAM_ANCHOR, INDICATOR_ADDITIONS_EVIDENCE
 from blocks_stability import INDICATOR_ADDITIONS_STABILITY
-from blocks_prefilter import PARAM_ADDITIONS_PREFILTER, INDICATOR_ADDITIONS_PREFILTER, \
-    CELL14_REPLACEMENTS_PREFILTER
+from blocks_prefilter import INDICATOR_ADDITIONS_PREFILTER
+from blocks_rules_fixes import PARAM_ADDITIONS_RULES_FIXES, INDICATOR_ADDITIONS_RULES_FIXES, \
+    CELL14_REPLACEMENTS_RULES_FIXES
 
 HARNESS_EVIDENCE = (BUILD_DIR / "harness_evidence.py").read_text()
 HARNESS_STABILITY = (BUILD_DIR / "harness_stability.py").read_text()
 HARNESS_RULES = (BUILD_DIR / "harness_rules.py").read_text()
+HARNESS_RULES_V2 = (BUILD_DIR / "harness_rules_v2.py").read_text()
 
 HEADING = """# NB29 - the stability prefilter, one signal at a time
 
@@ -65,16 +67,17 @@ _To be filled in after the run._
 cells = [md(HEADING)]
 cells += common_prefix_cells(
     "29-backtest-stability-prefilter",
-    cell6_replacements={PARAM_ANCHOR: PARAM_ADDITIONS_PREFILTER},
+    cell6_replacements={PARAM_ANCHOR: PARAM_ADDITIONS_RULES_FIXES},
     cell10_extra=INDICATOR_ADDITIONS_EVIDENCE + INDICATOR_ADDITIONS_STABILITY
-    + INDICATOR_ADDITIONS_PREFILTER,
+    + INDICATOR_ADDITIONS_PREFILTER + INDICATOR_ADDITIONS_RULES_FIXES,
 )
-cells += common_suffix_cells(cell14_replacements=CELL14_REPLACEMENTS_PREFILTER)
+cells += common_suffix_cells(cell14_replacements=CELL14_REPLACEMENTS_RULES_FIXES)
 cells.append(md("# Harness\n"))
 cells.append(harness_cell())
 cells.append(code(HARNESS_EVIDENCE))
 cells.append(code(HARNESS_STABILITY))
 cells.append(code(HARNESS_RULES))
+cells.append(code(HARNESS_RULES_V2))
 
 cells.append(md("""## Part 0. Provenance, parity, and what NB28 carried forward
 
@@ -329,8 +332,18 @@ verdicts = verdict_table_rules(verdict_rows)
 gate_columns = ["gate_1_positive", "gate_2_lovo", "gate_3_held_book", "gate_4_luck",
                 "gate_5_screen", "gate_6_plateau", "gate_7_subperiod",
                 "gate_8_diversification", "gate_9_null"]
+# Gate 3 with the CORRECTED concentration indicator, beside the pre-registered one. Not the
+# verdict gate: RESEARCH-RULES.md names `residual_event_concentration`, whose numerator takes the
+# five largest residuals rather than the five largest POSITIVE residuals (an NB08 defect the
+# review of this notebook found). The two are shown together so a disagreement is visible.
+for label in verdicts.index:
+    for k, v in gate_3_corrected(label).items():
+        verdicts.loc[label, k] = v
 display(verdicts[["signal", "cycle_sharpe", "cagr", "cycle_vol", "ulcer"] + gate_columns
-                 + ["verdict"]])
+                 + ["gate_3_corrected", "verdict"]])
+display(verdicts[["held_held_vol", "anchor_held_vol", "held_held_concentration", "anchor_held_concentration",
+                  "held_concentration_corrected", "anchor_held_concentration_corrected",
+                  "held_dates_used", "dates_used_corrected"]].round(6))
 print("\\ncomplete failure strings:")
 for label, row in verdicts.iterrows():
     print(f"  {label}: {row['failed_gates'] or '(none)'}")
@@ -347,6 +360,7 @@ cells.append(code('''display(verdicts[["signal", "sparse_cagr", "dense_cagr", "l
 reference_row = {
     "cycle_sharpe": float(anchor_panel["cycle_sharpe"]), "cagr": float(anchor_panel["cagr"]),
     "cycle_vol": float(anchor_panel["cycle_vol"]), "ulcer": float(anchor_panel["ulcer"]),
+    "mean_invested": float(anchor_panel["mean_invested"]), "max_dd": float(anchor_panel["max_dd"]),
     "luck_ratio": float(anchor_panel["luck_ratio"]),
     "top5_gross_share": float(anchor_panel["top5_gross_share"]),
     **anchor_measures, **{f"held_{k}": v for k, v in anchor_character.items()},
@@ -385,7 +399,20 @@ cells.append(code('''summary = {
                                "mean_invested", "sparse_cagr", "dense_cagr", "late_cagr"]]
         .round(6).to_dict(orient="index"),
     "inertness": inert_frame.round(6).to_dict(orient="index"),
-    "gates": verdicts[["signal"] + gate_columns + ["failed_gates", "verdict"]].to_dict(orient="index"),
+    "gates": verdicts[["signal"] + gate_columns + ["gate_3_corrected", "failed_gates", "verdict"]].to_dict(orient="index"),
+    "gate_3_detail": verdicts[["held_held_vol", "anchor_held_vol", "held_held_concentration",
+                               "anchor_held_concentration", "held_concentration_corrected",
+                               "anchor_held_concentration_corrected", "held_dates_used",
+                               "dates_used_corrected", "luck_ratio", "top5_gross_share",
+                               "mean_holdings", "mean_largest_weight", "mean_herfindahl",
+                               "distinct_vaults", "top_vault_pnl_share", "diversification_failures"]].round(6).to_dict(orient="index"),
+    "cheap_gates": cheap.drop(columns=["diversification_failures"]).round(6).to_dict(orient="index"),
+    "strict": pd.DataFrame(strict_rows).set_index("label")[["signal", "strict", "realised_excluded_share",
+                                                             "cagr", "cycle_sharpe", "cycle_vol", "ulcer",
+                                                             "max_dd", "abs_invested_beta", "mean_invested"]].round(10).to_dict(orient="index"),
+    "matched": matched_frame[["signal", "q", "realised_excluded_share", "cagr", "cycle_sharpe"]].round(6).to_dict(orient="index"),
+    "paired_bootstrap": pd.DataFrame(rows).round(6).to_dict(orient="records"),
+    "anchor_reference": {k: float(v) for k, v in reference_row.items()},
     "nulls": [{k: v for k, v in row.items()} for row in null_rows],
     "lovo": [{k: v for k, v in row.items()} for row in lovo_rows],
     # Every executed configuration, with the overrides needed to reproduce it. NB31 re-runs from

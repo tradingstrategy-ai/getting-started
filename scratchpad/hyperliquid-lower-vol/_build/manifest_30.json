@@ -1,6 +1,7 @@
 {
  "verdict": "DIAGNOSTIC",
- "fold_stability": "VACUOUS - no fold's screen selected any signal, so there is no mechanism to cross-fit and the stitched path is the anchor's own",
+ "fold_stability": "VACUOUS - 2 of 5 folds were evaluable walk-forward and none selected any signal, so there is no mechanism to cross-fit and the stitched path is the anchor's own",
+ "folds_evaluable": 2,
  "folds": 5,
  "purge_days": 30,
  "draws": 200,
@@ -11,35 +12,35 @@
    "start": "2026-01-01 00:00:00",
    "end_inclusive": "2026-02-12 00:00:00",
    "fold_decisions": 22,
-   "training_decisions": 74,
-   "purged_decisions": 15,
-   "gate_5_passers": "(none)",
-   "leading_signal": "(none)"
+   "training_decisions": 0,
+   "evaluable": false,
+   "gate_5_passers": "(unevaluable)",
+   "leading_signal": "(unevaluable)"
   },
   "1": {
    "start": "2026-02-14 00:00:00",
    "end_inclusive": "2026-03-28 00:00:00",
    "fold_decisions": 22,
-   "training_decisions": 59,
-   "purged_decisions": 30,
-   "gate_5_passers": "(none)",
-   "leading_signal": "(none)"
+   "training_decisions": 7,
+   "evaluable": false,
+   "gate_5_passers": "(unevaluable)",
+   "leading_signal": "(unevaluable)"
   },
   "2": {
    "start": "2026-03-30 00:00:00",
    "end_inclusive": "2026-05-11 00:00:00",
    "fold_decisions": 22,
-   "training_decisions": 59,
-   "purged_decisions": 30,
-   "gate_5_passers": "(none)",
-   "leading_signal": "(none)"
+   "training_decisions": 29,
+   "evaluable": false,
+   "gate_5_passers": "(unevaluable)",
+   "leading_signal": "(unevaluable)"
   },
   "3": {
    "start": "2026-05-13 00:00:00",
    "end_inclusive": "2026-06-24 00:00:00",
    "fold_decisions": 22,
-   "training_decisions": 59,
-   "purged_decisions": 30,
+   "training_decisions": 51,
+   "evaluable": true,
    "gate_5_passers": "(none)",
    "leading_signal": "(none)"
   },
@@ -48,28 +49,28 @@
    "end_inclusive": "2026-08-09 00:00:00",
    "fold_decisions": 23,
    "training_decisions": 73,
-   "purged_decisions": 15,
+   "evaluable": true,
    "gate_5_passers": "(none)",
    "leading_signal": "(none)"
   }
  },
  "segments": {
   "0": {
-   "source": "anchor (no signal passed this fold's screen)",
+   "source": "anchor (fold unevaluable - too little prior history)",
    "cycles": 21,
    "segment_return": 0.052688,
    "anchor_segment_return": 0.052688,
    "identical_to_anchor": true
   },
   "1": {
-   "source": "anchor (no signal passed this fold's screen)",
+   "source": "anchor (fold unevaluable - too little prior history)",
    "cycles": 22,
    "segment_return": 0.036524,
    "anchor_segment_return": 0.036524,
    "identical_to_anchor": true
   },
   "2": {
-   "source": "anchor (no signal passed this fold's screen)",
+   "source": "anchor (fold unevaluable - too little prior history)",
    "cycles": 22,
    "segment_return": -0.003816,
    "anchor_segment_return": -0.003816,

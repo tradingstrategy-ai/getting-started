@@ -29,10 +29,13 @@
    "gate_7_subperiod": false,
    "gate_8_diversification": false,
    "gate_9_null": false,
+   "gate_3_corrected": false,
    "failed_gates": "gate_2, gate_3, gate_4, gate_5, gate_6, gate_7, gate_8, gate_9",
    "verdict": "REJECT"
   }
  },
+ "gate_5_rederived_agrees": true,
+ "gate_5_worst_lo_diff": 4.384743681196124e-07,
  "specification": {
   "status": "NOTHING SHORTLISTED - no mechanism is carried",
   "signal": null,
@@ -69,6 +72,6 @@
    "fresh_observation_count": false
   },
   "nb29_shortlisted": [],
-  "nb30_fold_stability": "VACUOUS - no fold's screen selected any signal, so there is no mechanism to cross-fit and the stitched path is the anchor's own"
+  "nb30_fold_stability": "VACUOUS - 2 of 5 folds were evaluable walk-forward and none selected any signal, so there is no mechanism to cross-fit and the stitched path is the anchor's own"
  }
 }
