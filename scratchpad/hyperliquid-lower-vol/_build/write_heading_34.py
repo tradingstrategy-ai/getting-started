@@ -1,6 +1,7 @@
 """Generate NB34's heading from _build/manifest_34.json. Every number comes from the manifest;
 every string replacement is asserted so a silent no-op cannot leave a stale figure."""
 import json
+import math
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -94,8 +95,9 @@ than the ones it removes. But its bootstrap standard error is {f3(c["median_retu
 {f3(v["median_return_se"])}, the simultaneous critical value over the two-hypothesis family is
 {f2(F["returns"]["critical"])}, and the lower bounds land at {f3(c["median_return_lo"])} and
 {f3(v["median_return_lo"])} against a margin of -{m["constants"]["return_margin_log_30d"]}. To pass, the
-observed contrast would have had to exceed about +{f2(needed_c)} and +{f2(needed_v)} - the retained
-set out-earning the excluded set by roughly {pc(needed_c)} at the median over 30 days. The clause
+observed contrast would have had to exceed about +{f2(needed_c)} and +{f2(needed_v)} in 30-day
+log-return units - the retained set's median 30-day return factor about {f2(math.exp(needed_c))}x
+the excluded set's. The clause
 is still a one-sided non-inferiority test; on this sample's realised uncertainty it is
 operationally as demanding as a large superiority result. Even the unadjusted single-hypothesis bounds, {f3(unadj_c)} and {f3(unadj_v)}, sit below the margin
 (cell 34). The verdict is what the pre-registered rule returns, and the rule stands as written;
@@ -157,8 +159,10 @@ too, lower bound {f3(alls["inverse_vol"]["lo_forward_vol"])} over {alls["inverse
 decisions (cell 38). Which of the two guards fires on those particular vaults, and on how many
 dates, is not measured here; NB35's inertness table gives the dates on which the two books differ.
 
-**5. The eight the mechanism actually removes ARE the ones that misbehave.** At the actual
-exclusion, the retained set's forward volatility rank is {f3(c["tail_forward_vol"])} lower (normalised
+**5. The eight the mechanism actually removes ARE the ones that misbehave.** The flags are the
+engine's eight; the contrast is over those of them with a measurable forward path - on average
+{f2(c["excluded_in_sample_mean"])} and {f2(v["excluded_in_sample_mean"])} of the eight per date (cell 32).
+On that set, the retained set's forward volatility rank is {f3(c["tail_forward_vol"])} lower (normalised
 rank units) than the excluded set's for `calm_score` and {f3(v["tail_forward_vol"])} for `inverse_vol`,
 simultaneous lower bounds {f3(c["tail_lo_forward_vol"])} and {f3(v["tail_lo_forward_vol"])}; forward
 downside {f3(c["tail_forward_downside"])} and {f3(v["tail_forward_downside"])}, lower bounds
@@ -170,6 +174,8 @@ is that it does so at no cost in typical-vault return - which is finding 1, and 
 data, not evidence of a cost.
 
 ## Summary of results
+
+Post-break screen, cell 32; count-8 track runs, cell 25; masking, cell 29.
 
 | | `calm_score` | `inverse_vol` |
 |---|---|---|

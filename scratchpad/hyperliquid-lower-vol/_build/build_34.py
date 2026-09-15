@@ -285,7 +285,8 @@ set at eight on the full pool, same families, same margin:
   what forward volatility carries. If the clause fails for it, the clause fails for a signal
   with essentially zero return cost by construction: the failure is resolution, not cost.
 - `oracle_return`: the forward return itself plus 5% noise, direction 'low', so the eight
-  excluded are the eight that WILL earn least. If the clause passes for it, the machinery can
+  excluded are the eight that WILL earn least - among the same pool as `oracle_vol`, rows
+  whose forward volatility is finite, so both oracles exclude eight of the same candidates. If the clause passes for it, the machinery can
   pass the clause on this panel, and the bar is simply where finding 1 says it is.
 
 The noise is there because a signal equal to its target has a bootstrap standard error of
@@ -303,8 +304,13 @@ cells.append(code('''def oracle_return_clause(panel, draws=200, seed=SCREEN_SEED
         scale = 0.05 * float(series.std())
         return series + rng.normal(0.0, scale, len(series))
 
-    frame["oracle_vol"] = jitter(frame["forward_vol"])
-    frame["oracle_return"] = jitter(frame["forward_return"])
+    # Both oracles are defined on the SAME pool: rows whose forward volatility is finite. The
+    # forward return is finite on every row, so an unmasked return oracle would exclude rows
+    # that are later dropped for a missing stability target and its complete-case statistic
+    # would carry fewer than eight excluded rows (second review).
+    measurable = np.isfinite(frame["forward_vol"])
+    frame["oracle_vol"] = jitter(frame["forward_vol"]).where(measurable)
+    frame["oracle_return"] = jitter(frame["forward_return"]).where(measurable)
     SIGNALS = [
         {"name": "oracle_vol", "direction": "high", "time_base": "foresight", "note": "= forward_vol + noise; no return information"},
         {"name": "oracle_return", "direction": "low", "time_base": "foresight", "note": "= forward_return + noise"},
@@ -313,6 +319,10 @@ cells.append(code('''def oracle_return_clause(panel, draws=200, seed=SCREEN_SEED
     SIGNAL_DIRECTION = {s["name"]: s["direction"] for s in SIGNALS}
     try:
         add_exclusion_flags(frame)
+        for name in SIGNAL_NAMES:
+            per_date = frame.groupby("date").apply(
+                lambda g, n=name: int(g[exclusion_flag_column(n)].sum()) == min(EXCLUSION_COUNT, int(np.isfinite(g[n]).sum())))
+            assert bool(per_date.all()), f"{name}: exclusion flags are not min(8, measurable) on every date"
         table, detail, _ = run_screen_v3(frame, draws=draws, seed=seed, verbose=False)
     finally:
         SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION = saved
