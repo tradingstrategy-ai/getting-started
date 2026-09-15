@@ -6,11 +6,18 @@ here = Path(__file__).parent
 m = json.load(open(here / "manifest_31.json"))
 m28 = json.load(open(here / "manifest_28.json")); m29 = json.load(open(here / "manifest_29.json")); m30 = json.load(open(here / "manifest_30.json"))
 R, G, SP = m["reproduction"], m["gates"], m["specification"]
-S28 = m28["screen"]
+S28 = m28["screen_full"]; G3 = m["gate_3_detail"]
+def _prov(m):
+    for path, rec in m["provenance"].items():
+        if path.endswith("vault-prices.parquet"):
+            return rec
+    raise KeyError("vault-prices.parquet not in provenance")
+PV = _prov(m)
+
 centre = next(iter(G))
 g = G[centre]
 strong = [s for s in S28 if S28[s]["lo_forward_vol"] > 0 and S28[s]["lo_forward_downside"] > 0]
-excess = [s for s in S28 if S28[s]["lo_forward_event_top5_excess"] > 0]
+excess = [s for s in S28 if S28[s]["lo_forward_event_top5"] > 0]
 hw = {s: m28["decomposition"][s]["return_half_width_pp"] for s in S28}
 fam29 = {int(round(v["q"] * 100)): v for k, v in m29["family"].items() if v["signal"] == "inverse_vol"}
 st29 = m29["strict"]; c29 = f"inverse_vol_q{int(round(m29['centre']*100)):02d}"
@@ -45,16 +52,23 @@ uses it. This heading is generated from `_build/manifest_31.json` by `_build/wri
 {R['configurations']} configurations re-run to a worst absolute difference of {R['worst_abs_diff']:.1e}
 across CAGR, cycle Sharpe, cycle volatility, ulcer, max drawdown, invested beta and mean invested.
 
-**2. Gate 5 re-derived here agrees with NB28 (cell 26).** The panel is rebuilt from this kernel's
-own logging run and the joint bootstrap and simultaneous bounds recomputed with the corrected
-machinery: the gate-5 flags agree on all thirteen signals ({'True' if m['gate_5_rederived_agrees'] else 'FALSE'}),
-and the largest difference in any forward-volatility lower bound is {m['gate_5_worst_lo_diff']:.1e}.
+**2. Gate 5 re-derived here agrees with NB28 on every field (cell 26).** The panel is rebuilt
+from this kernel's own logging run and the joint bootstrap and simultaneous bounds recomputed with
+the same pre-registered target: the gate-5 flags agree on all thirteen signals
+({'True' if m['gate_5_rederived_agrees'] else 'FALSE'}), and across {m['gate_5_fields_compared']} unrounded
+numeric screen fields x 13 signals the largest absolute difference is {m['gate_5_worst_lo_diff']:.1e}.
+The first round compared three fields against a six-decimal manifest; the review was right that
+4e-07 was serialisation, not floating-point noise.
 
 **3. The two kernels agree on the verdict (cell 28).** `{centre}` fails the same gates here as in
 NB29 - **{g['failed_gates']}** - with gates 1-4 and 6-9 re-derived from this kernel's states and
 gate 5 from Part 1b. `gate_3_corrected`, using the concentration indicator whose numerator takes
-the five largest POSITIVE residuals, is **{g['gate_3_corrected']}**; the verdict gate uses the
-pre-registered indicator, as the rules name it.
+the five largest POSITIVE residuals, is **{g['gate_3_corrected']}**: held concentration
+{G3[centre]['held_held_concentration']:.6f} (original) against {G3[centre]['held_concentration_corrected']:.6f}
+(corrected), anchor {G3[centre]['anchor_held_concentration']:.6f} against {G3[centre]['anchor_held_concentration_corrected']:.6f},
+same covered dates {G3[centre]['indicators_same_dates']}, largest per-date difference
+{G3[centre]['indicators_max_abs_diff_per_date']:.1e} (cell 28). The verdict gate uses the pre-registered
+indicator, as the rules name it.
 
 **4. The candidate family is EMPTY, so there is no multiplicity to correct (cell 30).** Family
 membership is every configuration evaluated as potentially shortlistable, which requires a gate-5
@@ -83,7 +97,12 @@ What this batch established, across NB28-NB31, after review:
   (NB28 cell 29).
 - {len(excess)} of 13 established a positive association with forward event concentration under
   the pre-registered criterion (NB28 cell 33) - a failure to establish, on a target that is
-  {int(next(r for r in m28['missing_reasons'] if r['target']=='forward_event_top5_excess')['missing'])/m28['panel_rows']*100:.0f}% missing.
+  {int(next(r for r in m28['missing_reasons'] if r['target']=='forward_event_top5')['missing'])/m28['panel_rows']*100:.0f}% missing;
+  a near-perfect-foresight oracle that knows all three targets {'passes' if m28['oracle']['oracle_all']['stability_clause'] else 'fails'}
+  the stability clause, one that knows only forward volatility {'passes' if m28['oracle']['oracle_vol']['stability_clause'] else 'fails'} it
+  (forward volatility and forward concentration correlate {m28['oracle']['oracle_vol']['rho_forward_event_top5']:+.3f}),
+  and one that knows the forward return {'passes' if m28['oracle']['oracle_return']['return_clause'] else 'fails'} the return clause
+  (NB28 cell 35). Both clauses are reachable; no real signal reaches them.
 - Gate 5's return clause has a half-width of {min(hw.values()):.0f} to {max(hw.values()):.0f}
   compounded annual percentage points against a {m28['delta_annualised_pp']:.0f}-point margin
   (NB28 cell 32).
@@ -96,7 +115,8 @@ What this batch established, across NB28-NB31, after review:
 
 ## Robustness of results
 
-- **What changed after the review.** Gate 5 is re-derived, not imported. The return contrast is
+- **What changed after the reviews.** Gate 5 is re-derived, not imported, and compared on every
+  field. Both concentration indicators are shown with their coverage and per-date equality. The return contrast is
   in compounded annual percentage points, the unit `delta` was calibrated in. The heading no
   longer says "nothing predicts forward event concentration"; it says no signal established a
   positive association under the criterion, which is what the cells show. Gate 3 is reported
@@ -109,12 +129,15 @@ What this batch established, across NB28-NB31, after review:
 - **Only one signal was ever backtested**, so this close-out exercises no cross-signal comparison
   and no family-wise correction.
 - **The activation-window splice is still unexercised.**
-- **The specification's `known_limits` text says concentration is not moved by selection.** NB29
-  cell 26 shows the prefilter does move it: `mean_holdings` {f4(m29['gate_3_detail'][c29]['mean_holdings'])}
-  against 6.0000, `top_vault_pnl_share` {f4(m29['gate_3_detail'][c29]['top_vault_pnl_share'])} against
-  {f4(m29['anchor_reference']['top_vault_pnl_share'])}. The cell is left as executed; the correction is here.
-- **Reproducibility across kernels is not reproducibility across snapshots.** All four notebooks
-  ran on `vault-prices.parquet` 254,818,366 bytes, sha256 prefix `3e79966a`.
+- **The specification's `known_limits` text now says selection CAN move concentration** (cell 34),
+  as NB29 cell 26 shows: `mean_holdings` {f4(m29['gate_3_detail'][c29]['mean_holdings'])} against
+  6.0000, `top_vault_pnl_share` {f4(m29['gate_3_detail'][c29]['top_vault_pnl_share'])} against
+  {f4(m29['anchor_reference']['top_vault_pnl_share'])}.
+- **All four notebooks ran on one snapshot, asserted rather than assumed**: `vault-prices.parquet`
+  {PV['bytes']:,} bytes, sha256 prefix `{PV['sha256']}`, with each upstream manifest's provenance
+  checked against this kernel's before it was read (cell 22). The previous heading hard-coded a
+  prior snapshot's hash; the review caught it.
+- **Every re-run configuration is audited** for destroyed or stranded capital in the final cell.
 - **What would change the conclusion.** Gate 5 fails on a third target nothing established and a
   return clause far wider than its margin. A rule change addressing either is a legitimate
   pre-registration for a NEXT plan and is not made here.

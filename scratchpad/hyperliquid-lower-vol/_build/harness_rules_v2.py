@@ -290,3 +290,249 @@ def gate_3_corrected(label: str, anchor_label: str = "anchor") -> dict:
 print("harness_rules_v2.py loaded: complete-family max-T, finite-draw p-values, oriented return "
       "Spearman, CAGR-point return contrast, excess event concentration, walk-forward folds, "
       "corrected gate-3 diagnostic.")
+
+
+# --------------------------------------------------------------------------------------------
+# Second-round corrections (gpt-5.6-terra, 2026-09-15).
+#
+# - A hypothesis that is NOT EVALUATED - its signal has fewer than `SCREEN_MIN_DATES` usable
+#   dates, or its bootstrap standard error is non-finite - was making every draw incomplete under
+#   the complete-family rule, which set the whole family's critical value to NaN and failed every
+#   signal mechanically. NB30's walk-forward folds hit this. Unevaluated hypotheses are now
+#   REMOVED from the family before the max-T is formed, the family size actually used is
+#   reported, and an unevaluated signal is marked as such rather than as failed.
+# - The corrected event-concentration target changed gate 5's estimand after results were known.
+#   `run_screen()` produces the screen for either target, so the PRE-REGISTERED raw target gives
+#   the verdict and the corrected excess target is reported as a post-review diagnostic.
+# - `oracle_reachability()` shows what the screening machinery CAN do on this panel by feeding it
+#   a perfect-foresight signal: standing rule 9 asks that a surprising null be shown unreachable,
+#   not merely unobserved.
+# --------------------------------------------------------------------------------------------
+
+def simultaneous_ci(observed: np.ndarray, replicates: np.ndarray, level: float = 0.95,
+                    evaluated: np.ndarray | None = None) -> dict:
+    """One-sided simultaneous LOWER bounds by studentised max-T over the EVALUATED family.
+
+    `evaluated` marks hypotheses that belong in the family. Those with a non-finite observed
+    value or a non-finite bootstrap standard error are dropped as well, and counted. A draw is
+    then used only if every REMAINING hypothesis is finite in it. Fails closed below
+    `SIMULTANEOUS_MIN_DRAWS` complete draws, or with an empty family.
+    """
+    observed = np.asarray(observed, dtype=float)
+    replicates = np.asarray(replicates, dtype=float)
+    standard_error = np.nanstd(replicates, axis=0, ddof=1)
+    member = np.isfinite(observed) & np.isfinite(standard_error) & (standard_error > 0)
+    if evaluated is not None:
+        member &= np.asarray(evaluated, dtype=bool)
+    safe = np.where(standard_error > 0, standard_error, np.nan)
+    studentised = (replicates - observed[None, :]) / safe[None, :]
+    if member.any():
+        complete = np.isfinite(studentised[:, member]).all(axis=1)
+        per_draw_max = studentised[complete][:, member].max(axis=1) if complete.any() else np.array([])
+    else:
+        per_draw_max = np.array([])
+    critical = float(np.percentile(per_draw_max, level * 100.0)) if len(per_draw_max) >= SIMULTANEOUS_MIN_DRAWS else float("nan")
+    lower = np.where(member, observed - critical * standard_error, np.nan)
+    return {
+        "observed": observed, "se": standard_error, "critical": critical,
+        "lower_simultaneous": lower,
+        "lower_unadjusted": np.nanpercentile(replicates, (1.0 - level) * 100.0, axis=0),
+        "n_draws": int(len(per_draw_max)), "n_draws_total": int(replicates.shape[0]),
+        "n_draws_incomplete": int(replicates.shape[0] - len(per_draw_max)),
+        "family_size_used": int(member.sum()), "family_size_total": int(len(observed)),
+        "member": member,
+    }
+
+
+def screen_table(bootstrap: dict, delta: float = DELTA_ANNUALISED_PP) -> tuple:
+    """The screen's result table and gate-5 verdicts, with unevaluated signals marked as such.
+
+    As harness_rules.screen_table, with two changes: hypotheses of a signal that has fewer than
+    `SCREEN_MIN_DATES` usable dates are removed from the simultaneous family before the max-T is
+    formed, and the table carries an `evaluated` column so a signal that could not be tested is
+    not counted as one that failed.
+    """
+    observed, replicates = bootstrap["observed"], bootstrap["draws"]
+    n_signals = observed.shape[0]
+    index = {name: i for i, name in enumerate(STAT_NAMES)}
+    evaluated_signal = np.array([bootstrap["samples"][s]["dates"] >= SCREEN_MIN_DATES for s in SIGNAL_NAMES])
+
+    def family(stat_names):
+        columns = [index[n] for n in stat_names]
+        flat_observed = observed[:, columns].reshape(-1)
+        flat_draws = replicates[:, :, columns].reshape(replicates.shape[0], -1)
+        flat_evaluated = np.repeat(evaluated_signal, len(stat_names))
+        result = simultaneous_ci(flat_observed, flat_draws, evaluated=flat_evaluated)
+        result["p"] = add_one_p(flat_draws, flat_observed)
+        for key in ("observed", "se", "lower_simultaneous", "lower_unadjusted", "p", "member"):
+            result[key] = np.asarray(result[key]).reshape(n_signals, len(stat_names))
+        return result
+
+    stability = family([f"spearman_{t}" for t in STABILITY_TARGETS])
+    returns = family([f"tail_{RETURN_TARGET}_pp"])
+    tails = family([f"tail_{t}" for t in STABILITY_TARGETS])
+
+    rows = []
+    for i, signal in enumerate(SIGNAL_NAMES):
+        sample = bootstrap["samples"][signal]
+        row = {"signal": signal, "direction": SIGNAL_DIRECTION[signal],
+               "time_base": next((s["time_base"] for s in SIGNALS if s["name"] == signal), ""),
+               "rows": sample["rows"], "dates": sample["dates"]}
+        for j, target in enumerate(STABILITY_TARGETS):
+            row[f"rho_{target}"] = stability["observed"][i, j]
+            row[f"lo_{target}"] = stability["lower_simultaneous"][i, j]
+            row[f"tail_{target}"] = tails["observed"][i, j]
+            row[f"tail_lo_{target}"] = tails["lower_simultaneous"][i, j]
+        row["rho_forward_return"] = observed[i, index[f"spearman_{RETURN_TARGET}"]]
+        row["return_contrast_pp"] = returns["observed"][i, 0]
+        row["return_lo_pp"] = returns["lower_simultaneous"][i, 0]
+        enough = bool(evaluated_signal[i])
+        in_family = bool(stability["member"][i].all() and returns["member"][i, 0])
+        row["enough_dates"] = enough
+        row["evaluated"] = bool(enough and in_family)
+        stability_ok = bool(row["evaluated"] and all(
+            np.isfinite(stability["lower_simultaneous"][i, j]) and stability["lower_simultaneous"][i, j] > 0.0
+            for j in range(len(STABILITY_TARGETS))))
+        return_ok = bool(row["evaluated"] and np.isfinite(returns["lower_simultaneous"][i, 0])
+                         and returns["lower_simultaneous"][i, 0] > -float(delta))
+        row["stability_clause"] = stability_ok
+        row["return_clause"] = return_ok
+        row["gate_5"] = bool(stability_ok and return_ok)
+        rows.append(row)
+    table = pd.DataFrame(rows).set_index("signal")
+    detail = {"stability": stability, "returns": returns, "tails": tails, "delta": float(delta)}
+    return table, detail
+
+
+#: The two constructions of the event-concentration target. `pre_registered` is what the plan and
+#: harness_rules.py specified; `corrected` is the excess over the uniform-events value.
+CONCENTRATION_TARGETS = {"pre_registered": "forward_event_top5", "corrected": "forward_event_top5_excess"}
+
+
+def run_screen(panel_frame: pd.DataFrame, concentration: str = "pre_registered",
+               draws: int = SCREEN_DRAWS, seed: int = SCREEN_SEED, verbose: bool = True) -> tuple:
+    """Bootstrap and screen the panel with one construction of the event-concentration target.
+
+    Sets the module-level target lists for the duration of the call and restores them after, so
+    the pre-registered and the corrected screens can both be produced from one panel and neither
+    silently becomes the other.
+    """
+    global STABILITY_TARGETS, SCREEN_TARGETS, STAT_NAMES
+    saved = (STABILITY_TARGETS, SCREEN_TARGETS, STAT_NAMES)
+    target = CONCENTRATION_TARGETS[concentration]
+    STABILITY_TARGETS = ["forward_vol", "forward_downside", target]
+    SCREEN_TARGETS = STABILITY_TARGETS + [RETURN_TARGET]
+    STAT_NAMES = ([f"spearman_{t}" for t in STABILITY_TARGETS] + [f"spearman_{RETURN_TARGET}"]
+                  + [f"tail_{t}" for t in STABILITY_TARGETS] + [f"tail_{RETURN_TARGET}_pp"])
+    try:
+        bootstrap = joint_cluster_bootstrap(panel_frame, draws=draws, seed=seed, verbose=verbose)
+        table, detail = screen_table(bootstrap)
+        table.attrs["concentration_target"] = target
+        return table, detail, bootstrap
+    finally:
+        STABILITY_TARGETS, SCREEN_TARGETS, STAT_NAMES = saved
+
+
+def oracle_reachability(panel_frame: pd.DataFrame, concentration: str = "pre_registered",
+                        draws: int = 200, seed: int = SCREEN_SEED + 1) -> pd.DataFrame:
+    """Can the screen pass ANYTHING on this panel? Feed it perfect foresight and see.
+
+    Two oracle signals are appended: `oracle_stability`, equal to the forward volatility itself
+    (direction 'high': a high value IS less stable), and `oracle_return`, equal to the forward
+    return itself (direction 'low': a low value is the end the mechanism would exclude). A screen
+    that cannot pass the stability clause for `oracle_stability`, or the return clause for
+    `oracle_return`, cannot pass it for any real signal, and the zero-of-thirteen result is then a
+    property of the gate on this data rather than of the signals. That is what standing rule 9
+    asks: shown unreachable, not merely unobserved.
+    """
+    global SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION
+    saved = (SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION)
+    frame = panel_frame.copy()
+    frame["oracle_stability"] = frame["forward_vol"]
+    frame["oracle_return"] = frame["forward_return"]
+    SIGNALS = list(SIGNALS) + [
+        {"name": "oracle_stability", "direction": "high", "time_base": "perfect foresight", "note": "= forward_vol"},
+        {"name": "oracle_return", "direction": "low", "time_base": "perfect foresight", "note": "= forward_return"},
+    ]
+    SIGNAL_NAMES = [s["name"] for s in SIGNALS]
+    SIGNAL_DIRECTION = {s["name"]: s["direction"] for s in SIGNALS}
+    try:
+        table, detail, _ = run_screen(frame, concentration, draws=draws, seed=seed, verbose=False)
+    finally:
+        SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION = saved
+    keep = ["dates", "evaluated"] + [c for c in table.columns if c.startswith("rho_") or c.startswith("lo_")] + \
+           ["return_contrast_pp", "return_lo_pp", "stability_clause", "return_clause", "gate_5"]
+    out = table.loc[["oracle_stability", "oracle_return"], keep].copy()
+    out.attrs["draws"] = draws
+    return out
+
+
+def gate_3_corrected(label: str, anchor_label: str = "anchor") -> dict:
+    """Gate 3 with the corrected concentration indicator, AND a per-date full-precision comparison
+    of the two indicators on the held book, so "identical" is shown rather than inferred from two
+    rounded aggregates."""
+    entry, anchor_entry = run_by_label[label], run_by_label[anchor_label]
+
+    def per_date(entry_, indicator):
+        weights = _position_weights(entry_["state"])
+        out = {}
+        for timestamp in sorted(weights):
+            holdings = weights[timestamp]
+            total = sum(share for _p, share in holdings)
+            if total <= 0:
+                continue
+            accumulated, covered = 0.0, 0.0
+            for pair, share in holdings:
+                value = value_at_prior(indicator_series(indicator, pair), timestamp)
+                if np.isfinite(value):
+                    accumulated += share * value
+                    covered += share
+            if 1.0 - covered / total <= HELD_BOOK_MAX_DROPPED_WEIGHT and covered > 0:
+                out[pd.Timestamp(timestamp)] = accumulated / covered
+        return pd.Series(out, dtype=float)
+
+    own_o, own_c = per_date(entry, "residual_event_concentration"), per_date(entry, "residual_event_concentration_positive")
+    ref_o, ref_c = per_date(anchor_entry, "residual_event_concentration"), per_date(anchor_entry, "residual_event_concentration_positive")
+    character, anchor_character = held_book_character_cached(entry), held_book_character_cached(anchor_entry)
+    same_dates = bool(own_o.index.equals(own_c.index) and ref_o.index.equals(ref_c.index))
+    max_diff = float(max(
+        (own_o - own_c.reindex(own_o.index)).abs().max() if len(own_o) else 0.0,
+        (ref_o - ref_c.reindex(ref_o.index)).abs().max() if len(ref_o) else 0.0,
+    ))
+    return {
+        "held_concentration_corrected": float(own_c.mean()) if len(own_c) else float("nan"),
+        "anchor_held_concentration_corrected": float(ref_c.mean()) if len(ref_c) else float("nan"),
+        "dates_used_corrected": int(len(own_c)),
+        "indicators_same_dates": same_dates,
+        "indicators_max_abs_diff_per_date": max_diff,
+        "gate_3_corrected": bool(
+            len(own_c) and len(ref_c)
+            and np.isfinite(character["held_vol"]) and np.isfinite(anchor_character["held_vol"])
+            and character["held_vol"] < anchor_character["held_vol"]
+            and own_c.mean() < ref_c.mean()
+        ),
+    }
+
+
+def provenance_record() -> dict:
+    """Provenance as a plain dict keyed by file, for manifests and cross-notebook assertions."""
+    frame = provenance()
+    return {str(row["file"]): {"bytes": (None if row["bytes"] != row["bytes"] else int(row["bytes"])),
+                               "sha256": str(row["sha256"])} for _i, row in frame.iterrows()}
+
+
+def assert_same_snapshot(upstream: dict, name: str) -> None:
+    """Fail loudly if an upstream manifest's data files differ from this kernel's."""
+    here = provenance_record()
+    for path, record in upstream.items():
+        if path == "git HEAD":
+            continue
+        assert path in here, f"{name}: {path} missing from this kernel's provenance"
+        assert here[path]["sha256"] == record["sha256"], (
+            f"{name} was produced on a different snapshot of {path}: "
+            f"{record['sha256']} there, {here[path]['sha256']} here")
+    print(f"snapshot matches {name} on {sum(1 for p in upstream if p != 'git HEAD')} data files")
+
+
+print("harness_rules_v2.py second round: evaluated-family max-T, run_screen() for both concentration "
+      "targets, oracle_reachability(), per-date gate-3 comparison, provenance assertions.")

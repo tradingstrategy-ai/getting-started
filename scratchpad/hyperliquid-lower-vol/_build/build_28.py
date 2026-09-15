@@ -167,14 +167,30 @@ signal's four correlations describe the same candidates. It differs BETWEEN sign
 and date counts are printed beside every estimate and a signal with fewer than 40 usable dates is
 not evaluated at all.
 """))
-cells.append(code('''bootstrap = joint_cluster_bootstrap(panel_frame)
-screen, detail = screen_table(bootstrap)
-print(f"critical value for the 39-hypothesis stability family: {detail['stability']['critical']:.4f} "
-      f"on {detail['stability']['n_draws']} complete-family draws of {detail['stability']['n_draws_total']}")
-print(f"critical value for the 13-hypothesis return family:    {detail['returns']['critical']:.4f} "
-      f"on {detail['returns']['n_draws']} complete-family draws of {detail['returns']['n_draws_total']}")
-display(screen[["rows", "dates", "rho_forward_vol", "lo_forward_vol", "rho_forward_downside",
-                "lo_forward_downside", "rho_forward_event_top5_excess", "lo_forward_event_top5_excess"]].round(4))
+cells.append(code('''# Two screens from ONE panel. The PRE-REGISTERED screen uses the raw forward top-five share, as the
+# plan and harness_rules.py specified, and gives the gate-5 verdict. The CORRECTED screen uses the
+# excess over the uniform-events value, which the first review showed removes a 5/n floor; it was
+# introduced after results were known, so it is a post-review diagnostic and not the gate.
+PRE_TARGETS = ["forward_vol", "forward_downside", "forward_event_top5"]
+COR_TARGETS = ["forward_vol", "forward_downside", "forward_event_top5_excess"]
+print("pre-registered screen (raw top-five share):")
+screen, detail, bootstrap = run_screen(panel_frame, "pre_registered")
+print(f"  stability family: {detail['stability']['family_size_used']} of {detail['stability']['family_size_total']} "
+      f"hypotheses evaluated; critical {detail['stability']['critical']:.4f} on "
+      f"{detail['stability']['n_draws']} complete draws of {detail['stability']['n_draws_total']}")
+print(f"  return family:    {detail['returns']['family_size_used']} of {detail['returns']['family_size_total']} "
+      f"hypotheses evaluated; critical {detail['returns']['critical']:.4f} on "
+      f"{detail['returns']['n_draws']} complete draws")
+print("\\ncorrected screen (excess over uniform):")
+screen_cor, detail_cor, bootstrap_cor = run_screen(panel_frame, "corrected", verbose=False)
+print(f"  stability family: {detail_cor['stability']['family_size_used']} of {detail_cor['stability']['family_size_total']}; "
+      f"critical {detail_cor['stability']['critical']:.4f} on {detail_cor['stability']['n_draws']} complete draws")
+print("\\nPRE-REGISTERED screen:")
+display(screen[["rows", "dates", "evaluated", "rho_forward_vol", "lo_forward_vol", "rho_forward_downside",
+                "lo_forward_downside", "rho_forward_event_top5", "lo_forward_event_top5"]].round(4))
+print("\\nCORRECTED screen (post-review diagnostic):")
+display(screen_cor[["rows", "dates", "evaluated", "rho_forward_event_top5_excess", "lo_forward_event_top5_excess",
+                    "stability_clause", "return_clause", "gate_5"]].round(4))
 '''))
 
 cells.append(code('''display(screen[["direction", "time_base", "dates", "enough_dates", "rho_forward_return",
@@ -198,7 +214,7 @@ against. The half-width column says whether that is true here.
 """))
 cells.append(code('''rows = []
 for i, name in enumerate(SIGNAL_NAMES):
-    cleared = [t for j, t in enumerate(STABILITY_TARGETS)
+    cleared = [t for j, t in enumerate(PRE_TARGETS)
                if np.isfinite(detail["stability"]["lower_simultaneous"][i, j])
                and detail["stability"]["lower_simultaneous"][i, j] > 0]
     contrast = detail["returns"]["observed"][i, 0]
@@ -207,7 +223,7 @@ for i, name in enumerate(SIGNAL_NAMES):
         "signal": name,
         "stability_targets_cleared": f"{len(cleared)}/3",
         "which": ", ".join(t.replace("forward_", "") for t in cleared) or "-",
-        "missing": ", ".join(t.replace("forward_", "") for t in STABILITY_TARGETS
+        "missing": ", ".join(t.replace("forward_", "") for t in PRE_TARGETS
                              if t not in cleared) or "-",
         "return_contrast_pp": contrast,
         "return_lo_pp": lower,
@@ -231,12 +247,12 @@ print(f"so a 1 percentage-point 30-day gap reads as {365.0 / FORWARD_HORIZON_DAY
       f"annualised percentage points")
 '''))
 
-cells.append(code('''# Unadjusted per-hypothesis bounds, DESCRIPTIVE only. Printed because the simultaneous bound
-# over 39 hypotheses is conservative and the gap between the two is worth seeing; no verdict is
-# written from this table.
+cells.append(code('''# Unadjusted per-hypothesis bounds, DESCRIPTIVE only, for the pre-registered screen. Printed
+# because the simultaneous bound over 39 hypotheses is conservative and the gap between the two
+# is worth seeing; no verdict is written from this table.
 rows = []
 for i, name in enumerate(SIGNAL_NAMES):
-    for j, target in enumerate(STABILITY_TARGETS):
+    for j, target in enumerate(PRE_TARGETS):
         rows.append({
             "signal": name, "target": target,
             "rho": detail["stability"]["observed"][i, j],
@@ -247,6 +263,70 @@ for i, name in enumerate(SIGNAL_NAMES):
         })
 unadjusted = pd.DataFrame(rows).set_index(["signal", "target"])
 display(unadjusted.round(4))
+'''))
+
+cells.append(md("""### Can this screen pass anything? Near-perfect-foresight oracles
+
+Standing rule 9: a surprising null must be shown unreachable, not merely unobserved. Three oracle
+signals are appended to the panel and run through the same bootstrap and simultaneous bounds:
+
+- `oracle_vol`: the forward volatility itself plus 5% noise (direction 'high').
+- `oracle_return`: the forward return itself plus 5% noise (direction 'low').
+- `oracle_all`: the per-date mean rank of ALL THREE forward stability targets plus noise
+  (direction 'high') - a signal that knows every target the stability clause requires.
+
+The noise is there because a signal that equals its target has a bootstrap standard error of
+exactly zero, which the studentised max-T cannot evaluate; a first version without it was
+dropped from the family as unevaluable. If `oracle_all` passes the stability clause, the clause
+is reachable on this panel and the thirteen real signals failed it on their merits. If
+`oracle_vol` fails it, no amount of volatility foresight satisfies a conjunction that includes
+event concentration - which says something about the gate's design, not about the signals.
+"""))
+cells.append(code('''def oracle_reachability_v3(panel_frame, concentration="pre_registered", draws=200, seed=SCREEN_SEED + 1):
+    """Three noisy oracles through the same screen. Defined here, not in harness_rules_v2.py, so
+    NB29-NB31, which embed that module, stay regenerable."""
+    global SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION
+    saved = (SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION)
+    rng = np.random.default_rng(seed)
+    frame = panel_frame.copy()
+    target_conc = CONCENTRATION_TARGETS[concentration]
+
+    def jitter(series):
+        scale = 0.05 * float(series.std())
+        return series + rng.normal(0.0, scale, len(series))
+
+    frame["oracle_vol"] = jitter(frame["forward_vol"])
+    frame["oracle_return"] = jitter(frame["forward_return"])
+    # Per-date mean rank across the three targets the stability clause names, higher = less stable.
+    ranks = frame.groupby("date")[["forward_vol", "forward_downside", target_conc]].rank(pct=True)
+    frame["oracle_all"] = jitter(ranks.mean(axis=1))
+    SIGNALS = list(SIGNALS) + [
+        {"name": "oracle_vol", "direction": "high", "time_base": "foresight", "note": "= forward_vol + noise"},
+        {"name": "oracle_return", "direction": "low", "time_base": "foresight", "note": "= forward_return + noise"},
+        {"name": "oracle_all", "direction": "high", "time_base": "foresight", "note": "= mean rank of three targets + noise"},
+    ]
+    SIGNAL_NAMES = [s["name"] for s in SIGNALS]
+    SIGNAL_DIRECTION = {s["name"]: s["direction"] for s in SIGNALS}
+    try:
+        table, detail, _ = run_screen(frame, concentration, draws=draws, seed=seed, verbose=False)
+    finally:
+        SIGNALS, SIGNAL_NAMES, SIGNAL_DIRECTION = saved
+    keep = ["dates", "evaluated"] + [c for c in table.columns if c.startswith("rho_") or c.startswith("lo_")] + \\
+           ["return_contrast_pp", "return_lo_pp", "stability_clause", "return_clause", "gate_5"]
+    return table.loc[["oracle_vol", "oracle_return", "oracle_all"], keep].copy()
+
+
+oracle = oracle_reachability_v3(panel_frame, "pre_registered", draws=200)
+display(oracle.round(4))
+for name in ("oracle_vol", "oracle_all"):
+    print(f"{name:>14}: evaluated {bool(oracle.loc[name, 'evaluated'])}, stability clause "
+          f"{bool(oracle.loc[name, 'stability_clause'])}  (lower bounds vol {oracle.loc[name, 'lo_forward_vol']:+.3f}, "
+          f"downside {oracle.loc[name, 'lo_forward_downside']:+.3f}, concentration {oracle.loc[name, 'lo_forward_event_top5']:+.3f})")
+print(f" oracle_return: evaluated {bool(oracle.loc['oracle_return', 'evaluated'])}, return clause "
+      f"{bool(oracle.loc['oracle_return', 'return_clause'])}  (contrast {oracle.loc['oracle_return', 'return_contrast_pp']:+.1f} pp, "
+      f"lower bound {oracle.loc['oracle_return', 'return_lo_pp']:+.1f} pp, margin -{DELTA_ANNUALISED_PP:.0f})")
+print(f"\\nforward volatility foresight vs forward event concentration: rho {oracle.loc['oracle_vol', 'rho_forward_event_top5']:+.4f} "
+      f"- the two targets are {'nearly orthogonal' if abs(oracle.loc['oracle_vol', 'rho_forward_event_top5']) < 0.2 else 'related'} on this panel")
 '''))
 
 cells.append(md("""## Part 4. The tail-aligned contrast
@@ -268,7 +348,7 @@ are missing.
 cells.append(code('''rows = []
 for i, name in enumerate(SIGNAL_NAMES):
     row = {"signal": name}
-    for j, target in enumerate(STABILITY_TARGETS):
+    for j, target in enumerate(PRE_TARGETS):
         row[f"tail_{target}"] = detail["tails"]["observed"][i, j]
         row[f"lo_{target}"] = detail["tails"]["lower_simultaneous"][i, j]
     row["return_contrast_pp"] = detail["returns"]["observed"][i, 0]
@@ -312,7 +392,7 @@ panel_frame["residual_event_concentration_positive"] = [
     for pid, d in zip(panel_frame["pair_id"], panel_frame["date"])
 ]
 rows = []
-for target in SCREEN_TARGETS:
+for target in PRE_TARGETS + ["forward_event_top5_excess", "forward_return"]:
     values = []
     for _d, group in panel_frame.groupby("date"):
         joined = group[["residual_event_concentration_positive", target]].replace([np.inf, -np.inf], np.nan).dropna()
@@ -392,11 +472,22 @@ manifest = {
                   "seed": int(SCREEN_SEED),
                   "stability_critical": float(detail["stability"]["critical"]),
                   "return_critical": float(detail["returns"]["critical"]),
-                  "tail_critical": float(detail["tails"]["critical"])},
+                  "tail_critical": float(detail["tails"]["critical"]),
+                  "stability_family_used": int(detail["stability"]["family_size_used"]),
+                  "return_family_used": int(detail["returns"]["family_size_used"])},
     "eligible_decisions": int(eligibility["eligible"].sum()),
     "logged_decisions": int(len(eligibility)),
     "panel_rows": int(len(panel_frame)),
+    "provenance": provenance_record(),
     "gate_5": {s: bool(screen.loc[s, "gate_5"]) for s in SIGNAL_NAMES},
+    "gate_5_corrected_target": {s: bool(screen_cor.loc[s, "gate_5"]) for s in SIGNAL_NAMES},
+    "screen_full": screen.to_dict(orient="index"),
+    "screen_corrected": screen_cor.round(6).to_dict(orient="index"),
+    "screen_corrected_bootstrap": {"stability_critical": float(detail_cor["stability"]["critical"]),
+                                   "n_draws": int(detail_cor["stability"]["n_draws"]),
+                                   "family_size_used": int(detail_cor["stability"]["family_size_used"])},
+    "oracle": oracle.to_dict(orient="index"),
+    "targets_pre_registered": PRE_TARGETS, "targets_corrected": COR_TARGETS,
     "carried_to_nb29": [s for s in summary.index if bool(summary.loc[s, "carried_to_nb29"])],
     "screen": screen.round(6).to_dict(orient="index"),
     "tails": tail_table.round(6).to_dict(orient="index"),

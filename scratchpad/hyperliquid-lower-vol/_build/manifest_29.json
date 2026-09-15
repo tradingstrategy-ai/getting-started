@@ -176,21 +176,23 @@
  },
  "gate_3_detail": {
   "inverse_vol_q30": {
-   "held_held_vol": 0.006518,
-   "anchor_held_vol": 0.021394,
-   "held_held_concentration": 0.356397,
-   "anchor_held_concentration": 0.313257,
-   "held_concentration_corrected": 0.356397,
-   "anchor_held_concentration_corrected": 0.313257,
+   "held_held_vol": 0.006518252418505275,
+   "anchor_held_vol": 0.02139350935603004,
+   "held_held_concentration": 0.35639677512658774,
+   "anchor_held_concentration": 0.313257286704682,
+   "held_concentration_corrected": 0.35639677512658774,
+   "anchor_held_concentration_corrected": 0.313257286704682,
    "held_dates_used": 50,
    "dates_used_corrected": 50.0,
+   "indicators_same_dates": true,
+   "indicators_max_abs_diff_per_date": 0.0,
    "luck_ratio": NaN,
-   "top5_gross_share": 0.517482,
-   "mean_holdings": 5.992063,
-   "mean_largest_weight": 0.328333,
-   "mean_herfindahl": 0.242242,
+   "top5_gross_share": 0.5174816843714505,
+   "mean_holdings": 5.992063492063492,
+   "mean_largest_weight": 0.3283326404768568,
+   "mean_herfindahl": 0.2422421425883216,
    "distinct_vaults": 34,
-   "top_vault_pnl_share": 0.255105,
+   "top_vault_pnl_share": 0.25510514525320804,
    "diversification_failures": "mean_holdings"
   }
  },
@@ -291,6 +293,39 @@
   "held_dates_used": 49.0,
   "held_dates_excluded": 77.0,
   "held_mean_dropped_weight": 0.5214792725335494
+ },
+ "provenance": {
+  "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-prices.parquet": {
+   "bytes": 255136297,
+   "sha256": "8bce13191183c7d4"
+  },
+  "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-metadata.json": {
+   "bytes": 75468494,
+   "sha256": "7bcd6969c9fce5c1"
+  },
+  "/Users/moo/.tradingstrategy/binance-price.duckdb": {
+   "bytes": 1585152,
+   "sha256": "5acd43c9eb662d48"
+  },
+  "/tmp/hyperliquid-lower-vol-btc-daily-returns.parquet": {
+   "bytes": 61932,
+   "sha256": "59946b6e81b86820"
+  },
+  "git HEAD": {
+   "bytes": null,
+   "sha256": "3e04105"
+  }
+ },
+ "strict_checks": {
+  "inverse_vol": {
+   "cycles_compared": 125,
+   "max_abs_cycle_return_diff": 0.0,
+   "equity_paths_identical": true,
+   "vaults_held_permissive": 34,
+   "vaults_held_strict": 34,
+   "held_sets_identical": true,
+   "max_abs_metric_diff": 0.0
+  }
  },
  "nulls": [],
  "lovo": [],

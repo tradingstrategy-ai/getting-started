@@ -6,7 +6,14 @@ here = Path(__file__).parent
 m = json.load(open(here / "manifest_29.json")); m28 = json.load(open(here / "manifest_28.json"))
 F, G, D, C, ST, A, N, I = (m["family"], m["gates"], m["gate_3_detail"], m["cheap_gates"], m["strict"],
                            m["anchor_reference"], m["nulls"], m["inertness"])
-PB = m["paired_bootstrap"]
+PB = m["paired_bootstrap"]; SCK = m["strict_checks"]
+def _prov(m):
+    for path, rec in m["provenance"].items():
+        if path.endswith("vault-prices.parquet"):
+            return rec
+    raise KeyError("vault-prices.parquet not in provenance")
+PV = _prov(m)
+
 centre = f"inverse_vol_q{int(round(m['centre']*100)):02d}"
 g, d, c = G[centre], D[centre], C[centre]
 fam = {int(round(F[k]["q"] * 100)): F[k] for k in F if F[k]["signal"] == "inverse_vol"}
@@ -59,8 +66,8 @@ failed a cheap gate, and every unexecuted gate is False rather than absent.
 
 ## Key new insights and what did we learn from this experiment?
 
-**1. Excluding the most volatile candidates lowers portfolio volatility a great deal and destroys
-return doing it (cell 24).**
+**1. Excluding the most volatile candidates lowers portfolio volatility monotonically; return and
+Sharpe deteriorate beyond q = 0.10 (cell 24).**
 
 | q | realised exclusion share | CAGR | cycle Sharpe | cycle vol | ulcer | invested |
 |---|---|---|---|---|---|---|
@@ -82,11 +89,14 @@ against {f4(A['cycle_vol'])}, ulcer {f4(fam[10]['ulcer'])} against {f4(A['ulcer'
 pre-registered centre, its signal failed gate 5, and NB25 established that a random removal of
 nine vaults ranks seventh of 57 by Sharpe.
 
-**3. The strict variant is inert to {strict_diff:.1e} on every metric (cell 28).** Strict excludes
-unmeasured candidates as well, raising the realised exclusion share from
-{f4(strict_off['realised_excluded_share'])} to **{f4(strict_on['realised_excluded_share'])}**, and CAGR,
-Sharpe, volatility, ulcer, max drawdown, invested beta and mean invested are identical at ten
-decimal places. The vaults with no volatility estimate were never going to be selected. NB21 and
+**3. The strict variant is inert: identical equity path, identical held set (cell 28).** Strict
+excludes unmeasured candidates as well, raising the realised exclusion share from
+{f4(strict_off['realised_excluded_share'])} to **{f4(strict_on['realised_excluded_share'])}**. The two
+runs' cycle-return series are {'identical' if SCK['inverse_vol']['equity_paths_identical'] else 'NOT identical'}
+over {SCK['inverse_vol']['cycles_compared']} cycles (largest |difference| {SCK['inverse_vol']['max_abs_cycle_return_diff']:.1e}),
+they held {'the same' if SCK['inverse_vol']['held_sets_identical'] else 'different'} {SCK['inverse_vol']['vaults_held_permissive']}
+vaults, and every panel metric agrees to {SCK['inverse_vol']['max_abs_metric_diff']:.1e}. The vaults
+with no volatility estimate were never selected under the permissive rule. NB21 and
 NB26 found the data-availability half of the vol-matched drop inert; this reproduces it through
 a different mechanism.
 
@@ -94,15 +104,14 @@ a different mechanism.
 reaches Sharpe {f4(q20['cycle_sharpe'])}, a gap of {f4(gap20)} from the centre's
 {f4(fam[30]['cycle_sharpe'])} against a tolerance of 0.25. `inverse_vol_q40` passes at {f4(gap40)}.
 
-**5. The book it holds is calmer; whether it is spikier depends on which concentration indicator
-is believed (cell 35).** Capital-weighted own volatility falls from {f4(d['anchor_held_vol'])} to
+**5. The book it holds is calmer and spikier, by both concentration indicators (cell 35).** Capital-weighted own volatility falls from {f4(d['anchor_held_vol'])} to
 {f4(d['held_held_vol'])}. Own event concentration by the PRE-REGISTERED indicator rises from
 {f4(d['anchor_held_concentration'])} to {f4(d['held_held_concentration'])} on {int(d['held_dates_used'])} dates,
 so gate 3 fails. By the corrected indicator - `residual_event_concentration_positive`, whose
 numerator takes the five largest POSITIVE residuals as the original's docstring claimed - it is
 {f4(d['held_concentration_corrected'])} against the anchor's {f4(d['anchor_held_concentration_corrected'])}
 on {int(d['dates_used_corrected'])} dates, and `gate_3_corrected` is **{g['gate_3_corrected']}**.
-{'The two indicators give IDENTICAL held-book values here: on every held vault-date where the original is finite, the window already holds at least five positive residual days, so the top five of all residuals and the top five of the positive ones coincide. The defect is real in the code and unreachable on this book - shown, not assumed, which is what standing rule 9 asks of a surprising null.' if abs(d['held_held_concentration'] - d['held_concentration_corrected']) < 1e-9 and abs(d['anchor_held_concentration'] - d['anchor_held_concentration_corrected']) < 1e-9 else 'The two indicators differ on this book, and the verdict gate uses the pre-registered one as the rules name it.'}
+{f"The two indicators are compared PER HELD VAULT-DATE at full precision (cell 35): same covered dates on both books ({d['indicators_same_dates']}), largest absolute difference on any date {d['indicators_max_abs_diff_per_date']:.1e}. On every held vault-date where the original is finite, the window already holds at least five positive residual days, so the two constructions coincide. The NB08 defect is real in the code and unreachable on this book - shown per date, not inferred from two rounded aggregates." if d['indicators_same_dates'] and d['indicators_max_abs_diff_per_date'] < 1e-9 else f"The two indicators differ on this book (largest per-date difference {d['indicators_max_abs_diff_per_date']:.2e}); the verdict gate uses the pre-registered one as the rules name it."}
 
 **6. Nothing is inert and everything changes a lot (cell 26).** At the centre the prefilter
 changes the selected basket on {int(I[centre]['dates_with_a_different_basket'])} of
@@ -137,8 +146,9 @@ Paired block bootstrap against the anchor, context only (cell 38): observed Shar
   indicator and its corrected form; the strict-variant claim is made from ten-decimal manifest
   values rather than a four-decimal display; "fully invested" is replaced by the measured range;
   the gate-4 explanation names the non-finite leg rather than asserting which one it is. The
-  review's finding that the integrity and fee audits inspect only the anchor state is correct
-  and inherited from the base notebook; it is recorded, not fixed here.
+  second review found the strict-run claim rested on rounded metrics, the concentration-indicator
+  equality on rounded aggregates, and the audits on the anchor alone; all three are now measured
+  per cycle, per date and per run respectively.
 - **Gate 8 rejected on an arithmetic margin.** `mean_holdings` {f4(d['mean_holdings'])}
   against the anchor's exactly 6.0000. The rule was pre-registered and stands; four of five
   diversification measures are better than the anchor's, including `top_vault_pnl_share`
@@ -151,8 +161,13 @@ Paired block bootstrap against the anchor, context only (cell 38): observed Shar
 - **Gates 2 and 9 were never executed.** They are False per standing rule 8.
 - **Only one signal was backtested**, so the matched-share table has one row and there is no
   family-wise correction to run.
-- **Snapshot**: `vault-prices.parquet` 254,818,366 bytes, sha256 prefix `3e79966a`. Anchor parity
-  holds at 1e-5 (cell 22).
+- **Snapshot**: `vault-prices.parquet` {PV['bytes']:,} bytes, sha256 prefix `{PV['sha256']}`, read
+  from this run's provenance via the manifest, and asserted equal to NB28's before the screen was
+  imported (cell 22). Anchor parity holds at 1e-5 (cell 22).
+- **Every run is now audited**, not only the anchor: the integrity screen runs over all recorded
+  states in the final cell and asserts none destroyed or stranded capital. The redemption-fee
+  audit still verifies execution against the stored rate rather than recomputing 10% of profit
+  independently; that is the base notebook's audit and a track-level fix.
 """
 out = here.parent / "29-backtest-stability-prefilter.ipynb"
 nb = json.load(open(out))

@@ -83,6 +83,8 @@ record_anchor()
 
 manifest_28 = json.loads(Path("_build/manifest_28.json").read_text())
 manifest_29 = json.loads(Path("_build/manifest_29.json").read_text())
+assert_same_snapshot(manifest_28["provenance"], "manifest_28")
+assert_same_snapshot(manifest_29["provenance"], "manifest_29")
 CENTRE = float(manifest_29["centre"])
 print(f"NB29 centre q = {CENTRE}; shortlisted: {manifest_29['shortlisted'] or 'nothing'}")
 print(f"folds {CROSSFIT_FOLDS}, purge {CROSSFIT_PURGE_DAYS} days, "
@@ -105,9 +107,11 @@ print(f"eligible decisions: {len(eligible_dates)}, "
 
 # The full-sample screen, reproduced here so the fold screens have something to be compared
 # against in the same kernel and on the same resamples machinery.
-full_bootstrap = joint_cluster_bootstrap(panel_frame, draws=CROSSFIT_DRAWS)
-full_screen, full_detail = screen_table(full_bootstrap)
+full_screen, full_detail, full_bootstrap = run_screen(panel_frame, "pre_registered", draws=CROSSFIT_DRAWS)
 FULL_LEADER = leading_signal(full_screen)
+print(f"full-sample family: {full_detail['stability']['family_size_used']} of "
+      f"{full_detail['stability']['family_size_total']} hypotheses evaluated, "
+      f"{full_detail['stability']['n_draws']} complete draws")
 print(f"full-sample leading signal at {CROSSFIT_DRAWS} draws: {FULL_LEADER}")
 print(f"NB28 recorded gate-5 passers: {[s for s, v in manifest_28['gate_5'].items() if v] or 'none'}")
 display(full_screen[["dates", "stability_clause", "return_clause", "gate_5"]])
@@ -142,16 +146,24 @@ for fold in folds:
         })
         continue
     subset = panel_frame[panel_frame["date"].isin(training)]
-    bootstrap = joint_cluster_bootstrap(subset, draws=CROSSFIT_DRAWS, verbose=False)
-    screen, detail = screen_table(bootstrap)
+    screen, detail, bootstrap = run_screen(subset, "pre_registered", draws=CROSSFIT_DRAWS, verbose=False)
     chosen = leading_signal(screen)
     fold_rows.append({
         "fold": fold["fold"], "start": fold["start"], "end_inclusive": fold["end_inclusive"],
         "fold_decisions": len(fold["fold_dates"]), "training_decisions": len(fold["training_dates"]),
         "evaluable": True,
+        "signals_evaluated": int(screen["evaluated"].sum()),
+        "family_used": int(detail["stability"]["family_size_used"]),
+        "complete_draws": int(detail["stability"]["n_draws"]),
+        "critical": float(detail["stability"]["critical"]),
         "gate_5_passers": ", ".join(s for s in screen.index if bool(screen.loc[s, "gate_5"])) or "(none)",
         "leading_signal": chosen if chosen else "(none)",
     })
+    print(f"  fold {fold['fold']}: {int(screen['evaluated'].sum())} of 13 signals evaluated, "
+          f"family {detail['stability']['family_size_used']}, complete draws {detail['stability']['n_draws']}, "
+          f"critical {detail['stability']['critical']:.4f}")
+    display(screen[["dates", "evaluated", "lo_forward_vol", "lo_forward_downside", "lo_forward_event_top5",
+                    "return_lo_pp", "stability_clause", "return_clause", "gate_5"]].round(4))
     fold["screen"] = screen
     fold["chosen"] = chosen
     print(f"fold {fold['fold']}: {fold['start'].date()} to {fold['end_inclusive'].date()}, "
@@ -263,8 +275,10 @@ cells.append(code('''stability_rows = []
 for signal in SIGNAL_NAMES:
     chosen_in = [f["fold"] for f in folds if f["chosen"] == signal]
     passed_in = [f["fold"] for f in folds if f["screen"] is not None and bool(f["screen"].loc[signal, "gate_5"])]
+    evaluated_in = [f["fold"] for f in folds if f["screen"] is not None and bool(f["screen"].loc[signal, "evaluated"])]
     stability_rows.append({
         "signal": signal,
+        "folds_evaluated": len(evaluated_in),
         "folds_passing_gate_5": len(passed_in),
         "folds_leading": len(chosen_in),
         "leading_in": ", ".join(str(f) for f in chosen_in) or "-",
@@ -298,6 +312,10 @@ manifest = {
     "folds": CROSSFIT_FOLDS, "purge_days": CROSSFIT_PURGE_DAYS, "draws": CROSSFIT_DRAWS,
     "centre": CENTRE,
     "full_sample_leader": FULL_LEADER,
+    "provenance": provenance_record(),
+    "eligible_decisions": int(len(eligible_dates)),
+    "full_screen": full_screen.round(6).to_dict(orient="index"),
+    "total_signal_fold_evaluations": int(sum(int(f["screen"]["evaluated"].sum()) for f in folds if f["screen"] is not None)),
     "fold_table": fold_table.to_dict(orient="index"),
     "segments": pd.DataFrame(segment_rows).set_index("fold").round(6).to_dict(orient="index"),
     "stitched": comparison.round(6).to_dict(orient="index"),

@@ -98,10 +98,22 @@ CARRIED = list(manifest_28["carried_to_nb29"])
 GATE_5 = {k: bool(v) for k, v in manifest_28["gate_5"].items()}
 assert abs(float(manifest_28["delta_annualised_pp"]) - DELTA_ANNUALISED_PP) < 1e-12, \\
     "NB28 screened with a different delta from the one this kernel carries"
+assert_same_snapshot(manifest_28["provenance"], "manifest_28")
 print(f"NB28 eligible decisions: {manifest_28['eligible_decisions']} of {manifest_28['logged_decisions']}")
 print(f"signals passing gate 5: {[s for s, v in GATE_5.items() if v] or 'none'}")
 print(f"carried into NB29: {CARRIED}")
-display(pd.DataFrame(manifest_28["screen"]).T[["dates", "stability_clause", "return_clause", "gate_5"]])
+# The screen's evidence, not only its Booleans: estimates, simultaneous bounds, sample sizes,
+# the binding target, and the bootstrap's complete-draw counts.
+screen_28 = pd.DataFrame(manifest_28["screen_full"]).T
+display(screen_28[["dates", "rows", "evaluated", "rho_forward_vol", "lo_forward_vol", "rho_forward_downside",
+                   "lo_forward_downside", "rho_forward_event_top5", "lo_forward_event_top5",
+                   "return_contrast_pp", "return_lo_pp", "stability_clause", "return_clause", "gate_5"]].round(4))
+print("bootstrap:", {k: manifest_28["bootstrap"][k] for k in ("draws", "stability_critical", "return_critical")},
+      "| complete draws:", manifest_28["draws_complete"])
+display(pd.DataFrame(manifest_28["decomposition"]).T[["stability_targets_cleared", "missing", "return_half_width_pp"]])
+display(pd.DataFrame(manifest_28["missing_reasons"]).set_index("target"))
+print("oracle reachability (NB28):")
+display(pd.DataFrame(manifest_28["oracle"]).T[["stability_clause", "return_clause", "return_lo_pp"]])
 '''))
 
 cells.append(md("""## Part 1. The family: five fractions per carried signal
@@ -206,6 +218,26 @@ for signal in CARRIED:
 display(pd.DataFrame(strict_rows).set_index("label")[
     ["signal", "strict", "realised_excluded_share", "cagr", "cycle_sharpe", "cycle_vol",
      "ulcer", "abs_invested_beta", "mean_invested"]].round(4))
+
+# "Inert" is a claim about the realised path and the realised book, not about seven metrics.
+strict_checks = []
+for signal in CARRIED:
+    a, b = run_by_label[label_for(signal, CENTRE)], run_by_label[label_for(signal, CENTRE, "_strict")]
+    ra, rb = a["cycle_returns"].align(b["cycle_returns"], join="inner")
+    held_a = {str(p.pair.pool_address).lower() for p in a["state"].portfolio.get_all_positions() if not p.is_credit_supply()}
+    held_b = {str(p.pair.pool_address).lower() for p in b["state"].portfolio.get_all_positions() if not p.is_credit_supply()}
+    metric_diff = max(abs(float(a["panel"][k]) - float(b["panel"][k])) for k in
+                      ("cagr", "cycle_sharpe", "cycle_vol", "ulcer", "max_dd", "abs_invested_beta", "mean_invested"))
+    strict_checks.append({
+        "signal": signal, "cycles_compared": int(len(ra)),
+        "max_abs_cycle_return_diff": float((ra - rb).abs().max()),
+        "equity_paths_identical": bool(np.allclose(ra.to_numpy(), rb.to_numpy(), atol=0, rtol=0)),
+        "vaults_held_permissive": len(held_a), "vaults_held_strict": len(held_b),
+        "held_sets_identical": held_a == held_b,
+        "max_abs_metric_diff": metric_diff,
+    })
+strict_checks = pd.DataFrame(strict_checks).set_index("signal")
+display(strict_checks)
 '''))
 
 cells.append(md("""## Part 4. The cheap gates at the centre
@@ -343,7 +375,8 @@ display(verdicts[["signal", "cycle_sharpe", "cagr", "cycle_vol", "ulcer"] + gate
                  + ["gate_3_corrected", "verdict"]])
 display(verdicts[["held_held_vol", "anchor_held_vol", "held_held_concentration", "anchor_held_concentration",
                   "held_concentration_corrected", "anchor_held_concentration_corrected",
-                  "held_dates_used", "dates_used_corrected"]].round(6))
+                  "held_dates_used", "dates_used_corrected", "indicators_same_dates",
+                  "indicators_max_abs_diff_per_date"]])
 print("\\ncomplete failure strings:")
 for label, row in verdicts.iterrows():
     print(f"  {label}: {row['failed_gates'] or '(none)'}")
@@ -403,9 +436,10 @@ cells.append(code('''summary = {
     "gate_3_detail": verdicts[["held_held_vol", "anchor_held_vol", "held_held_concentration",
                                "anchor_held_concentration", "held_concentration_corrected",
                                "anchor_held_concentration_corrected", "held_dates_used",
-                               "dates_used_corrected", "luck_ratio", "top5_gross_share",
+                               "dates_used_corrected", "indicators_same_dates", "indicators_max_abs_diff_per_date",
+                               "luck_ratio", "top5_gross_share",
                                "mean_holdings", "mean_largest_weight", "mean_herfindahl",
-                               "distinct_vaults", "top_vault_pnl_share", "diversification_failures"]].round(6).to_dict(orient="index"),
+                               "distinct_vaults", "top_vault_pnl_share", "diversification_failures"]].to_dict(orient="index"),
     "cheap_gates": cheap.drop(columns=["diversification_failures"]).round(6).to_dict(orient="index"),
     "strict": pd.DataFrame(strict_rows).set_index("label")[["signal", "strict", "realised_excluded_share",
                                                              "cagr", "cycle_sharpe", "cycle_vol", "ulcer",
@@ -413,6 +447,8 @@ cells.append(code('''summary = {
     "matched": matched_frame[["signal", "q", "realised_excluded_share", "cagr", "cycle_sharpe"]].round(6).to_dict(orient="index"),
     "paired_bootstrap": pd.DataFrame(rows).round(6).to_dict(orient="records"),
     "anchor_reference": {k: float(v) for k, v in reference_row.items()},
+    "provenance": provenance_record(),
+    "strict_checks": strict_checks.to_dict(orient="index"),
     "nulls": [{k: v for k, v in row.items()} for row in null_rows],
     "lovo": [{k: v for k, v in row.items()} for row in lovo_rows],
     # Every executed configuration, with the overrides needed to reproduce it. NB31 re-runs from
@@ -439,4 +475,23 @@ display(pd.Series({k: v for k, v in summary.items()
 '''))
 
 cells += integrity_and_audit_cells()
+cells.append(md("""## Integrity and fee audit, every run
+
+The two cells above are the base notebook's and inspect the anchor only. The review was right that
+none of the prefilter runs was audited. This runs the same `audit_portfolio()` over every
+recorded state and fails on any run that does not reconcile.
+"""))
+cells.append(code('''audit_rows = []
+for entry in runs:
+    if entry.get("state") is None:
+        continue
+    result = audit_portfolio(entry["state"].portfolio)
+    audit_rows.append({"label": entry["label"], "family": entry["family"], **result})
+audit_all = pd.DataFrame(audit_rows).set_index("label")
+display(audit_all)
+bad = audit_all[(audit_all["destroyed"] > 0) | (audit_all["stranded"] > 0)
+                | (audit_all["cash + holdings - equity"].abs() > 1.0)]
+print(f"runs audited: {len(audit_all)}; runs failing the integrity screen: {len(bad)}")
+assert len(bad) == 0, f"integrity screen failed for: {list(bad.index)}"
+'''))
 write_notebook(cells, TRACK_DIR / "29-backtest-stability-prefilter.ipynb")

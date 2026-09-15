@@ -77,6 +77,8 @@ record_anchor()
 manifest_28 = json.loads(Path("_build/manifest_28.json").read_text())
 manifest_29 = json.loads(Path("_build/manifest_29.json").read_text())
 manifest_30 = json.loads(Path("_build/manifest_30.json").read_text())
+for name, manifest in (("manifest_28", manifest_28), ("manifest_29", manifest_29), ("manifest_30", manifest_30)):
+    assert_same_snapshot(manifest["provenance"], name)
 GATE_5 = {k: bool(v) for k, v in manifest_28["gate_5"].items()}
 CARRIED = list(manifest_29["carried"])
 CENTRE = float(manifest_29["centre"])
@@ -148,23 +150,29 @@ logging run, the joint bootstrap and simultaneous bounds are recomputed, and the
 flags are compared with NB28's before anything downstream uses them.
 """))
 cells.append(code('''panel_frame, eligibility = build_screen_panel(run_by_label["screen_log"])
-bootstrap = joint_cluster_bootstrap(panel_frame)
-screen, detail = screen_table(bootstrap)
+screen, detail, bootstrap = run_screen(panel_frame, "pre_registered")
 GATE_5_REDERIVED = {s: bool(screen.loc[s, "gate_5"]) for s in SIGNAL_NAMES}
+# Compare EVERY persisted numeric field of the screen, unrounded, plus the bootstrap diagnostics.
+nb28_full = pd.DataFrame(manifest_28["screen_full"]).T
+numeric = [c for c in screen.columns if screen[c].dtype.kind in "fi" and c in nb28_full.columns]
+diffs = (screen[numeric].astype(float) - nb28_full[numeric].astype(float)).abs()
 comparison = pd.DataFrame({
     "nb28": pd.Series(GATE_5), "here": pd.Series(GATE_5_REDERIVED),
-    "nb28_lo_vol": {s: manifest_28["screen"][s]["lo_forward_vol"] for s in SIGNAL_NAMES},
-    "here_lo_vol": screen["lo_forward_vol"],
-    "nb28_return_lo": {s: manifest_28["screen"][s]["return_lo_pp"] for s in SIGNAL_NAMES},
-    "here_return_lo": screen["return_lo_pp"],
+    "max_abs_diff_any_field": diffs.max(axis=1),
+    "evaluated_here": screen["evaluated"], "evaluated_nb28": nb28_full["evaluated"].astype(bool),
 })
 comparison["agree"] = comparison["nb28"] == comparison["here"]
-display(comparison.round(4))
-worst_lo = float((comparison["nb28_lo_vol"] - comparison["here_lo_vol"]).abs().max())
-print(f"gate-5 flags agree with NB28 on {int(comparison['agree'].sum())} of {len(comparison)} signals; "
-      f"largest |difference| in the forward-vol lower bound {worst_lo:.2e} "
-      f"(same seed, so anything above floating-point noise means the panel differs)")
+display(comparison.round(10))
+worst_lo = float(diffs.to_numpy().max())
+worst_field = diffs.stack().idxmax()
+print(f"gate-5 flags agree with NB28 on {int(comparison['agree'].sum())} of {len(comparison)} signals")
+print(f"largest |difference| over {len(numeric)} numeric screen fields x 13 signals: {worst_lo:.2e} at {worst_field}")
+print(f"bootstrap here: critical {detail['stability']['critical']:.6f} on {detail['stability']['n_draws']} complete draws, "
+      f"family {detail['stability']['family_size_used']}; NB28: critical "
+      f"{manifest_28['bootstrap']['stability_critical']:.6f} on {manifest_28['draws_complete']['stability']}, "
+      f"family {manifest_28['bootstrap']['stability_family_used']}")
 assert bool(comparison["agree"].all()), "re-derived gate 5 disagrees with NB28"
+assert worst_lo < 1e-6, f"re-derived screen differs from NB28 by {worst_lo:.2e} at {worst_field}"
 GATE_5 = GATE_5_REDERIVED
 '''))
 
@@ -199,6 +207,9 @@ for label in verdicts.index:
 pd.set_option("display.max_colwidth", None)
 display(verdicts[["signal", "cycle_sharpe", "cagr", "cycle_vol", "ulcer"] + gate_columns
                  + ["gate_3_corrected", "verdict"]])
+display(verdicts[["held_held_vol", "anchor_held_vol", "held_held_concentration", "anchor_held_concentration",
+                  "held_concentration_corrected", "anchor_held_concentration_corrected", "held_dates_used",
+                  "dates_used_corrected", "indicators_same_dates", "indicators_max_abs_diff_per_date"]])
 print("\\ncomplete failure strings:")
 for label, row in verdicts.iterrows():
     print(f"  {label}: {row['failed_gates'] or '(none)'}")
@@ -316,8 +327,9 @@ specification = {
         "Gate 4 means 'no worse than the anchor', not 'luck-free'. The anchor's own luck_ratio is "
         f"{float(anchor_panel['luck_ratio']):.4f} and its top five positions deliver "
         f"{float(anchor_panel['top5_gross_share']) * 100:.1f}% of gross profit.",
-        "Concentration is set by max_assets_in_portfolio and inverse-volatility sizing, not by "
-        "selection; gate 8 therefore excludes only mechanisms that make it worse.",
+        "Selection CAN move concentration - NB29 showed the prefilter lowers mean holdings below "
+        "6.00 and top-vault P&L share below the anchor's - and gate 8 tests whether it becomes "
+        "worse than the anchor's on five measures.",
     ],
 }
 display(pd.Series({k: v for k, v in specification.items() if k != "known_limits"}).to_frame("value"))
@@ -340,6 +352,12 @@ cells.append(code('''manifest = {
     "gates": verdicts[["signal"] + gate_columns + ["gate_3_corrected", "failed_gates", "verdict"]].to_dict(orient="index"),
     "gate_5_rederived_agrees": bool(comparison["agree"].all()),
     "gate_5_worst_lo_diff": worst_lo,
+    "gate_5_fields_compared": int(len(numeric)),
+    "provenance": provenance_record(),
+    "gate_3_detail": verdicts[["held_held_vol", "anchor_held_vol", "held_held_concentration",
+                               "anchor_held_concentration", "held_concentration_corrected",
+                               "anchor_held_concentration_corrected", "held_dates_used", "dates_used_corrected",
+                               "indicators_same_dates", "indicators_max_abs_diff_per_date"]].to_dict(orient="index"),
     "specification": specification,
     "upstream": {
         "nb28_gate_5": GATE_5,
@@ -359,4 +377,17 @@ display(pd.Series({
 '''))
 
 cells += integrity_and_audit_cells()
+cells.append(md("""## Integrity audit, every re-run configuration
+"""))
+cells.append(code('''audit_rows = []
+for entry in runs:
+    if entry.get("state") is None:
+        continue
+    audit_rows.append({"label": entry["label"], "family": entry["family"], **audit_portfolio(entry["state"].portfolio)})
+audit_all = pd.DataFrame(audit_rows).set_index("label")
+display(audit_all)
+bad = audit_all[(audit_all["destroyed"] > 0) | (audit_all["stranded"] > 0) | (audit_all["cash + holdings - equity"].abs() > 1.0)]
+print(f"runs audited: {len(audit_all)}; failing: {len(bad)}")
+assert len(bad) == 0, f"integrity screen failed for: {list(bad.index)}"
+'''))
 write_notebook(cells, TRACK_DIR / "31-backtest-stability-closeout.ipynb")

@@ -9,7 +9,16 @@ signals = list(S)
 delta = float(m["delta_annualised_pp"])
 crit = m["bootstrap"]
 draws = m["draws_complete"]
-T = ["forward_vol", "forward_downside", "forward_event_top5_excess"]
+T = list(m["targets_pre_registered"])          # the verdict screen
+TC = list(m["targets_corrected"])
+SC = m["screen_corrected"]; OR = m["oracle"]; SCB = m["screen_corrected_bootstrap"]
+def _prov(m):
+    for path, rec in m["provenance"].items():
+        if path.endswith("vault-prices.parquet"):
+            return rec
+    raise KeyError("vault-prices.parquet not in provenance")
+PV = _prov(m)
+
 
 def pct(x): return f"{x*100:.1f}%"
 def f4(x): return f"{x:.4f}"
@@ -18,9 +27,12 @@ passers = [s for s in signals if m["gate_5"][s]]
 cleared = {s: [t for t in T if S[s][f"lo_{t}"] > 0] for s in signals}
 two_plus = [s for s in signals if len(cleared[s]) >= 2]
 vol_down = [s for s in signals if "forward_vol" in cleared[s] and "forward_downside" in cleared[s]]
-excess_clear = [s for s in signals if "forward_event_top5_excess" in cleared[s]]
-best_excess = max(signals, key=lambda s: S[s]["rho_forward_event_top5_excess"])
-u_best = next(r for r in U if r["signal"] == best_excess and r["target"] == "forward_event_top5_excess")
+conc_clear = [s for s in signals if "forward_event_top5" in cleared[s]]
+best_conc = max(signals, key=lambda s: S[s]["rho_forward_event_top5"])
+u_best = next(r for r in U if r["signal"] == best_conc and r["target"] == "forward_event_top5")
+cor_clear = [s for s in signals if SC[s]["lo_forward_event_top5_excess"] > 0]
+best_cor = max(signals, key=lambda s: SC[s]["rho_forward_event_top5_excess"])
+cor_passers = [s for s in signals if m["gate_5_corrected_target"][s]]
 hw = {s: D[s]["return_half_width_pp"] for s in signals}
 share = {s: D[s]["margin_as_share_of_half_width"] for s in signals}
 positive_contrast = [s for s in signals if S[s]["return_contrast_pp"] > 0]
@@ -34,7 +46,8 @@ strong = sorted(vol_down, key=lambda s: -S[s]["rho_forward_vol"])
 
 def strong_line(s):
     return (f"`{s}` ({f4(S[s]['rho_forward_vol'])} / {f4(S[s]['lo_forward_vol'])} on volatility, "
-            f"{f4(S[s]['rho_forward_downside'])} / {f4(S[s]['lo_forward_downside'])} on downside)")
+            f"{f4(S[s]['rho_forward_downside'])} / {f4(S[s]['lo_forward_downside'])} on downside; "
+            f"{S[s]['dates']} / {S[s]['rows']:,})")
 
 H = f"""# NB28 - which stability signals predict forward stability?
 
@@ -81,43 +94,63 @@ the simultaneous lower bound above zero; AND the simultaneous lower bound on the
 stable-versus-unstable forward return contrast, in compounded annual percentage points, exceeds
 `-delta` with `delta = {delta:.0f}`.
 
-The event-concentration target is the EXCESS of the forward top-five share over the uniform-events
-value `min(5, n)/n`. The raw share is bounded below by 5/n - 0.625 at the eight-event minimum -
-so it partly measured how often a vault reported; the review caught that, and the raw share is
-kept as a diagnostic.
+**Two screens are run from one panel.** The PRE-REGISTERED screen uses the raw forward top-five
+share, as the plan and `harness_rules.py` specified, and gives the gate-5 verdict. The first review
+showed that share is bounded below by `5/n` - 0.625 at the eight-event minimum - so it partly
+measures how often a vault reported; a CORRECTED screen uses the excess over `min(5, n)/n` instead.
+The correction was introduced after results were known, so it is a post-review diagnostic and not
+the gate; the second review was right to insist on that distinction.
 
 ## Key new insights and what did we learn from this experiment?
 
-**{len(passers)} of 13 signals pass gate 5 (cell 30, cell 41).**{' None is carried into NB29 as a candidate; `inverse_vol` goes forward only as the labelled reference.' if not passers else ' Carried: ' + ', '.join(passers) + '.'}
+**{len(passers)} of 13 signals pass the pre-registered gate 5, and {len(cor_passers)} of 13 pass
+the corrected diagnostic screen (cell 29, cell 30, cell 41).**{' None is carried into NB29 as a candidate; `inverse_vol` goes forward only as the labelled reference.' if not passers else ' Carried: ' + ', '.join(passers) + '.'}
 "Fails gate 5" is up to four separate facts, and the decomposition (cell 32) is the actual finding:
 
-**1. Trailing volatility predicts forward volatility, and the evidence is not marginal.** On
-{S['inverse_vol']['dates']} eligible decisions and {S['inverse_vol']['rows']:,} complete-case rows,
+**1. Trailing volatility predicts forward volatility, and the evidence is not marginal.**
 {len(vol_down)} signals clear BOTH forward volatility and forward downside variation with
-simultaneous lower bounds above zero (signed Spearman / lower bound): {'; '.join(strong_line(s) for s in strong)}.
+simultaneous lower bounds above zero, each on its own complete-case sample (signed Spearman /
+lower bound; dates / rows): {'; '.join(strong_line(s) for s in strong)}.
 
-**2. No signal established a positive association with forward event concentration under the
-pre-registered criterion.** {len(excess_clear)} of 13 clear it. The largest point estimate is
-`{best_excess}` at {f4(S[best_excess]['rho_forward_event_top5_excess'])}, with an unadjusted lower
-bound of {f4(u_best['lo_unadjusted'])} and a simultaneous lower bound of {f4(S[best_excess]['lo_forward_event_top5_excess'])}
-(cell 33). This is a failure to establish, not evidence of absence: the target is missing on
-{int(miss['forward_event_top5_excess']['missing'])} of {int(miss['forward_event_top5_excess']['finite'] + miss['forward_event_top5_excess']['missing']):,}
-rows (cell 26), and the excess-over-uniform construction is new to this run.
+**2. No signal established a positive association with forward event concentration under
+either construction, and the oracle shows the stability clause itself is reachable.** On the
+pre-registered raw target, {len(conc_clear)} of 13 clear it; the largest point estimate is
+`{best_conc}` at {f4(S[best_conc]['rho_forward_event_top5'])} with an unadjusted lower bound of
+{f4(u_best['lo_unadjusted'])} and a simultaneous lower bound of {f4(S[best_conc]['lo_forward_event_top5'])}
+(cell 33). On the corrected excess target, {len(cor_clear)} of 13 clear it; the largest is
+`{best_cor}` at {f4(SC[best_cor]['rho_forward_event_top5_excess'])} (cell 29). Three near-perfect-foresight
+oracles settle whether the clause is reachable (cell 35): `oracle_all`, which knows all three
+targets, {'PASSES' if OR['oracle_all']['stability_clause'] else 'FAILS'} the stability clause (lower bounds
+{OR['oracle_all']['lo_forward_vol']:+.3f} / {OR['oracle_all']['lo_forward_downside']:+.3f} / {OR['oracle_all']['lo_forward_event_top5']:+.3f}),
+while `oracle_vol`, which knows only the forward volatility, {'PASSES' if OR['oracle_vol']['stability_clause'] else 'FAILS'} it
+({OR['oracle_vol']['lo_forward_vol']:+.3f} / {OR['oracle_vol']['lo_forward_downside']:+.3f} / {OR['oracle_vol']['lo_forward_event_top5']:+.3f}).
+Forward volatility and forward event concentration correlate {OR['oracle_vol']['rho_forward_event_top5']:+.4f} on
+this panel - nearly orthogonal - so no amount of volatility foresight satisfies a conjunction
+that includes concentration. The clause is reachable; the thirteen real signals, which are all
+volatility-family or return-family measures, fail it because none predicts concentration
+independently. The target is missing on
+{int(miss['forward_event_top5']['missing'])} of {int(miss['forward_event_top5']['finite'] + miss['forward_event_top5']['missing']):,}
+rows (cell 26), and neither construction is count-neutral for unequal events, so this remains a
+failure to establish, not evidence of absence.
 
-**3. The return clause cannot discriminate on this window.** Simultaneous half-widths on the
+**3. The return clause cannot discriminate among the real signals on this window.** Simultaneous half-widths on the
 stable-versus-unstable forward return contrast run from **{min(hw.values()):.1f} to {max(hw.values()):.1f}
 compounded annual percentage points** against a margin of {delta:.0f}: the margin is
 {min(share.values())*100:.1f}% to {max(share.values())*100:.1f}% of the uncertainty it is compared
 against (cell 32). The raw target has a minimum of {fr['min']:.2f} and a 1st percentile of
-{fr['1%']:.2f} in 30-day log return on {int(fr['count']):,} rows (cell 32); a few vaults lose
-essentially everything inside a month, the excluded tail collects them, and a mean over that
-cross-section carries a standard error orders of magnitude larger than the margin. Compounding a
+{fr['1%']:.2f} in 30-day log return on {int(fr['count']):,} rows (cell 32); observations of that size make a
+mean over the cross-section, and its compounded annual form, unstable by orders of magnitude
+more than the margin. Compounding a
 mean 30-day log return to an annual rate - the unit `delta` was calibrated in, and the change the
 review asked for - amplifies that tail further; the earlier linear scaling of the log-return difference gave
 narrower half-widths that were still far wider than the margin (recorded in the review log, not
 in a cell of this run). Under either unit a non-inferiority test on a mean forward
 return is not a usable instrument on this cohort. That is a finding about the rule, not about
-the signals.
+the signals. **The oracle makes that concrete**: a signal equal to the forward return plus 5% noise
+{'PASSES' if OR['oracle_return']['return_clause'] else 'FAILS'} the return clause, with a contrast of
+{OR['oracle_return']['return_contrast_pp']:+.1f} and a simultaneous lower bound of
+{OR['oracle_return']['return_lo_pp']:+.1f} compounded annual points against a margin of -{delta:.0f}
+(cell 35). {'The clause is reachable by foresight and by nothing tested that lacks it.' if OR['oracle_return']['return_clause'] else 'A clause that near-perfect foresight cannot pass is unreachable on this data by construction.'}
 
 **4. The point estimates lean the other way from the prior the clause was written against.** For
 {len(positive_contrast)} of 13 signals the stable-versus-unstable return contrast is positive -
@@ -168,13 +201,17 @@ multiplicity control.
 | Decisions logged | {m['logged_decisions']} (cell 24) |
 | Eligible on a complete 30-day forward window | **{m['eligible_decisions']}** (cell 26) |
 | Panel rows | {m['panel_rows']:,} (cell 26) |
-| Signals passing gate 5 | **{len(passers)} of 13** (cell 30) |
+| Signals passing the pre-registered gate 5 | **{len(passers)} of 13** (cell 30) |
+| Signals passing the corrected diagnostic screen | {len(cor_passers)} of 13 (cell 29) |
 | Clearing forward volatility AND downside | {len(vol_down)} (cell 32) |
-| Clearing forward event-concentration excess | **{len(excess_clear)}** (cell 32) |
-| Simultaneous critical value, 39 stability hypotheses | {crit['stability_critical']:.4f} on {draws['stability']} complete draws (cell 29) |
-| Simultaneous critical value, 13 return hypotheses | {crit['return_critical']:.4f} on {draws['returns']} complete draws (cell 29) |
+| Clearing forward event concentration, raw / excess | **{len(conc_clear)} / {len(cor_clear)}** (cell 32, cell 29) |
+| Oracle: stability clause reachable (all-targets / vol-only) | {OR['oracle_all']['stability_clause']} / {OR['oracle_vol']['stability_clause']} (cell 35) |
+| Oracle: return clause reachable | {OR['oracle_return']['return_clause']} (cell 35) |
+| Forward volatility vs forward event concentration | rho {OR['oracle_vol']['rho_forward_event_top5']:+.4f} (cell 35) |
+| Critical value, stability family ({crit['stability_family_used']} of 39 evaluated) | {crit['stability_critical']:.4f} on {draws['stability']} complete draws (cell 29) |
+| Critical value, return family ({crit['return_family_used']} of 13 evaluated) | {crit['return_critical']:.4f} on {draws['returns']} complete draws (cell 29) |
 | Return-clause half-width | {min(hw.values()):.1f} to {max(hw.values()):.1f} pp against a {delta:.0f} pp margin (cell 32) |
-| Carried into NB29 | {', '.join(f'`{s}`' for s in m['carried_to_nb29'])} (cell 41) |
+| Carried into NB29 | {', '.join(f'`{s}`' for s in m['carried_to_nb29'])} (cell 43) |
 
 ## Robustness of results
 
@@ -184,8 +221,12 @@ multiplicity control.
   non-finite draws in its denominator. `rho_forward_return` carried an inverted sign. The return
   contrast was in annualised log-return points while `delta` is in CAGR points; it is now a
   difference of compounded annual returns. The event-concentration target was bounded below by
-  5/n. The calendar-versus-fresh difference was not on a common sample. None of these changed the
-  verdict; several changed reported numbers, which is why this heading is generated.
+  5/n. The calendar-versus-fresh difference was not on a common sample. Second round: the
+  complete-family rule made one unevaluated hypothesis void the whole family (it bit NB30); the
+  family is now the EVALUATED hypotheses only, and its size is reported. The corrected
+  concentration target is reported as a diagnostic beside the pre-registered one, not in its
+  place. Oracle reachability was added. The heading's snapshot line is generated. None of these
+  changed the verdict; several changed reported numbers.
 - **A direction in the plan's signal table was wrong and was corrected before the first run.**
   `gain_to_pain_score` is gains over pain mapped to 0..1, so a HIGH value is better; Draft 2
   declared the opposite. Fixed as a factual error about the indicator's definition.
@@ -214,5 +255,5 @@ out = Path(__file__).parent.parent / "28-research-stability-signal-screen.ipynb"
 nb = json.load(open(out))
 nb["cells"][0] = {"cell_type": "markdown", "metadata": {}, "source": H.splitlines(keepends=True)}
 json.dump(nb, open(out, "w"), indent=1)
-print(f"NB28 heading written: {len(passers)}/13 pass; {len(vol_down)} clear vol+downside; {len(excess_clear)} clear excess; "
+print(f"NB28 heading written: {len(passers)}/13 pass; {len(vol_down)} clear vol+downside; {len(conc_clear)}/{len(cor_clear)} clear conc raw/excess; oracle all/vol/return {OR['oracle_all']['stability_clause']}/{OR['oracle_vol']['stability_clause']}/{OR['oracle_return']['return_clause']}; "
       f"criticals {crit['stability_critical']:.4f}/{crit['return_critical']:.4f}")

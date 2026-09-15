@@ -6,10 +6,18 @@ here = Path(__file__).parent
 m = json.load(open(here / "manifest_30.json")); m28 = json.load(open(here / "manifest_28.json"))
 FT, SEG, ST, PS, SS = m["fold_table"], m["segments"], m["stitched"], m["paired_sharpe"], m["signal_stability"]
 folds = sorted(FT, key=int)
+FS = m["full_screen"]
+def _prov(m):
+    for path, rec in m["provenance"].items():
+        if path.endswith("vault-prices.parquet"):
+            return rec
+    raise KeyError("vault-prices.parquet not in provenance")
+PV = _prov(m)
+
 evaluable = [k for k in folds if FT[k]["evaluable"]]
 n_ev = len(evaluable)
 chose = [k for k in folds if FT[k]["leading_signal"] not in ("(none)", "(unevaluable)")]
-total_evals = sum(1 for _ in SS) * n_ev
+total_evals = int(m["total_signal_fold_evaluations"])
 passes = sum(int(v["folds_passing_gate_5"]) for v in SS.values())
 identical = all(SEG[k]["identical_to_anchor"] for k in SEG)
 st, an = ST["stitched out-of-fold"], ST["anchor, same cycles"]
@@ -18,8 +26,10 @@ def f4(x): return f"{x:.4f}"
 
 def fold_row(k):
     r = FT[k]
+    def _i(v): return "-" if v is None or v != v else str(int(v))
+    ev = _i(r.get("signals_evaluated")); fam = _i(r.get("family_used")); cd = _i(r.get("complete_draws"))
     return (f"| {k} | {str(r['start'])[:10]} to {str(r['end_inclusive'])[:10]} | {r['fold_decisions']} | "
-            f"{r['training_decisions']} | {'yes' if r['evaluable'] else 'no'} | {r['leading_signal']} |")
+            f"{r['training_decisions']} | {'yes' if r['evaluable'] else 'no'} | {ev} | {fam} | {cd} | {r['leading_signal']} |")
 
 H = f"""# NB30 - cross-fitted evaluation of the leading signal
 
@@ -56,14 +66,17 @@ cross-sectional contamination.
 **1. {n_ev} of {len(folds)} folds are evaluable walk-forward, and none of those selected a
 signal (cell 26).** A fold needs at least 40 training decisions before it, minus the embargo.
 
-| fold | dates | decisions | training decisions | evaluable | leading signal |
-|---|---|---|---|---|---|
+| fold | dates | decisions | training | evaluable | signals evaluated | family used | complete draws | leading signal |
+|---|---|---|---|---|---|---|---|---|
 """ + "\n".join(fold_row(k) for k in folds) + f"""
 
-**2. {passes} of {total_evals} signal-fold gate-5 evaluations pass on the evaluable folds
-(cell 31).** This is the same test as NB28's, applied to overlapping prefixes of the same window;
-it is not independent confirmation, and it would have been surprising for a prefix to pass where
-the whole failed.
+**2. {passes} of {total_evals} signal-fold evaluations pass on the evaluable folds, counting only
+signals that were actually EVALUATED - enough dates, finite bounds (cell 26, cell 31).** The first
+build of this round counted all 13 signals per fold as evaluations while a single unevaluable
+hypothesis had voided every simultaneous bound; the review caught it. The simultaneous family is
+now the evaluated hypotheses only, and its size and complete-draw count are in the table above.
+This is the same test as NB28's, applied to overlapping prefixes of the same window; it is not
+independent confirmation.
 
 **3. "Unstable across folds" is not the finding; "empty on every evaluable fold" is.** The plan
 pre-registered the conclusion for a leading signal that varies across folds - that the screen is
@@ -84,12 +97,12 @@ was wrong to call it a self-test of that code.
 
 | | |
 |---|---|
-| Eligible decisions | {m28['eligible_decisions']} (cell 24) |
+| Eligible decisions | {m['eligible_decisions']} (cell 24, this kernel) |
 | Folds | {len(folds)} contiguous (cell 26) |
 | Evaluable walk-forward (>= 40 training decisions) | **{n_ev} of {len(folds)}** (cell 26) |
 | Folds selecting a leading signal | **{len(chose)} of {n_ev}** evaluable (cell 26) |
-| Signal-fold gate-5 evaluations passing | **{passes} of {total_evals}** (cell 31) |
-| Full-sample leader at {m['draws']} draws | {m['full_sample_leader'] or 'None'} (cell 24) |
+| Signal-fold evaluations passing, evaluated signals only | **{passes} of {total_evals}** (cell 31) |
+| Full-sample leader at {m['draws']} draws, this kernel | {m['full_sample_leader'] or 'None'}; {sum(1 for v in FS.values() if v['gate_5'])} of 13 pass (cell 24) |
 | Stitched out-of-fold path | identical to the anchor's (cell 28, cell 29) |
 
 ## Robustness of results
@@ -101,15 +114,18 @@ was wrong to call it a self-test of that code.
   anchor slicing only. The bootstrap machinery is the corrected `harness_rules_v2.py`.
 - **Fewer bootstrap draws than NB28** ({m['draws']} against 500), because a fold's screen is a
   selection step rather than a reported interval. The full-sample screen at {m['draws']} draws
-  reaches NB28's verdict on all thirteen signals (cell 24).
+  reaches NB28's verdict on all thirteen signals, from this kernel's own `full_screen` (cell 24).
 - **This notebook cannot distinguish "no effect" from "gate 5 is mis-specified".** It only
   re-applies the same gate to prefixes of the same sample.
 - **The activation-window splice was never exercised.** `stability_prefilter_active_from` and
   `_active_to` are in `decide_trades` and defaulted off; no fold chose a signal, so no run set
   them. Their inertness on the anchor path is asserted (cell 22); their behaviour inside a fold
   is untested.
-- **Snapshot**: `vault-prices.parquet` 254,818,366 bytes, sha256 prefix `3e79966a`. Anchor parity
-  holds at 1e-5 (cell 22).
+- **The screens use the PRE-REGISTERED raw concentration target**, as NB28's verdict does; the
+  corrected excess target is NB28's post-review diagnostic and is not used here.
+- **Snapshot**: `vault-prices.parquet` {PV['bytes']:,} bytes, sha256 prefix `{PV['sha256']}`, from
+  this run's provenance via the manifest, asserted equal to NB28's and NB29's before their
+  manifests were read (cell 22). Anchor parity holds at 1e-5 (cell 22).
 """
 out = here.parent / "30-backtest-stability-crossfit.ipynb"
 nb = json.load(open(out))
