@@ -104,9 +104,12 @@ for label in sorted(recorded):
     row = {"label": label, "family": record["family"]}
     worst = 0.0
     for metric, expected in record["panel"].items():
-        actual = float(entry["panel"][metric])
+        actual, expected = float(entry["panel"][metric]), float(expected)
         row[metric] = actual
-        worst = max(worst, abs(actual - float(expected)))
+        if np.isfinite(actual) != np.isfinite(expected):
+            worst = float("inf")   # a finite-to-NaN mismatch is a failed reproduction, never a zero difference
+        elif np.isfinite(actual):
+            worst = max(worst, abs(actual - expected))
     row["worst_abs_diff"] = worst
     row["reproduces"] = bool(worst <= 1e-9)
     check_rows.append(row)
@@ -122,15 +125,30 @@ else:
 
 cells.append(md("""## Part 2. Gate 5, re-derived
 
-The screen panel is rebuilt from this kernel's own logging run, the exclusion flags are set on
-the full pool, the joint bootstrap and simultaneous bounds are recomputed on post-break
-decisions, and every persisted numeric field is compared with NB34's before the flags are used.
+The screen panel is rebuilt from this kernel's own logging runs, the offline reads and the
+offline eight are verified against the engine's in-trade reads and the re-run count-8 runs'
+exclusions in this kernel, the exclusion flags are set on the full pool, the joint bootstrap
+and simultaneous bounds are recomputed on post-break decisions, and every persisted numeric
+field is compared with NB34's before the flags are used.
 """))
 cells.append(code('''log_iv = run_and_record("screen_log_inverse_vol", "control", **prefilter_overrides("inverse_vol", fraction=0.0))
 display(assert_anchor_parity(log_iv["panel"]))
+log_calm = run_and_record("screen_log_calm", "control", **prefilter_overrides("calm_score", fraction=0.0))
+display(assert_anchor_parity(log_calm["panel"]))
 panel_frame, eligibility = build_screen_panel(log_iv)
 panel_frame["regime"] = np.where(panel_frame["date"] >= POST_BREAK_START, "post_break", "pre_break")
 add_exclusion_flags(panel_frame)
+# The offline mirror is verified against the engine in THIS kernel, not inherited from NB34: the
+# panel's T-1 reads must equal the in-trade reads, and the offline eight must equal the re-run
+# count-8 runs' engine exclusions on every comparable date.
+reads_checked = {"calm_score": verify_signal_reads(panel_frame, log_calm, "calm_score"),
+                 "inverse_vol": verify_signal_reads(panel_frame, log_iv, "inverse_vol")}
+flag_checks = {"calm_score": verify_exclusion_flags(panel_frame, run_by_label["calm_8"], "calm_score"),
+               "inverse_vol": verify_exclusion_flags(panel_frame, run_by_label["measured_8"], "inverse_vol")}
+n_eligible = int(panel_frame["date"].nunique())
+for name, frame in flag_checks.items():
+    assert int(frame["comparable_pool"].sum()) == n_eligible, f"{name}: only {int(frame['comparable_pool'].sum())} of {n_eligible} dates comparable"
+print(f"engine mirror verified in this kernel: {reads_checked} reads equal in-trade; exclusions equal the engine on all {n_eligible} eligible dates")
 post = panel_frame[panel_frame["regime"] == "post_break"].copy()
 screen_post, detail_post, _ = run_screen_v3(post, verbose=False)
 GATE_5_REDERIVED = {s: bool(screen_post.loc[s, "gate_5"]) for s in SIGNAL_NAMES}
@@ -193,8 +211,13 @@ for label, row in verdicts.iterrows():
     booleans_agree = all(bool(row[g]) == bool(there[g]) for g in GATE_COLUMNS + ["fee_differential_ok"])
     numeric_fields = [k for k, v in there.items() if isinstance(v, (int, float)) and not isinstance(v, bool)
                       and k in row.index and isinstance(row[k], (int, float, np.floating, np.integer))]
-    worst_num = max((abs(float(row[k]) - float(there[k])) for k in numeric_fields
-                     if np.isfinite(float(row[k])) and np.isfinite(float(there[k]))), default=0.0)
+    worst_num = 0.0
+    for k in numeric_fields:
+        here_v, there_v = float(row[k]), float(there[k])
+        if np.isfinite(here_v) != np.isfinite(there_v):
+            worst_num = float("inf")   # finite-to-NaN is a disagreement, not a skipped field
+        elif np.isfinite(here_v):
+            worst_num = max(worst_num, abs(here_v - there_v))
     agree_rows.append({"label": label, "verdict_here": row["verdict"], "verdict_nb35": there["verdict"],
                        "booleans_agree": booleans_agree, "numeric_fields": len(numeric_fields), "worst_numeric_diff": worst_num,
                        "failed_gates_same": row["failed_gates"] == there["failed_gates"]})
@@ -236,6 +259,38 @@ for signal in SIGNAL_NAMES:
 null_check = pd.DataFrame(null_check_rows).set_index("label")
 display(null_check.round(6))
 print("all three distinctness counts asserted at 19 for both centres; ranks equal NB35's (DIAGNOSTIC - gate 9 is False by protocol)")
+
+# `null_effectiveness()`'s basket digest summarises positions opened per address over the whole
+# run, not the date-by-date book (NB36 review). The ordered (decision date, held set) sequence is
+# digested here and asserted distinct as well.
+import hashlib
+def basket_sequence_digest(entry):
+    weights = _position_weights(entry["state"])
+    sequence = [(str(t), sorted(str(p.pool_address).lower() for p, _s in weights[t])) for t in sorted(weights)]
+    return hashlib.sha256(repr(sequence).encode()).hexdigest()[:16]
+for signal in SIGNAL_NAMES:
+    label = label_for(signal, CENTRE)
+    labels = sorted(l for l in run_by_label if l.startswith(f"{label}_null"))
+    digests = {basket_sequence_digest(run_by_label[l]) for l in labels}
+    assert len(digests) == len(labels), f"{label}: only {len(digests)} distinct basket sequences over {len(labels)} null draws"
+    null_check.loc[label, "distinct_basket_sequences"] = len(digests)
+print("ordered basket sequences also distinct on all 19 draws for both centres")
+
+# Gate 2 is False by protocol for both centres; the leave-one-vault-out runs were re-run above,
+# so their retention is recomputed here as the diagnostic NB35 reported, and compared.
+lovo_check_rows = []
+for signal in SIGNAL_NAMES:
+    for count in (CENTRE,) + NEIGHBOURS:
+        label = label_for(signal, count)
+        result = lovo_gate(label, verbose=False)
+        lovo_check_rows.append({"label": label, **{k: result[k] for k in ("masked", "sharpe", "lovo_sharpe", "lovo_cagr", "retention", "passes")}})
+lovo_check = pd.DataFrame(lovo_check_rows).set_index("label")
+for signal in SIGNAL_NAMES:
+    label = label_for(signal, CENTRE)
+    assert abs(float(lovo_check.loc[label, "retention"]) - float(nb35_diag[label]["lovo_retention"])) < 1e-9, label
+    assert lovo_check.loc[label, "masked"] == nb35_diag[label]["lovo_masked"], label
+display(lovo_check.round(6))
+print("leave-one-vault-out retention recomputed from the re-run states equals NB35's for both centres (DIAGNOSTIC - gate 2 is False by protocol)")
 '''))
 
 cells.append(md("""## Part 4. The fee differential, every run
@@ -330,6 +385,9 @@ cells.append(code('''manifest = {
     "anchor_fee": anchor_fee,
     "fee_one_sided": one_sided,
     "null_check": null_check.round(10).to_dict(orient="index"),
+    "lovo_check": lovo_check.round(10).to_dict(orient="index"),
+    "mirror_verified": {"reads": reads_checked, "flag_comparable_dates": {k: int(v["comparable_pool"].sum()) for k, v in flag_checks.items()},
+                        "eligible_dates": n_eligible},
     "provenance": provenance_record(),
     "specification": specification,
 }

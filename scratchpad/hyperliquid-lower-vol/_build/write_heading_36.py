@@ -16,6 +16,10 @@ NC = m["null_check"]
 F = m["fees"]
 S = m["specification"]
 AU = m["audit"]
+LC = m["lovo_check"]
+MV = m["mirror_verified"]
+assert MV["flag_comparable_dates"]["calm_score"] == MV["eligible_dates"] == MV["flag_comparable_dates"]["inverse_vol"]
+assert all(v.get("distinct_basket_sequences") == 19 for v in NC.values())
 prov = m["provenance"]
 vp = next(v_ for k, v_ in prov.items() if "vault-prices" in k)
 V = {r["label"]: r for r in m["verdict_rows"]}
@@ -51,9 +55,9 @@ prospective specification.
 
 **Status: {S["status"]}.** Both centres of plan 34 are REJECTED, and every gate Boolean, every
 failure string and every gate numeric agrees with NB35 across kernels. The plan's one mechanism
-- exclude the eight most volatile measurable candidates before the incumbent ranks - does not
-clear gate 5's return clause, fails a cheap gate of its own on each signal, and would not clear
-the random-exclusion null.
+- exclude up to eight of the most volatile measurable candidates before the incumbent ranks -
+does not clear gate 5's return clause, fails a cheap gate of its own on each signal, and did not
+clear the pre-registered persistence-destroying random-exclusion hurdle.
 
 **Based on:** [34-research-calm-score-screen.ipynb](34-research-calm-score-screen.ipynb),
 [35-backtest-calm-tail-exclusion.ipynb](35-backtest-calm-tail-exclusion.ipynb) and
@@ -66,25 +70,31 @@ upstream manifests (cell 24).
 **1. Everything reproduces.** All {R["configurations"]} track-window configurations NB35 executed -
 seven main runs, six leave-one-vault-out runs and thirty-eight null draws - reproduce in a fresh
 kernel at 1e-9 on every recorded panel metric, worst difference {R["worst_abs_diff"]:.1e} (cell 26).
-Gate 5, re-derived from this kernel's own logging run, panel, exclusion flags and bootstrap,
-agrees with NB34 on every clause boolean and every numeric field to {m["gate_5_worst_diff"]:.1e}, with
+Gate 5, re-derived from this kernel's own logging runs, panel, exclusion flags and bootstrap -
+with the offline reads verified equal to the engine's in-trade reads on {MV["reads"]["inverse_vol"]:,}
+rows and the offline eight equal to the re-run engine exclusions on all {MV["eligible_dates"]}
+eligible dates for both signals - agrees with NB34 on every clause boolean and every numeric field to {m["gate_5_worst_diff"]:.1e}, with
 identical family sizes and draw counts and critical values equal to 1e-6, the manifest's
 rounding (cell 28). Every gate Boolean and
 failure string agrees with NB35 for both centres, worst numeric difference
-{max(v["worst_numeric_diff"] for v in AG.values()):.1e} (cell 30).
+{max(v["worst_numeric_diff"] for v in AG.values()):.1e}, with a finite-to-NaN mismatch counted as a
+disagreement (cell 30). Gates 2 and 9 are False by protocol; both were nonetheless recomputed as
+diagnostics from the re-run states: leave-one-vault-out retention {f3(LC["calm_8"]["retention"])} and
+{f3(LC["measured_8"]["retention"])}, equal to NB35's (cell 32).
 
 **2. The null is now asserted, not reported.** Nineteen re-run draws per centre: nineteen
 distinct realised cycle-return series, nineteen distinct excluded-set digests, nineteen distinct
-basket digests, and the centre's rank against the null equal to NB35's - `measured_8`
+ordered (decision, held set) basket sequences, and the centre's rank against the null equal to NB35's - `measured_8`
 {NC["measured_8"]["rank_of_centre"]}th of 20 (best null {f3(NC["measured_8"]["null_best"])} against
 {f3(NC["measured_8"]["centre_sharpe"])}), `calm_8` {NC["calm_8"]["rank_of_centre"]}th of 20 (best null
 {f3(NC["calm_8"]["null_best"])} against {f3(NC["calm_8"]["centre_sharpe"])}) (cell 32). Gate 9 remains
 False by protocol, because a cheaper gate failed first; as a diagnostic it would fail on its own.
 
-**3. The fee differential does not explain any comparison in this plan.** The engine's stored
-redemption fee differs from the documented schedule on {m["anchor_fee"]["over_1bp"]} of the anchor's
-{m["anchor_fee"]["redemptions"]} redemptions, always in the engine's favour - the net signed discrepancy
-is at or below zero on all {len(F)} re-run configurations (cell 34). But the candidate-minus-anchor
+**3. The fee differential does not affect the six main comparisons or either verdict.** The
+engine's stored redemption fee differs from the documented schedule on {m["anchor_fee"]["over_1bp"]}
+of the anchor's {m["anchor_fee"]["redemptions"]} redemptions, and the NET signed discrepancy per run is
+at or below zero on all {len(F)} re-run configurations - the engine charges more in aggregate;
+per-redemption direction is not established here (cell 34). But the candidate-minus-anchor
 differential is at most {pc(worst_main_fee)} of the equity gap on the six main runs, and exceeds the
 0.25 bound only on {len(fee_fail)} run{"s" if len(fee_fail) != 1 else ""} ({", ".join(fee_fail) or "none"}) -
 the anchor-identical logging run, whose gap is exactly zero, and null draws whose equity gap to
@@ -94,11 +104,14 @@ on plan 34's verdicts is nil.
 **4. The specification is written with nothing in it.** Status {S["status"].split(" - ")[0]}: no
 signal, no count, no override dictionary. The comparator, the horizon and the monitoring
 protocol are recorded so that the NEXT plan inherits a fixed form rather than a blank page
-(cell 36). The known limits are the same six the plan carried in, plus what NB34-NB35 found:
-the return clause is reachable by foresight and not demonstrated by a trailing signal on 66
-decisions; the fresh-mark guard masks a third of the measurable pool and the incumbent holds
-exactly the vaults it masks; and a within-date permutation of the volatility ordering clears the
-centre's Sharpe in three to five draws of nineteen.
+(cell 36). The known limits are the same six the plan carried in, plus what NB34-NB35 found
+(their manifests, `_build/manifest_34.json` and `_build/manifest_35.json`, are the source; NB36
+re-derives the gate-5 screen in cell 28 and the null in cell 32): the return clause is reachable
+by foresight and was not demonstrated by either screened signal on {m34["decisions_by_regime"]["post_break"]}
+post-break decisions; the fresh-mark guard masks {pc(m34["coverage_totals"]["masked_share"])} of the measurable
+candidate-dates and the incumbent's book holds vaults it masks; and the within-date permutation
+of the volatility ordering reaches the centre's Sharpe in {NC["measured_8"]["rank_of_centre"] - 1} to
+{NC["calm_8"]["rank_of_centre"] - 1} draws of nineteen.
 
 ## Summary of results
 
@@ -118,15 +131,16 @@ period - consistency, not confirmation; H4 failed (the strict variant is not ine
 
 **What the track now knows that it did not before plan 34.** (i) Trailing volatility predicts
 forward volatility and forward downside on the dense regime with lower bounds above 0.5 - the
-best-established fact in NB28-NB36 - and predicting them is not sufficient for a Sharpe that a
-random exclusion cannot match. (ii) The return clause, in either form, cannot be resolved by a
-trailing signal on four months of overlapping 30-day windows, and a foresight oracle shows the
-bar is reachable; the clause needs either more data or a different design, not a smaller
-margin. (iii) A fresh-mark guard on the volatility estimate removes the mechanism's effect,
-because the vaults it masks are the sparsely-polled volatile ones whose exclusion was doing the
-work, and the incumbent's book is full of them. (iv) `measured_8`'s three-window record is real
-and is not evidence of a mechanism: three to five of nineteen persistence-free random
-exclusions match it.
+best-established fact in NB28-NB36 - and the two signals that carry it did not demonstrate an
+advantage over the specified null, which destroys ranking information and temporal persistence
+together. (ii) The return clause was not demonstrated by either screened signal on four months
+of overlapping 30-day windows, while a foresight oracle shows the bar is reachable; the clause
+needs more data or a different design, not a smaller margin. (iii) Putting a fresh-mark guard
+on the volatility estimate coincides with most of the mechanism's effect disappearing, which is
+consistent with the masked cohort - sparsely-polled, volatile, and held by the incumbent -
+contributing to the difference; the causal share is not measured. (iv) `measured_8`'s
+three-window record is real, and it did not clear the pre-registered hurdle: three of nineteen
+persistence-free random exclusions match or beat it on the track window.
 
 ## Robustness of results
 
@@ -140,6 +154,9 @@ exclusions match it.
   field NB35 persisted (cell 30).
 - Integrity: {AU["runs_audited"]} re-run states audited, no destroyed or stranded positions, cash plus
   holdings equal to equity within one dollar on every run (cell 43).
+- The offline mirror of the splice is verified in this kernel, not inherited (cell 28); the
+  reproduction checks count a finite-to-NaN mismatch as a failure rather than skipping it
+  (cells 26, 30).
 - Nothing here is out-of-sample; the close-out establishes reproducibility and internal
   consistency of an in-sample rejection, which is all a close-out can do.
 """

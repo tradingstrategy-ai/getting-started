@@ -327,3 +327,11 @@ selection signal.
   the Sharpe" overclaimed, and the null's extra churn biases in the centre's favour, not
   against it; two minor - distinctness was reported not asserted (NB36 now asserts it), and
   "eight" is "up to eight". Applied.
+- **NB36 review**: four material - the re-derived screen had to verify the offline mirror
+  against the engine in its own kernel; the reproduction checks failed open on NaN; gate 2's
+  diagnostic was not recomputed; and the "what the track now knows" paragraph overreached
+  (the null destroys persistence too; two signals are not all trailing signals; the guard
+  finding is an association). Two minor - the basket digest was not a sequence digest; the fee
+  claim was too broad. All applied, NB36 re-run: mirror verified on all 111 eligible dates,
+  finite-to-NaN mismatches now count as failures, leave-one-vault-out retention recomputed and
+  equal to NB35's, ordered basket sequences asserted distinct, wording narrowed.

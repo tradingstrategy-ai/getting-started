@@ -894,6 +894,19 @@
    "fee_redemptions": 244,
    "fee_over_1bp": 123,
    "fee_differential_ok": false
+  },
+  "screen_log_calm": {
+   "family": "control",
+   "fee_net_signed_usd": -532.1580390113,
+   "anchor_fee_net_signed_usd": -532.1580390113,
+   "fee_differential_usd": 0.0,
+   "final_equity": 186745.9142515072,
+   "anchor_final_equity": 186745.9142515072,
+   "equity_gap_usd": 0.0,
+   "fee_differential_share_of_gap": Infinity,
+   "fee_redemptions": 244,
+   "fee_over_1bp": 123,
+   "fee_differential_ok": false
   }
  },
  "anchor_fee": {
@@ -917,7 +930,8 @@
    "rank_of_centre": 6,
    "would_pass": false,
    "centre_persistence": 0.7967619048,
-   "null_persistence_mean": 0.7110773753
+   "null_persistence_mean": 0.7110773753,
+   "distinct_basket_sequences": 19.0
   },
   "measured_8": {
    "draws": 19,
@@ -930,8 +944,70 @@
    "rank_of_centre": 4,
    "would_pass": false,
    "centre_persistence": 0.8024761905,
-   "null_persistence_mean": 0.6820120453
+   "null_persistence_mean": 0.6820120453,
+   "distinct_basket_sequences": 19.0
   }
+ },
+ "lovo_check": {
+  "calm_8": {
+   "masked": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "sharpe": 2.170597842,
+   "lovo_sharpe": 1.9375800341,
+   "lovo_cagr": 0.2552195935,
+   "retention": 0.8926480975,
+   "passes": true
+  },
+  "calm_6": {
+   "masked": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "sharpe": 2.1725253561,
+   "lovo_sharpe": 1.9726590613,
+   "lovo_cagr": 0.2613360029,
+   "retention": 0.9080027793,
+   "passes": true
+  },
+  "calm_10": {
+   "masked": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "sharpe": 2.159110111,
+   "lovo_sharpe": 1.8950463606,
+   "lovo_cagr": 0.2497929497,
+   "retention": 0.877697877,
+   "passes": true
+  },
+  "measured_8": {
+   "masked": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "sharpe": 2.3737677742,
+   "lovo_sharpe": 2.0406946006,
+   "lovo_cagr": 0.2725101584,
+   "retention": 0.8596858643,
+   "passes": true
+  },
+  "measured_6": {
+   "masked": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "sharpe": 2.3210051945,
+   "lovo_sharpe": 1.950696102,
+   "lovo_cagr": 0.2580001486,
+   "retention": 0.8404531393,
+   "passes": true
+  },
+  "measured_10": {
+   "masked": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "sharpe": 2.3177653803,
+   "lovo_sharpe": 1.9741858554,
+   "lovo_cagr": 0.2642665492,
+   "retention": 0.8517625952,
+   "passes": true
+  }
+ },
+ "mirror_verified": {
+  "reads": {
+   "calm_score": 16107,
+   "inverse_vol": 16107
+  },
+  "flag_comparable_dates": {
+   "calm_score": 111,
+   "inverse_vol": 111
+  },
+  "eligible_dates": 111
  },
  "provenance": {
   "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-prices.parquet": {
@@ -952,7 +1028,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "7fc3790"
+   "sha256": "7d1f725"
   }
  },
  "specification": {
@@ -978,7 +1054,7 @@
   ]
  },
  "audit": {
-  "runs_audited": 53,
+  "runs_audited": 54,
   "integrity_failures": 0
  }
 }
