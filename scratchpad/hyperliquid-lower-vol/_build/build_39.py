@@ -45,9 +45,10 @@ same way), Sortino, event volatility, mark count. Forward outcomes over (T, T + 
 event volatility, event Sharpe, log max drawdown on the mark path; a window needs at least 6
 (H = 60) or 4 (H = 30) marks and one within 14 days of its end.
 
-Inference as NB38: per-date signed Spearman averaged over dates, one two-way cluster bootstrap
-(15-decision circular date blocks x vault clusters, 500 draws, seed 20260917) shared across
-every hypothesis, studentised max-T simultaneous lower bounds over the signal family on the
+Inference as NB38 with one change forced by the horizon: per-date signed Spearman averaged
+over dates, one two-way cluster bootstrap of NON-WRAPPING 30-decision (60-day) date blocks x
+vault clusters, 500 draws, seed 20260917, shared across every hypothesis (45-decision blocks
+as a sensitivity), studentised max-T simultaneous lower bounds over the signal family on the
 primary target, paired trimmed-minus-raw differences on the same draws with their own family
 bound, and a foresight-oracle reachability assertion.
 
@@ -88,13 +89,17 @@ PRIMARY_H = 60
 PANEL_START = pd.Timestamp("2025-07-01")
 DECISION_STEP_DAYS = 2
 MIN_TVL_USD = 7_500.0
-MIN_EVENTS = 8
+MIN_EVENTS = 8        # events strictly inside the window, i.e. at least 9 marks
 STALE_DAYS = 14
 MIN_CANDIDATES = 8
 MIN_DATES = 40
 YOUNG_DAYS = 360
 DRAWS = 500
-DATE_BLOCK = 15
+#: Date blocks must be at least as long as the forward horizon (60 days = 30 decisions) so that
+#: overlapping outcomes stay together inside a block; blocks are NOT wrapped circularly, because
+#: joining July 2026 to July 2025 would splice two polling regimes. 45 is run as a sensitivity.
+DATE_BLOCK = 30
+DATE_BLOCK_SENSITIVITY = 45
 SEED = 20260917
 LEVEL = 0.95
 REGIMES = [("weekly 2025", pd.Timestamp("2025-01-01"), pd.Timestamp("2026-01-01")),
@@ -103,10 +108,19 @@ REGIMES = [("weekly 2025", pd.Timestamp("2025-01-01"), pd.Timestamp("2026-01-01"
 
 
 def regime_of(t):
+    """Regime of the decision date."""
     for name, a, b in REGIMES:
         if a <= t < b:
             return name
     return "other"
+
+
+def regime_contained(t, H):
+    """Regime that contains BOTH the decision date and its whole forward horizon, else 'crosses'."""
+    for name, a, b in REGIMES:
+        if a <= t and t + pd.Timedelta(days=H) < b:
+            return name
+    return "crosses"
 
 
 df = pd.read_parquet(ARCHIVE, columns=["address", "chain", "share_price", "total_assets", "name"])
@@ -196,15 +210,17 @@ for address, g in marks.groupby("address"):
             start = t1 - pd.Timedelta(days=W)
             i_first = int(mdays.searchsorted(start, side="right"))   # first mark strictly after start
             n_marks = i_last - i_first + 1
-            if n_marks < MIN_EVENTS or i_first == 0:
+            # The vault must have existed before the window (a mark at or before its start), so a
+            # W-day score is never computed on a vault younger than W days.
+            if n_marks < MIN_EVENTS + 1 or i_first == 0:
                 for f in TRIM_FRACTIONS:
                     tag = f"f{int(f * 100):02d}"
                     row[f"ret{W}_{tag}"] = np.nan; row[f"sharpe{W}_{tag}"] = np.nan
                 row[f"sortino{W}"] = np.nan; row[f"vol{W}"] = np.nan; row[f"events{W}"] = int(max(n_marks, 0))
                 continue
-            # Event returns between consecutive marks in the window; the first event uses the mark
-            # just before the window as its start, so every mark in the window contributes one return.
-            seg = prices[i_first - 1:i_last + 1]
+            # Event returns between consecutive marks INSIDE the window only: the first event starts
+            # at the first mark in the window, so no return interval begins before the window.
+            seg = prices[i_first:i_last + 1]
             r = np.diff(np.log(seg))
             s = event_scores(r, W)
             for key, value in s.items():
@@ -234,9 +250,10 @@ for address, g in marks.groupby("address"):
         rows.append(row)
 panel = pd.DataFrame(rows)
 panel["young"] = panel["age_days"] < YOUNG_DAYS
+panel["regime_contained"] = [regime_contained(t, PRIMARY_H) for t in panel["date"]]
 print("candidate-dates dropped:", dropped)
 print(f"panel: {len(panel):,} rows, {panel['address'].nunique()} vaults, {panel['date'].nunique()} decisions "
-      f"{panel['date'].min().date()} to {panel['date'].max().date()}")
+      f"{panel['date'].min().date()} to {panel['date'].max().date()}; young (< {YOUNG_DAYS} d) share of rows {panel['young'].mean():.1%}")
 by_regime = panel.groupby("regime").agg(rows=("address", "size"), vaults=("address", "nunique"), decisions=("date", "nunique"),
                                         events90_median=("events90", "median"), events180_median=("events180", "median"),
                                         fwd60_events_median=("fwd60_events", "median"), fwd30_events_median=("fwd30_events", "median"),
@@ -318,17 +335,20 @@ def mean_over_dates(blocks: dict, dates: list, counts: dict | None = None) -> tu
         return np.where(n > 0, total / np.maximum(n, 1), np.nan), n
 
 
-def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose: bool = True) -> dict:
+def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose: bool = True, block: int = DATE_BLOCK) -> dict:
+    """Two-way cluster bootstrap: NON-WRAPPING moving date blocks of `block` decisions (starts drawn
+    uniformly from the positions where a whole block fits) and vault clusters, together."""
     blocks = per_date_blocks(frame)
     dates = sorted(blocks)
     vaults = sorted(frame["address"].unique())
     observed, n_dates = mean_over_dates(blocks, dates)
     rng = np.random.default_rng(seed)
-    n_blocks = int(math.ceil(len(dates) / DATE_BLOCK))
+    block = min(block, len(dates))
+    n_blocks = int(math.ceil(len(dates) / block))
     reps = np.full((draws,) + observed.shape, np.nan)
     for d in range(draws):
-        starts = rng.integers(0, len(dates), size=n_blocks)
-        index = np.concatenate([(np.arange(s, s + DATE_BLOCK) % len(dates)) for s in starts])[:len(dates)]
+        starts = rng.integers(0, len(dates) - block + 1, size=n_blocks)
+        index = np.concatenate([np.arange(s, s + block) for s in starts])[:len(dates)]
         drawn = rng.choice(len(vaults), size=len(vaults), replace=True)
         counts = {}
         for v in drawn:
@@ -353,9 +373,9 @@ def simultaneous_lower(observed: np.ndarray, reps: np.ndarray, level: float = LE
             "p": p, "family_size": int(member.sum()), "complete_draws": int(len(per_draw_max))}
 
 
-def screen(frame: pd.DataFrame, label: str, verbose: bool = True) -> dict:
-    print(f"{label}: {len(frame):,} rows, {frame['date'].nunique()} decisions, {frame['address'].nunique()} vaults")
-    boot = bootstrap(frame, verbose=verbose)
+def screen(frame: pd.DataFrame, label: str, verbose: bool = True, block: int = DATE_BLOCK) -> dict:
+    print(f"{label}: {len(frame):,} rows, {frame['date'].nunique()} decisions, {frame['address'].nunique()} vaults, date block {block}")
+    boot = bootstrap(frame, verbose=verbose, block=block)
     j = TARGETS.index(PRIMARY)
     fam = simultaneous_lower(boot["observed"][:, j], boot["draws"][:, :, j])
     rows = []
@@ -391,7 +411,8 @@ def screen(frame: pd.DataFrame, label: str, verbose: bool = True) -> dict:
     paired["lo_simultaneous_family"] = pfam["lower"]
     paired["se"] = pfam["se"]
     return {"label": label, "table": table, "paired": paired, "critical": fam["critical"], "family_size": fam["family_size"],
-            "complete_draws": fam["complete_draws"], "boot": boot, "paired_critical": pfam["critical"], "paired_family_size": pfam["family_size"]}
+            "complete_draws": fam["complete_draws"], "boot": boot, "paired_critical": pfam["critical"], "paired_family_size": pfam["family_size"],
+            "block": block}
 
 
 TABLE_COLS = ["family", "window", "trim", "dates", "evaluated", f"rho_{PRIMARY}", "se_primary", "lo_primary_simultaneous",
@@ -399,6 +420,15 @@ TABLE_COLS = ["family", "window", "trim", "dates", "evaluated", f"rho_{PRIMARY}"
 full = screen(panel, "all regimes")
 print(f"\\nprimary family: {full['family_size']} signals, critical {full['critical']:.4f} on {full['complete_draws']} complete draws")
 display(full["table"][TABLE_COLS].round(4))
+# Sensitivity to the block length: 45 decisions (90 days), the trailing-score persistence length.
+full45 = screen(panel, "all regimes, block 45", verbose=False, block=DATE_BLOCK_SENSITIVITY)
+sens = pd.DataFrame({"rho": full["table"][f"rho_{PRIMARY}"], "lo_block30": full["table"]["lo_primary_simultaneous"],
+                     "lo_block45": full45["table"]["lo_primary_simultaneous"], "se_block30": full["table"]["se_primary"],
+                     "se_block45": full45["table"]["se_primary"]})
+sens["clears_block30"] = sens["lo_block30"] > 0; sens["clears_block45"] = sens["lo_block45"] > 0
+print(f"\\nblock-length sensitivity (critical {full['critical']:.3f} at 30, {full45['critical']:.3f} at 45): "
+      f"{int(sens['clears_block30'].sum())} signals clear at block 30, {int(sens['clears_block45'].sum())} at block 45")
+display(sens.round(4))
 print(f"\\nPAIRED trimmed - raw on {PRIMARY} (per-comparison 95% intervals; simultaneous lower bound over the "
       f"{full['paired_family_size']} paired comparisons, critical {full['paired_critical']:.4f}):")
 display(full["paired"].round(4))
@@ -430,16 +460,20 @@ print("reachable")
 
 cells.append(md("""## Part 3. Per regime, and young against old
 
-The three polling regimes are separate samples with separate bootstraps; the weekly regime is
-the one this notebook exists for. Young (< 360 days) and old are split on the whole panel.
+A regime cohort is the set of decisions whose decision date AND whole 60-day forward horizon lie
+inside the regime, so a weekly-regime outcome is measured on weekly marks. Each cohort is a
+separate sample with a separate bootstrap. Young (< 360 days) and old are split on the whole
+panel; they have different date coverage and are estimates on different samples, not a test of
+a difference.
 """))
 cells.append(code('''SHORT_COLS = ["window", "trim", "dates", "evaluated", f"rho_{PRIMARY}", "lo_primary_simultaneous", "p_primary",
               "rho_fwd60_return", "rho_fwd60_vol", "rho_fwd30_sharpe"]
 by_regime_screens = {}
+print("decisions whose whole 60-day horizon lies inside one regime:", panel.groupby("regime_contained")["date"].nunique().to_dict())
 for name, a, b in REGIMES:
-    sub = panel[panel["regime"] == name]
+    sub = panel[panel["regime_contained"] == name]
     if sub["date"].nunique() < MIN_DATES:
-        print(f"{name}: only {sub['date'].nunique()} decisions - not screened")
+        print(f"{name}: only {sub['date'].nunique()} decisions with the whole horizon inside the regime - not screened")
         continue
     res = screen(sub, name, verbose=False)
     by_regime_screens[name] = res
@@ -469,7 +503,7 @@ manifest = {
     "constants": {"windows": list(WINDOWS), "trim_fractions": list(TRIM_FRACTIONS), "horizons": {str(k): v for k, v in HORIZONS.items()},
                   "primary": PRIMARY, "panel_start": str(PANEL_START.date()), "min_tvl_usd": MIN_TVL_USD, "min_events": MIN_EVENTS,
                   "stale_days": STALE_DAYS, "min_candidates": MIN_CANDIDATES, "min_dates": MIN_DATES, "young_days": YOUNG_DAYS,
-                  "draws": DRAWS, "date_block": DATE_BLOCK, "seed": SEED},
+                  "draws": DRAWS, "date_block": DATE_BLOCK, "date_block_sensitivity": DATE_BLOCK_SENSITIVITY, "seed": SEED},
     "regimes": [(n, str(a.date()), str(b.date())) for n, a, b in REGIMES],
     "density": dens.round(6).reset_index().astype({"month": str}).to_dict(orient="records"),
     "panel": {"rows": int(len(panel)), "vaults": int(panel["address"].nunique()), "decisions": int(panel["date"].nunique()),
@@ -477,8 +511,11 @@ manifest = {
     "dropped": dropped,
     "by_regime": by_regime.round(6).to_dict(orient="index"),
     "coverage": coverage["finite_share"].round(6).to_dict(),
-    "screens": {"all": table_records(full), **{n: table_records(r) for n, r in by_regime_screens.items()},
+    "screens": {"all": table_records(full), "all_block45": table_records(full45),
+                **{n: table_records(r) for n, r in by_regime_screens.items()},
                 "young": table_records(young), "old": table_records(old)},
+    "block_sensitivity": sens.round(6).to_dict(orient="index"),
+    "regime_contained_decisions": {k: int(v) for k, v in panel.groupby("regime_contained")["date"].nunique().to_dict().items()},
     "oracle": {"rho": float(orow[f"rho_{PRIMARY}"]), "lo_simultaneous": float(orow["lo_primary_simultaneous"]),
                "family_size": oracle_res["family_size"], "critical": oracle_res["critical"]},
 }
