@@ -46,8 +46,9 @@ The track's luck diagnostics say the incumbent's result is carried by a few cycl
 names, and that vaults are admitted on trailing returns that may themselves be a few jumps.
 This notebook asks the decision-time question directly, on vaults rather than portfolios: does
 a trailing return computed with the vault's best k days REMOVED predict its forward 30-day
-Sharpe better than the raw trailing return does? If it does not at the vault level, no ranker
-built on it can beat the incumbent at the portfolio level, and the idea stops here.
+Sharpe better than the raw trailing return does? The pre-registered workflow decision: if the
+vault-level screen does not clear, the idea is not advanced to a portfolio test. That is a
+stopping rule, not a claim that a portfolio effect is impossible.
 
 **Focus is forward Sharpe**, not forward return: the operator wants steady profit, and a
 trimmed score is expected to cost CAGR. Forward return, volatility and drawdown are reported
@@ -177,9 +178,10 @@ cell 10). Simultaneous lower bounds over each 18-comparison family are all below
 predicts forward Sharpe better than the raw one, and where it looks better the score has taken
 on a strong low-volatility loading, so a trimmed-CAGR leg would be closer to a second stability
 leg than to a cleaner return leg. The idea stops at the vault level, as the plan for it said it
-should if the screen did not clear. The one signal with any persistence into next month's
-Sharpe is the 180-day Sharpe itself - weak, and not separable from zero under a family-wise
-bound. Portfolio consequences are not claimed here.
+should if the screen did not clear. The largest observed forward-Sharpe association is the raw
+180-day Sharpe; several others are positive on their own (`vol45` at {f3(rho("all", "vol45"))}, the trimmed
+return scores), and none is separable from zero under the family-wise bound. Portfolio
+consequences are not claimed here.
 
 ## Robustness of results
 
@@ -188,11 +190,11 @@ bound. Portfolio consequences are not claimed here.
   criteria, quarantine or momentum gate), and its per-date pools are larger
   (~{P["rows"] / P["decisions"]:.0f} candidates). The question asked is about vaults, so that is the right
   population; portfolio consequences are not claimed.
-- Eligibility and forward outcomes are on observed marks (cell 4): no candidate is admitted on a
-  forward-filled TVL or a stale price, and every forward window in the panel has a real mark in
-  its last 3 days and a median of {m["forward_marks_median"]:.0f} marked days of 30. Inside a window a day
-  without a mark is still forward-filled to a zero return, which is what the trailing and
-  forward series both do.
+- Eligibility is on observed marks and forward outcomes are coverage-qualified, forward-filled
+  daily outcomes (cell 4): no candidate is admitted on a forward-filled TVL or a stale price;
+  every forward window has at least 10 real marks and one in its last 3 days (median
+  {m["forward_marks_median"]:.0f} marked days of 30); inside a window a day without a mark is still
+  forward-filled to a zero return, as in the trailing series.
 - The screen is shown reachable: a noisy foresight oracle clears the 31-signal family-wise
   bound at {f3(OR["lo_simultaneous"])} (cell 8).
 - Every hypothesis shares one bootstrap; paired differences are differences of the same draws,
