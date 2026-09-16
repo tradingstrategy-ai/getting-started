@@ -116,7 +116,7 @@ SUMMARY_COLUMNS = ["family", "cagr", "cycle_sharpe", "cycle_vol", "ulcer", "max_
                    "top5_gross_share", "sparse_cagr", "dense_cagr", "late_cagr", "abs_invested_beta", "final_equity",
                    "mean_holdings", "mean_largest_weight", "distinct_vaults", "top_vault_pnl_share",
                    "turnover_per_decision", "trades", "decisions_changed", "share_of_decisions_changed",
-                   "max_abs_cycle_return_diff", "inert", "crash_survivors_mean",
+                   "max_abs_cycle_return_diff", "inert", "crash_survivors_mean", "crash_hysteresis_retained_total",
                    "crash_excluded_mean", "crash_excluded_min", "crash_excluded_max", "crash_excluded_held_total", "crash_measured_share"]
 
 
@@ -140,9 +140,9 @@ With the cap removed (a one-name book cannot exist under a 33% cap). Each N with
 with the pre-stated 1.0 filter, and with the exploratory centre from Part 1, so the effects can
 be told apart. "Unlimited" sets `max_assets_in_portfolio = 999`: every survivor of the filter is
 a CANDIDATE and the ranker is irrelevant, but the sizer decides how many are actually held -
-the TVL size limit, the 0.5% weight epsilon and the trade thresholds truncate the inverse-
-variance tail, so `mean_holdings` (realised) is reported beside `crash_survivors_mean` (the
-candidate set). The TVL size
+`normalise_weights()` walks the signals in raw-weight order and stops when the residual equity
+is exhausted, so the low-weight tail receives zero targets; `mean_holdings` (realised) is
+reported beside `crash_survivors_mean` (the candidate set). The TVL size
 limit (`per_position_cap_of_pool_pct` 0.33) stays on, because it is liquidity, not policy; its
 bite shows up as `mean_invested`.
 """))
@@ -192,9 +192,9 @@ display(summary_table(PART3).round(4))
 
 cells.append(md("""## Part 4. Standing gates
 
-Gates 1, 7, 3 and 6 for every run; gate 2 (a full re-simulation) for the two filter
-configurations on the incumbent and for the three best remaining runs by cycle Sharpe that
-pass the cheap standing gates. Plateau neighbours: the threshold family on 0.75 / 1.5, the
+Gates 1, 7, 3 and 6 for every run; gate 2 (a full re-simulation) for six runs: the pre-stated
+1.0 filter, the exploratory centre, the centre's uncapped inverse-variance book, and the three
+best remaining runs by Sharpe gap to the anchor among those passing gates 1, 7 and 3. Plateau neighbours: the threshold family on 0.75 / 1.5, the
 position family on N +/- 1, the ranker-weighter family has no ordered axis and gate 6 is not
 scored for it. Gates 4 and 8 with their tolerances are diagnostics.
 """))

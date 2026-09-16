@@ -47,7 +47,7 @@ def crash_stats(entry: dict) -> dict:
     if not log:
         return {"crash_decisions": 0, "crash_excluded_mean": float("nan"), "crash_excluded_min": np.nan,
                 "crash_excluded_max": np.nan, "crash_excluded_held_total": 0, "crash_measured_share": float("nan"),
-                "crash_survivors_mean": float("nan")}
+                "crash_survivors_mean": float("nan"), "crash_hysteresis_retained_total": 0}
     excluded = np.array([r["excluded_count"] for r in log.values()], dtype=float)
     pools = np.array([r["pool_size"] for r in log.values()], dtype=float)
     measured = np.array([r["measured_count"] for r in log.values()], dtype=float)
@@ -58,7 +58,11 @@ def crash_stats(entry: dict) -> dict:
             # Survivors of the filter = the candidate set the ranker and sizer then see. For an
             # "unlimited" book this is the UPPER bound on holdings; the sizer's TVL caps, the
             # 0.5% weight epsilon and the trade thresholds decide how many are actually held.
-            "crash_survivors_mean": float((pools - excluded).mean())}
+            "crash_survivors_mean": float((pools - excluded).mean()),
+            # Hysteresis evidence: held names kept only because their volatility sat between the
+            # entry and exit thresholds, summed over decisions. Zero means the exit branch never
+            # did anything observable in that run.
+            "crash_hysteresis_retained_total": int(sum(r.get("hysteresis_retained", 0) for r in log.values()))}
 
 
 def basket_difference(entry: dict, reference_label: str = "anchor") -> dict:
