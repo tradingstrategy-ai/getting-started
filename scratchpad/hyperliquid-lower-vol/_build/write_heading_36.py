@@ -1,6 +1,9 @@
 """Generate NB36's heading from _build/manifest_36.json (and the two upstream manifests for
 the numbers it cross-checks). Every claim asserted against the manifest."""
 import json
+import sys
+from pathlib import Path as _P
+sys.path.insert(0, str(_P(__file__).resolve().parent))
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -163,6 +166,8 @@ persistence-free random exclusions match or beat it on the track window.
 
 nb = json.loads(NB.read_text())
 assert nb["cells"][0]["cell_type"] == "markdown"
+from audit_notes import insert_audit
+HEADING = insert_audit(HEADING, 36)
 nb["cells"][0]["source"] = HEADING.splitlines(keepends=True)
 NB.write_text(json.dumps(nb, indent=1))
 print(f"NB36 heading written: {S['status']}; reproduced {R['reproducing_at_1e-9']}/{R['configurations']}")

@@ -1,5 +1,8 @@
 """Generate NB29's heading FROM manifest_29.json and manifest_28.json."""
 import json
+import sys
+from pathlib import Path as _P
+sys.path.insert(0, str(_P(__file__).resolve().parent))
 from pathlib import Path
 
 here = Path(__file__).parent
@@ -187,6 +190,8 @@ Paired block bootstrap against the anchor, context only (cell 38): observed Shar
 """
 out = here.parent / "29-backtest-stability-prefilter.ipynb"
 nb = json.load(open(out))
+from audit_notes import insert_audit
+H = insert_audit(H, 29)
 nb["cells"][0] = {"cell_type": "markdown", "metadata": {}, "source": H.splitlines(keepends=True)}
 json.dump(nb, open(out, "w"), indent=1)
 print(f"NB29 heading written: {m['verdict']}; gate_3_corrected={g['gate_3_corrected']}; strict diff {strict_diff:.1e}")

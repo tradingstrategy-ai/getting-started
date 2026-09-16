@@ -1,5 +1,8 @@
 """Generate NB31's heading FROM manifest_31.json and the upstream manifests."""
 import json
+import sys
+from pathlib import Path as _P
+sys.path.insert(0, str(_P(__file__).resolve().parent))
 from pathlib import Path
 
 here = Path(__file__).parent
@@ -157,6 +160,8 @@ What this batch established, across NB28-NB31, after review:
 """
 out = here.parent / "31-backtest-stability-closeout.ipynb"
 nb = json.load(open(out))
+from audit_notes import insert_audit
+H = insert_audit(H, 31)
 nb["cells"][0] = {"cell_type": "markdown", "metadata": {}, "source": H.splitlines(keepends=True)}
 json.dump(nb, open(out, "w"), indent=1)
 print(f"NB31 heading written: {SP['status']}; reproduce {R['reproducing_at_1e-9']}/{R['configurations']}; gate5 agrees {m['gate_5_rederived_agrees']}")

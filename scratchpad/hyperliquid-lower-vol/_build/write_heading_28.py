@@ -1,6 +1,9 @@
 """Generate NB28's heading FROM manifest_28.json. Every number is read from the frame that produced
 it; the first heading quoted critical values from a discarded run, which the review caught."""
 import json
+import sys
+from pathlib import Path as _P
+sys.path.insert(0, str(_P(__file__).resolve().parent))
 from pathlib import Path
 
 m = json.load(open(Path(__file__).parent / "manifest_28.json"))
@@ -260,6 +263,8 @@ multiplicity control.
 """
 out = Path(__file__).parent.parent / "28-research-stability-signal-screen.ipynb"
 nb = json.load(open(out))
+from audit_notes import insert_audit
+H = insert_audit(H, 28)
 nb["cells"][0] = {"cell_type": "markdown", "metadata": {}, "source": H.splitlines(keepends=True)}
 json.dump(nb, open(out, "w"), indent=1)
 print(f"NB28 heading written: {len(passers)}/13 pass; {len(vol_down)} clear vol+downside; {len(conc_clear)}/{len(cor_clear)} clear conc raw/excess; oracle all/vol/return {OR['oracle_all']['stability_clause']}/{OR['oracle_vol']['stability_clause']}/{OR['oracle_return']['return_clause']}; "

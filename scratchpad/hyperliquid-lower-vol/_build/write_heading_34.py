@@ -1,6 +1,9 @@
 """Generate NB34's heading from _build/manifest_34.json. Every number comes from the manifest;
 every string replacement is asserted so a silent no-op cannot leave a stale figure."""
 import json
+import sys
+from pathlib import Path as _P
+sys.path.insert(0, str(_P(__file__).resolve().parent))
 import math
 from pathlib import Path
 
@@ -241,6 +244,8 @@ plan's open questions are still answered.
 
 nb = json.loads(NB.read_text())
 assert nb["cells"][0]["cell_type"] == "markdown"
+from audit_notes import insert_audit
+HEADING = insert_audit(HEADING, 34)
 nb["cells"][0]["source"] = HEADING.splitlines(keepends=True)
 NB.write_text(json.dumps(nb, indent=1))
 print(f"NB34 heading written: gate 5 = {m['gate_5']}; needed contrast {needed_c:.3f} / {needed_v:.3f}")

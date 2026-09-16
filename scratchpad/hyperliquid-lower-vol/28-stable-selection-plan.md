@@ -1,6 +1,11 @@
 # Stable-selection plan: screen the signal first, and admit nothing from this window
 
-- **Status**: DRAFT 3, IN EXECUTION. `delta` resolved; NB28-NB31 being implemented.
+- **Status**: DRAFT 3, EXECUTED (NB28-NB31, nothing shortlisted). **Audited 2026-09-16**: gate 5
+  as written here - three stability targets and a 5 pp return clause - was an idiot gate
+  (unpassable by perfect volatility foresight; return clause 20-60x wider than its margin). The
+  twelve signals "rejected without a backtest" are NOT BACKTESTED, not rejected; seven clear the
+  corrected stability-only gate 5. `inverse_vol_q30`'s REJECT stands on gates 6 and 7. See the
+  audit section of [RESEARCH-RULES.md](RESEARCH-RULES.md).
   Reviews: [28-stable-selection-plan-codex-review.md](28-stable-selection-plan-codex-review.md)
   (`gpt-5.6-sol`, 11 blocking and 13 material findings), all applied in Draft 2.
 - **Rules**: [RESEARCH-RULES.md](RESEARCH-RULES.md). Objective: maximise cycle Sharpe by selecting

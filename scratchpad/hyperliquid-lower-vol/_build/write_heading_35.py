@@ -1,6 +1,9 @@
 """Generate NB35's heading from _build/manifest_35.json. Every number from the manifest; every
 string claim asserted against the manifest so prose cannot outlive a different result."""
 import json
+import sys
+from pathlib import Path as _P
+sys.path.insert(0, str(_P(__file__).resolve().parent))
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -211,6 +214,8 @@ specification with status NOTHING SHORTLISTED.
 
 nb = json.loads(NB.read_text())
 assert nb["cells"][0]["cell_type"] == "markdown"
+from audit_notes import insert_audit
+HEADING = insert_audit(HEADING, 35)
 nb["cells"][0]["source"] = HEADING.splitlines(keepends=True)
 NB.write_text(json.dumps(nb, indent=1))
 print(f"NB35 heading written: verdicts {m['verdicts']}; null ranks calm {ec['null_rank_of_centre']}, measured {em['null_rank_of_centre']}")

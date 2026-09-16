@@ -1,7 +1,9 @@
 # Volatility tail-exclusion plan: the one lead, gated properly
 
-- **Status**: DRAFT 2, EXECUTED 2026-09-16 - **REJECT, both centres; nothing shortlisted.**
-  See §Outcome at the end. Draft 2 was written after Codex CLI review
+- **Status**: DRAFT 2, EXECUTED 2026-09-16. Protocol verdict REJECT for both centres; **corrected
+  by the idiot-gate audit of the same day** (RESEARCH-RULES.md, audit section): `measured_8` is
+  **NOT CONFIRMED (conditionally positive)**, `calm_8` is **NO EFFECT**; nothing shortlisted.
+  See §Outcome and §Audit at the end. Draft 2 was written after Codex CLI review
   ([34-volatility-tail-exclusion-plan-codex-review.md](34-volatility-tail-exclusion-plan-codex-review.md),
   `gpt-6-astra`: "makes sense as exploratory research, but its claim to be 'the one lead, gated
   properly' is premature"). Two blocking and seven material findings applied; see §Review log.
@@ -335,3 +337,22 @@ selection signal.
   claim was too broad. All applied, NB36 re-run: mirror verified on all 111 eligible dates,
   finite-to-NaN mismatches now count as failures, leave-one-vault-out retention recomputed and
   equal to NB35's, ordered basket sequences asserted distinct, wording narrowed.
+
+## Audit, 2026-09-16: which of this plan's gates were idiot gates
+
+Checked against `~/code/freqtrade-strategies/.claude/docs/idiot-gates.md` after the results.
+
+| this plan's rule | pattern in the document | consequence |
+|---|---|---|
+| A2, return clause with margin -0.005 | significance the data cannot support; strict inequality below numerical resolution (SE 35x margin) | downgraded to a diagnostic; gate 5 is the stability clause, which both signals pass |
+| A5, gate 9 "beat all 19 draws" | p95-style null with too few independent observations; comparator not matched (destroys persistence) | downgraded to a diagnostic with a p-value against a persistence-preserving null |
+| gate 4 and gate 8 strict inequalities against the anchor | strict inequality on a noise-scale metric | tolerance bands (0.03 on the two luck measures; two distinct vaults) |
+| A6 share-of-gap | degenerate when the gap is near zero | applies only above a $1,000 gap |
+| A1 (drop concentration target), A4 (drop concentration leg) | were themselves the removal of unpassable gates | stand |
+
+The corrected verdicts: `measured_8` passes every standing gate (1, 2, 3, 5, 6, 7; gate 8 within
+tolerance), sits inside the 0.25 indifference band of the anchor with an unresolved tie-break,
+and cannot be separated from a random exclusion by any test this window supports - NOT
+CONFIRMED, carried or not on the operator's priors. `calm_8` changes 10 of 126 decisions and
+0.01 of Sharpe - NO EFFECT. The plan's substantive findings (the guard, the strict variant, the
+null's shape, the oracle) are unchanged.

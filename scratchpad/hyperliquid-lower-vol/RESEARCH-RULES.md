@@ -213,6 +213,67 @@ for the evidence behind each.
 - **Vocabulary.** From plan 34, the passing verdict is SHORTLIST (admission to the frozen
   prospective specification), not ADOPT.
 
+## Idiot-gate audit, 2026-09-16, after plan 34
+
+Audited against `~/code/freqtrade-strategies/.claude/docs/idiot-gates.md`: a gate the candidate
+cannot pass, that compares against the wrong thing, or that demands a statistical conclusion the
+data cannot support is not a gate. It is dropped or downgraded to a diagnostic, and a verdict
+that depended on it is corrected in place. These changes are made AFTER plan 34's results were
+seen and are declared as such; they apply to the verdicts listed below and to every plan from
+here on.
+
+### Gates found to be idiot gates
+
+| gate | as written | why it fails the test | now |
+|---|---|---|---|
+| 5, return clause (5 pp mean form in plan 28; -0.005 median form in plan 34) | simultaneous lower bound of the excluded-vs-kept forward return above a margin | 66 overlapping decisions give a standard error 35x the margin; passing needs +0.36 to +0.39 in 30-day log return, which only a foresight oracle reaches; the demand is for significance the sample cannot supply | **DIAGNOSTIC.** Report the median contrast, its interval, the crash shares, and the signal's rank correlation with forward return. Gate 5 is the STABILITY clause alone: forward volatility and forward downside, simultaneous lower bounds above zero. |
+| 5, three-target form (plan 28) | forward vol AND downside AND event concentration | unpassable: perfect volatility foresight fails it (NB28 oracle) and no price signal predicts concentration | retired by A1; recorded here |
+| 3, concentration leg | held-book event concentration below the anchor's | 180-row indicator not identifiable on this archive (0 dates with a fully post-break lookback) | retired by A4; volatility leg only |
+| 9, null "beat every draw" (10, then 19) | centre Sharpe above all draws of a within-date permutation | a mechanism that changes 12 of 126 decisions moves Sharpe by about 0.2; the null's draws spread 0.33-0.44; "beat all 19" demands p < 0.05 of a test with no power at that effect size, and the null also destroys temporal persistence, so it is not a matched comparator | **DIAGNOSTIC.** Report the centre's rank and permutation p against at least 99 draws of a null that PRESERVES persistence (one permutation of vault identities applied to the signal for the whole window). A pass is not required for any verdict; a centre below the null median is a warning to be explained. |
+| 4, luck: `luck_ratio` at least the anchor's, `top5_gross_share` at most | strict inequality against the anchor | bites on 0.008 of a ratio whose anchor value is itself poor (0.146); a small real improvement cannot pass a sign test on a noise-scale metric | tolerance: `luck_ratio >= anchor - 0.03`, `top5_gross_share <= anchor + 0.03`; report both |
+| 8, distinct vaults at least the anchor's 33 | strict inequality on an integer | one vault, while the other four measures were level or better | tolerance: `distinct_vaults >= anchor - 2`; the other four keep A3 and their anchor comparison |
+| A6 fee differential as a share of the equity gap | ratio below 0.25 | infinite when the candidate equals the anchor; degenerate for small effects | applies only when the equity gap exceeds $1,000; otherwise reported as not applicable |
+
+The tolerances are set today, after seeing the shortfalls that motivated them (0.008 and one
+vault). They are stated as policy about what counts as "no worse", not derived from the data,
+and plan 34's candidates are NOT re-scored as passes under them - see the corrected verdicts.
+
+### Gates that stand
+
+1 (positive return), 2 (single-vault mask, 0.70 retention), 3 volatility leg (A4), 5 stability
+clause, 6 (plateau flatness), 7 (sub-period sign). These are passable by a good candidate, test
+the objective, and have been discriminating in practice (gate 2 and 6 caught `drop_30`; gates 6
+and 7 rejected `inverse_vol_q30`).
+
+### Verdict vocabulary, corrected
+
+- **SHORTLIST**: every standing gate passed; admitted to the prospective specification.
+- **NOT CONFIRMED (conditionally positive)**: every standing gate passed; the portfolio effect is
+  inside the operator's indifference band of the anchor (0.25 Sharpe) or otherwise below what
+  126 decisions can resolve; carrying it is the operator's decision on priors, not a gate result.
+- **NO EFFECT**: standing gates passed or moot; the candidate is indistinguishable from the anchor
+  on the track window (Sharpe gap under 0.05 and basket changed on under 10% of decisions).
+- **REJECT**: a standing gate failed.
+- **DIAGNOSTIC / VACUOUS / EXPLORATORY**: no verdict on any portfolio.
+
+A REJECT must name the standing gate it rests on. "Failed gate 5's return clause" or "did not
+beat all null draws" is not a rejection of anything.
+
+### Verdicts corrected in place (the notebook headings carry the same note)
+
+| notebook | verdict as written | rested on | corrected verdict |
+|---|---|---|---|
+| NB28 | 0 of 13 signals pass gate 5; 12 "REJECTED without a backtest" | three-target gate 5 (unpassable) and the 5 pp return clause | DIAGNOSTIC stands; 7 of 13 signals clear the stability clause (forward vol and downside); none of the 12 is rejected - they are NOT BACKTESTED |
+| NB29, NB31 | `inverse_vol_q30` REJECT | fails gates 2, 3, 4, 5, 6, 7, 8, 9 | REJECT stands on standing gates 6 and 7 (plateau, sub-period sign; the 30% exclusion is a `drop_30`-class spike) |
+| NB30 | VACUOUS | walk-forward folds too short to select | stands |
+| NB34 | gate 5 False for both signals | return clause | gate 5 (stability clause) PASSES for both; return clause reported as a diagnostic that this sample cannot resolve |
+| NB35, NB36 | `measured_8` REJECT | gate 5 return clause, gate 8 by one vault, gate 9 beat-all | **NOT CONFIRMED (conditionally positive)**: passes 1, 2 (0.86), 3, 5, 6, 7; gate 8 within the new tolerance; Sharpe gap +0.21 to the anchor is inside the indifference band and the tie-break is unresolved (better on three diversification measures, level on one, worse on one); the null diagnostic (rank 4 of 20) cannot separate it from a random exclusion at this effect size |
+| NB35, NB36 | `calm_8` REJECT | gate 4 by 0.008, gate 5, gate 9 | **NO EFFECT**: Sharpe 2.171 against 2.160, basket changed on 10 of 126 decisions; the guard removes the mechanism (H4 false) |
+
+Verdicts of NB04-NB24 were reached under rules v1-v4 with their own operator-set objectives
+(the 30% CAGR floor, constraint 7). Constraint 7 was retired above as unpassable; every NB21-NB23
+rejection also failed a standing gate (plateau, negative CAGR, or a negative sub-period), so no earlier verdict changes.
+
 ## Standing method rules, unchanged from the previous plans
 
 1. Never select or tune towards a vault by name.
