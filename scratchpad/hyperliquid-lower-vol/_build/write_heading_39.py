@@ -71,8 +71,9 @@ masked or tuned by name. **Headline: on {P["decisions"]} decisions over a year, 
 scores are positively associated with the next 60 days' Sharpe - the 180-day Sharpe and Sortino
 lead at rho {f2(rho("all", best_all))}, and {len(clear_all)} of 16 signals clear the computed simultaneous bound with
 60-day blocks, {len(clear45)} with 90-day blocks and {len(clear90)} with 180-day blocks - and no trim improvement
-is detected.** The block lengths that fit this archive do not cover the 180-day persistence of
-the trailing scores, so the bounds are the computed figures under those block choices, not a
+is detected.** No block choice is both long enough to cover the 180-day persistence of the
+trailing scores and numerous enough for reliable controlled bootstrap inference (180-day blocks
+leave about {n_blocks_long} per draw), so the bounds are the computed figures under each block choice, not a
 controlled family-wise result; NB38's four-month, 30-day-horizon screen could not resolve any
 of this.
 
@@ -179,7 +180,7 @@ here.
 
 Forward 60-day Sharpe screen, all regimes (cell 6): signed Spearman, simultaneous lower bounds
 over the 16-signal family with 60-day blocks (critical {f2(SC["all"]["critical"])}) and 90-day blocks (critical
-{f2(SC["all_block45"]["critical"])}), unadjusted add-one p; the forward volatility column is signed so positive =
+{f2(SC["all_block45"]["critical"])}), unadjusted one-sided add-one p; the forward volatility column is signed so positive =
 the score's good end had LOWER forward volatility.
 
 | signal | rho fwd60 Sharpe | bound, 60-d blocks | bound, 90-d blocks | p | rho fwd60 return | rho fwd60 vol | rho fwd30 Sharpe |
