@@ -148,9 +148,11 @@ fam_34 = pd.DataFrame(manifest_34["families_post"]).T
 for name in fam.index:
     for col in ("hypotheses_used", "hypotheses_total", "complete_draws", "incomplete_draws"):
         assert int(fam.loc[name, col]) == int(fam_34.loc[name, col]), f"{name} {col} differs from NB34"
-    assert abs(float(fam.loc[name, "critical"]) - float(fam_34.loc[name, "critical"])) < 1e-9, f"{name} critical differs from NB34"
+    # The manifest stores the family summary rounded to six decimals; compare at that resolution.
+    assert abs(float(fam.loc[name, "critical"]) - float(fam_34.loc[name, "critical"])) < 1e-6, f"{name} critical differs from NB34"
 worst = float(diffs.to_numpy().max())
-print(f"largest |difference| over {len(numeric)} numeric fields x {len(SIGNAL_NAMES)} signals: {worst:.2e}; families agree on all counts and critical values")
+print(f"largest |difference| over {len(numeric)} numeric fields x {len(SIGNAL_NAMES)} signals: {worst:.2e} (manifest fields are "
+      f"rounded to 6 decimals); families agree on all counts and on critical values to 1e-6")
 assert bool(comparison["agree"].all()), "re-derived gate 5 disagrees with NB34"
 assert worst < 1e-6, f"re-derived screen differs from NB34 by {worst:.2e}"
 GATE_5 = GATE_5_REDERIVED

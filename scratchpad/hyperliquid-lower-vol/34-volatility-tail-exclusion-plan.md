@@ -1,6 +1,7 @@
 # Volatility tail-exclusion plan: the one lead, gated properly
 
-- **Status**: DRAFT 2, 2026-09-16, after Codex CLI review
+- **Status**: DRAFT 2, EXECUTED 2026-09-16 - **REJECT, both centres; nothing shortlisted.**
+  See §Outcome at the end. Draft 2 was written after Codex CLI review
   ([34-volatility-tail-exclusion-plan-codex-review.md](34-volatility-tail-exclusion-plan-codex-review.md),
   `gpt-6-astra`: "makes sense as exploratory research, but its claim to be 'the one lead, gated
   properly' is premature"). Two blocking and seven material findings applied; see §Review log.
@@ -271,3 +272,58 @@ not that the mechanism is equivalent to it.
   unnecessary; the monitoring protocol given decision criteria; the rejection language
   narrowed. Also corrected: NB33's finding 4 said both combination components beat the anchor
   on its window; `floor15` did not.
+
+## Outcome, 2026-09-16
+
+Executed as NB34, NB35 and NB36; each notebook reviewed by Codex CLI (`gpt-5.6-terra`) and the
+findings applied before the next was run (NB34 twice). Headings are generated from manifests.
+
+- **H1 failed.** Both signals clear the stability clause with room (forward volatility and
+  downside lower bounds 0.53-0.59 on 66 post-break decisions) and both fail the return clause
+  on WIDTH: the median contrast is positive (+0.12 / +0.07) but its standard error is 0.16-0.18
+  against a margin of 0.005, so passing would need a contrast above about +0.36-0.39 in 30-day
+  log return. A perfect-foresight volatility oracle passes that bar (contrast +0.87), because
+  the vaults that will be most volatile are largely the vaults that will crash - so the clause
+  is reachable, and the failure is "not demonstrated by a trailing signal on this sample". The
+  guard masks 17.7% of measured candidate-dates post-break and a third overall, not "a few
+  percent"; what it masks is older and thinly observed or recently silent.
+- **H2 failed.** Gate 5 False for both; `calm_8` also fails gate 4 (luck ratio 0.138 against
+  the anchor's 0.146), `measured_8` also fails gate 8 (32 distinct vaults against 33). Run as
+  labelled diagnostics: gate 2 would pass for both (retention 0.89 / 0.86); **gate 9 would fail
+  for both** - the persistence-destroying within-date permutation reaches the centre's Sharpe
+  or better in 3 of 19 draws for `measured_8` (rank 4 of 20, best null 2.618 against 2.374) and
+  5 of 19 for `calm_8`. The fee differential is at most 0.8% of the equity gap on the six main
+  runs; it explains nothing here.
+- **H3 held for `measured_8`** on both extra windows, not for `calm_8` on the full period; a
+  consistency check, not confirmation.
+- **H4 failed.** The strict variant is not inert: it changes the basket on 72 of 126 decisions,
+  removes a name the anchor was holding 236 times, and lands at 24.3% CAGR / Sharpe 1.56. The
+  guard's NaNs are older vaults with thin marks, and those are the vaults the incumbent holds.
+  The guard also removes most of the mechanism's effect (`calm_8` Sharpe 2.171 against
+  `measured_8` 2.374 and the anchor's 2.160), because the sparsely-polled volatile vaults it
+  refuses to score are the ones whose exclusion was doing the work.
+- **NB36**: all 51 configurations reproduce at 1e-9 across kernels; gate 5 re-derived agrees
+  with NB34 to 5e-7 (manifest rounding); every gate Boolean and failure string agrees with
+  NB35; the null's three distinctness counts are asserted at 19; specification written with
+  status NOTHING SHORTLISTED.
+
+What the track should take from this plan: predicting forward volatility (well established,
+rho 0.66-0.68) is not sufficient for a Sharpe that a random exclusion cannot match; the return
+clause needs more data or a different design, not a smaller margin; and `measured_8`'s
+three-window record is real and is not evidence of a mechanism. The next plan, if any, should
+start from the cadence and stale-mark questions this plan put out of scope, not from another
+selection signal.
+
+## Review log, continued
+
+- **NB34 review 1** (`gpt-5.6-terra`): one material - standing rule 9 needed a reachability
+  check before calling the clause unresolvable; three wording. Applied: two foresight oracles
+  added (cell 36), finding 2 rewritten, wording fixed.
+- **NB34 review 2**: one material - the return oracle's exclusion pool had to be the
+  forward-volatility-finite pool so both oracles exclude eight of the same candidates; three
+  minor wording and citation items. Applied, re-run; oracle results unchanged.
+- **NB35 review**: two material wording items - the null destroys persistence as well as
+  ranking so "not distinguishable from random" and "ranking information is not what produces
+  the Sharpe" overclaimed, and the null's extra churn biases in the centre's favour, not
+  against it; two minor - distinctness was reported not asserted (NB36 now asserts it), and
+  "eight" is "up to eight". Applied.
