@@ -13,6 +13,11 @@ PD = {k: {(r["family"], r["window"], r["k"]): r for r in SC[k]["paired"]} for k 
 AG = {(r["window"], r["family"], r["k"]): r["spearman_raw_vs_trimmed"] for r in m["snapshot_agreement"]}
 SW = m["stratwise"]["45"][0]
 prov = m["provenance"]
+OR = m["oracle"]
+PF = m["paired_family"]
+DR = m["dropped"]
+PDall = m["screens"]["all"]["paired"]
+PDyoung = m["screens"]["young"]["paired"]
 
 
 def f2(x): return f"{x:.2f}"
@@ -28,6 +33,8 @@ assert best_all == "sharpe180_k0", best_all
 assert all(lo("all", s) < 0 for s in T["all"]), "some signal clears the simultaneous bound; rewrite finding 1"
 assert rho("all", "ret90_k0") < 0.0 and rho("all", "ret45_k0") < 0.0
 assert PD["all"][("ret", 90, 10)]["ci_lo"] > 0 and PD["young"][("ret", 90, 3)]["ci_lo"] > 0
+assert all(r["lo_simultaneous_18"] < 0 for r in PDall) and all(r["lo_simultaneous_18"] < 0 for r in PDyoung), "a paired difference clears the family bound; rewrite finding 2"
+assert OR["lo_simultaneous"] > 0
 assert abs(PD["all"][("sharpe", 90, 5)]["difference"]) < 0.02 and abs(PD["all"][("sharpe", 180, 5)]["difference"]) < 0.02
 assert T["all"]["ret90_k10"]["rho_fwd_vol"] > 0.5 and abs(T["all"]["ret90_k0"]["rho_fwd_vol"]) < 0.15
 assert AG[(90, "ret", 10)] < 0.2 and AG[(90, "sharpe", 5)] > 0.8
@@ -44,17 +51,21 @@ built on it can beat the incumbent at the portfolio level, and the idea stops he
 
 **Focus is forward Sharpe**, not forward return: the operator wants steady profit, and a
 trimmed score is expected to cost CAGR. Forward return, volatility and drawdown are reported
-beside it. **Verdict: DIAGNOSTIC. Trimming does not make a better return ranker; it turns the
-return leg into a volatility ranker, which the incumbent already has.**
+beside it. **Verdict: DIAGNOSTIC. No trimmed score is shown to predict forward Sharpe better
+than its raw form under a family-wise bound; the trimmed return score's gain, where it appears,
+comes with a strong loading on lower forward volatility.**
 
 **The panel is the archive, not the engine's candidate pool.** Every Hypercore vault with at
 least the trailing window of history, a TVL of at least 7,500 USD and five price-changing marks
 in the window is a candidate on every second day from 2026-04-01 (the polling-density break) to
 the last date with a complete 30-day forward window: {P["rows"]:,} candidate-dates, {P["vaults"]} vaults,
-{P["decisions"]} decisions to {P["last"]}, {pc(P["young_share"])} of rows under 360 days old (cell 4). Stratwise
-Multi-Asset Public ({m["stratwise_age_days"]} days old) and the other post-July vaults are too young for any
-forward outcome and are NOT in the screen; they are shown in a current-snapshot comparison
-(cell 10). No vault is selected, masked or tuned by name anywhere. Snapshot
+{P["decisions"]} decisions to {P["last"]}, {pc(P["young_share"])} of rows under 360 days old (cell 4). Eligibility is
+on OBSERVED marks: a candidate needs a real mark within 3 days of T-1 ({DR["no_recent_mark"]:,} candidate-dates
+dropped for having none, {DR["tvl"]:,} for TVL) and a forward window needs at least 10 observed marks
+with one in its last 3 days ({DR["forward_marks"]} dropped); the median forward window has
+{m["forward_marks_median"]:.0f} of 30 days marked. Stratwise Multi-Asset Public ({m["stratwise_age_days"]} days old) and the
+other post-July vaults are too young for any forward outcome and are NOT in the screen; they
+are shown in a current-snapshot comparison (cell 12). No vault is selected, masked or tuned by name anywhere. Snapshot
 `vault-prices.parquet` {prov["bytes"]:,} bytes, sha256 `{prov["sha256"][:16]}`, last mark {prov["last_mark"][:10]} (cell 2).
 
 **Based on:** [28-research-stability-signal-screen.ipynb](28-research-stability-signal-screen.ipynb)
@@ -74,64 +85,70 @@ signal's good end had the better outcome", averaged over dates; one two-way clus
 (15-decision circular date blocks x vault clusters, {m["constants"]["draws"]} draws, seed
 {m["constants"]["seed"]}) shared across every hypothesis; studentised max-T simultaneous lower bounds
 over the family of 30 signals on the primary target (critical value {f2(SC["all"]["critical"])}). The
-decisive statistic is the PAIRED difference trimmed-minus-raw on the primary target, per
-(window, k), on the same draws.
+PAIRED difference trimmed-minus-raw on the primary target, per (window, k), is computed on the
+same draws and controlled as its own family of 18 (critical {f2(PF["all"]["critical"])}); per-comparison
+intervals and add-one p-values are descriptive. A noisy foresight oracle through the identical
+machinery clears the family-wise bound (lower bound {f3(OR["lo_simultaneous"])}, cell 8), so an all-fail
+result is a property of the signals, not of the screen.
 
 ## Key new insights and what did we learn from this experiment?
 
 **1. Nothing predicts a vault's next-30-day Sharpe well, and a raw trailing return does not
 predict it at all.** The best of thirty signals is the raw 180-day Sharpe at rho
-{f3(rho("all", "sharpe180_k0"))} (unadjusted p {f3(p("all", "sharpe180_k0"))}); no signal clears the simultaneous
-lower bound of zero over the family (best {f3(lo("all", "sharpe180_k0"))}). Raw trailing return over 45 or 90
-days is at {f3(rho("all", "ret45_k0"))} and {f3(rho("all", "ret90_k0"))} - nothing - and every signal's correlation
-with forward RETURN is within {f3(max(abs(T["all"][s]["rho_fwd_return"]) for s in T["all"]))} of zero (cell 6). A month
-of a vault's Sharpe is mostly not in its past. The incumbent's ranker legs (45-day Sharpe,
-360-day CAGR) are not in the top of this table either: `sharpe45_k0` sits at
-{f3(rho("all", "sharpe45_k0"))}.
+{f3(rho("all", "sharpe180_k0"))} (unadjusted add-one p {f3(p("all", "sharpe180_k0"))}); no signal clears the simultaneous
+lower bound of zero over the family (best {f3(lo("all", "sharpe180_k5"))}, `sharpe180_k5`), while the foresight
+oracle clears it at {f3(OR["lo_simultaneous"])} (cells 6, 8). Raw trailing return over 45 or 90 days is at
+{f3(rho("all", "ret45_k0"))} and {f3(rho("all", "ret90_k0"))} - nothing - and every signal's correlation with forward
+RETURN is within {f3(max(abs(T["all"][s]["rho_fwd_return"]) for s in T["all"]))} of zero (cell 6). The incumbent's 45-day
+Sharpe leg sits at {f3(rho("all", "sharpe45_k0"))}.
 
-**2. Trimming the return leg helps - and the help is volatility, not return.** Removing the
-best 10 of 90 days lifts the return signal from {f3(rho("all", "ret90_k0"))} to {f3(rho("all", "ret90_k10"))}
-on forward Sharpe; the paired difference is {f3(PD["all"][("ret", 90, 10)]["difference"])}
-[{f3(PD["all"][("ret", 90, 10)]["ci_lo"])}, {f3(PD["all"][("ret", 90, 10)]["ci_hi"])}], p {f3(PD["all"][("ret", 90, 10)]["p_two_sided"])}, and
-at 45 days {f3(PD["all"][("ret", 45, 10)]["difference"])} [{f3(PD["all"][("ret", 45, 10)]["ci_lo"])}, {f3(PD["all"][("ret", 45, 10)]["ci_hi"])}] (cell 6).
-But look at what the trimmed score correlates with: forward VOLATILITY at
-{f3(T["all"]["ret90_k10"]["rho_fwd_vol"])} (raw: {f3(T["all"]["ret90_k0"]["rho_fwd_vol"])}) and forward drawdown at
-{f3(T["all"]["ret90_k10"]["rho_fwd_max_dd"])}, exactly the profile of `vol90` itself ({f3(T["all"]["vol90"]["rho_fwd_vol"])} /
-{f3(T["all"]["vol90"]["rho_fwd_max_dd"])}, and {f3(rho("all", "vol90"))} on forward Sharpe, the same as the trimmed
-return). Removing a vault's best days removes most of what distinguishes a high-return vault
-from a low-volatility one: the cross-sectional rank agreement between the raw and the k = 10
-trimmed 90-day return at the current snapshot is {f3(AG[(90, "ret", 10)])} (cell 10) - a different
-ordering, not a cleaned one. The trimmed return is a low-volatility ranker in disguise, and
-NB28-NB37 already established what a volatility ranker does: it predicts forward volatility
-(rho 0.7) and forward crashes, and it costs return when used to rank.
+**2. Trimming the return score raises its forward-Sharpe correlation, but not by enough to
+establish under a family-wise bound, and the gain arrives with a strong low-volatility
+loading.** Removing the best 10 of 90 days lifts the return score from {f3(rho("all", "ret90_k0"))} to
+{f3(rho("all", "ret90_k10"))}; the paired difference is {f3(PD["all"][("ret", 90, 10)]["difference"])}
+[{f3(PD["all"][("ret", 90, 10)]["ci_lo"])}, {f3(PD["all"][("ret", 90, 10)]["ci_hi"])}], add-one p
+{f3(PD["all"][("ret", 90, 10)]["p_two_sided_add_one"])} on its own, but its simultaneous lower bound over the 18 paired
+comparisons is {f3(PD["all"][("ret", 90, 10)]["lo_simultaneous_18"])}; at 45 days the difference is
+{f3(PD["all"][("ret", 45, 10)]["difference"])} [{f3(PD["all"][("ret", 45, 10)]["ci_lo"])}, {f3(PD["all"][("ret", 45, 10)]["ci_hi"])}] (cell 6). What
+the trimmed score correlates with is forward VOLATILITY (signed {f3(T["all"]["ret90_k10"]["rho_fwd_vol"])} against the raw
+score's {f3(T["all"]["ret90_k0"]["rho_fwd_vol"])}) and forward drawdown ({f3(T["all"]["ret90_k10"]["rho_fwd_log_max_dd"])}), a profile close
+to `vol90`'s own ({f3(T["all"]["vol90"]["rho_fwd_vol"])} / {f3(T["all"]["vol90"]["rho_fwd_log_max_dd"])}, and {f3(rho("all", "vol90"))} on
+forward Sharpe), and its correlation with forward return stays at {f3(T["all"]["ret90_k10"]["rho_fwd_return"])}. At the current
+snapshot the raw and k = 10 trimmed 90-day return scores rank the cross-section with a Spearman
+agreement of {f3(AG[(90, "ret", 10)])} (cell 12): trimming ten of ninety days re-orders the candidates almost
+completely. The result is CONSISTENT with the trimmed score being a stability signal rather than
+a cleaner return signal; this notebook does not show that it selects the same vaults as a
+volatility ranker, and it makes no portfolio claim.
 
-**3. Trimming the Sharpe leg does nothing.** Raw and trimmed trailing Sharpe rank the
-cross-section almost identically (agreement {f3(AG[(90, "sharpe", 5)])} at k = 5, {f3(AG[(180, "sharpe", 3)])} at k = 3
-on 180 days) and predict forward Sharpe identically: paired differences
-{f3(PD["all"][("sharpe", 90, 5)]["difference"])} and {f3(PD["all"][("sharpe", 180, 5)]["difference"])} with intervals
-straddling zero (cell 6). A Sharpe already divides by the jumps it is made of.
+**3. Trimming the Sharpe score shows no detectable improvement.** Raw and trimmed trailing
+Sharpe rank the cross-section similarly (agreement {f3(AG[(90, "sharpe", 5)])} at k = 5 on 90 days,
+{f3(AG[(180, "sharpe", 3)])} at k = 3 on 180) and their paired differences on forward Sharpe are
+{f3(PD["all"][("sharpe", 90, 5)]["difference"])} [{f3(PD["all"][("sharpe", 90, 5)]["ci_lo"])}, {f3(PD["all"][("sharpe", 90, 5)]["ci_hi"])}] and
+{f3(PD["all"][("sharpe", 180, 5)]["difference"])} [{f3(PD["all"][("sharpe", 180, 5)]["ci_lo"])}, {f3(PD["all"][("sharpe", 180, 5)]["ci_hi"])}] (cell 6): intervals
+that straddle zero, which is absence of evidence of a difference, not evidence of none.
 
-**4. The young cohort is where the return trim "works", for the same reason.** Among vaults
-under 360 days ({pc(P["young_share"])} of rows), raw 90-day return is {f3(rho("young", "ret90_k0"))} on forward Sharpe and
-trimmed k = 10 is {f3(rho("young", "ret90_k10"))}, difference {f3(PD["young"][("ret", 90, 10)]["difference"])}
-[{f3(PD["young"][("ret", 90, 10)]["ci_lo"])}, {f3(PD["young"][("ret", 90, 10)]["ci_hi"])}], p {f3(PD["young"][("ret", 90, 10)]["p_two_sided"])}; among the
-old ({SC["old"]["rows"]:,} rows, {SC["old"]["decisions"]} dates) every difference is inside its interval (cell 8). Young
-vaults are where a few jumps most dominate a trailing return, so trimming re-orders them most -
-towards low volatility.
+**4. The young cohort shows the largest return-trim differences, and they still do not clear
+the family bound.** Among vaults under 360 days ({pc(P["young_share"])} of rows), raw 90-day return is
+{f3(rho("young", "ret90_k0"))} on forward Sharpe and trimmed k = 10 is {f3(rho("young", "ret90_k10"))}, difference
+{f3(PD["young"][("ret", 90, 10)]["difference"])} [{f3(PD["young"][("ret", 90, 10)]["ci_lo"])}, {f3(PD["young"][("ret", 90, 10)]["ci_hi"])}], add-one p
+{f3(PD["young"][("ret", 90, 10)]["p_two_sided_add_one"])}, simultaneous lower bound {f3(PD["young"][("ret", 90, 10)]["lo_simultaneous_18"])} over the cohort's
+18 comparisons; among the old ({SC["old"]["rows"]:,} rows, {SC["old"]["decisions"]} dates) every difference is inside
+its interval (cell 10). The young and old screens are separate bootstraps on separate samples.
 
-**5. Stratwise, at the snapshot.** At the 45-day window on {m["snapshot_dates"]["45"]}, Stratwise's raw
-annualised return is {pc(SW["ret_k0"])} (Sharpe {f2(SW["sharpe_k0"])}, realised vol {pc(SW["vol"])}); with its
-best 5 days removed {pc(SW["ret_k5"])} and with 10 removed {pc(SW["ret_k10"])} - about {(1 - SW["ret_k5"] / SW["ret_k0"]) * 100:.0f}% of its
-45-day return is its best five days (cell 10). That is not unusual for the cohort, which is the point:
-trimming demotes everyone, and on trimmed return Stratwise RISES from rank 122 to 18 of 220
-because its peers are more concentrated still, while on Sharpe it sits at rank 13 raw and 17
-trimmed. It cannot be screened for forward behaviour yet: {m["stratwise_age_days"]} days of history give no
-decision with both a trailing window and a complete forward window.
+**5. Stratwise, at the snapshot ({m["snapshot_dates"]["45"]}, the last completed UTC day).** At the 45-day
+window Stratwise's raw return score is {pc(SW["ret_k0"])} annualised (Sharpe score {f2(SW["sharpe_k0"])}, realised
+vol {pc(SW["vol"])}); with its best 5 days removed {pc(SW["ret_k5"])} and with 10 removed {pc(SW["ret_k10"])}, so about
+{(1 - SW["ret_k5"] / SW["ret_k0"]) * 100:.0f}% of its 45-day return score is its best five days (cell 12). On the raw return
+score it ranks 119 of 221 scorable vaults and on the k = 5 trimmed score 20; on the Sharpe score
+13 raw and 16 trimmed (cell 12). Those are snapshot ranks on one window and say nothing about
+its forward behaviour: with {m["stratwise_age_days"]} days of history no decision gives it both a trailing
+window and a complete forward window.
 
 ## Summary of results
 
 Forward-Sharpe screen, all candidates (cell 6): signed Spearman, simultaneous lower bound over
-30 signals, unadjusted add-one p.
+30 signals, unadjusted add-one p; forward volatility column is signed so positive = the score's
+good end had LOWER forward volatility.
 
 | signal | rho fwd Sharpe | lower bound | p | rho fwd return | rho fwd vol (signed) |
 |---|---|---|---|---|---|
@@ -144,7 +161,8 @@ Forward-Sharpe screen, all candidates (cell 6): signed Spearman, simultaneous lo
 | sortino 45 / 90 / 180 | {f3(rho("all", "sortino45"))} / {f3(rho("all", "sortino90"))} / {f3(rho("all", "sortino180"))} | {f3(lo("all", "sortino180"))} (180) | {f3(p("all", "sortino180"))} | {f3(T["all"]["sortino180"]["rho_fwd_return"])} | {f3(T["all"]["sortino180"]["rho_fwd_vol"])} |
 | vol 45 / 90 / 180 (low is good) | {f3(rho("all", "vol45"))} / {f3(rho("all", "vol90"))} / {f3(rho("all", "vol180"))} | {f3(lo("all", "vol45"))} (45) | {f3(p("all", "vol45"))} | {f3(T["all"]["vol45"]["rho_fwd_return"])} | {f3(T["all"]["vol45"]["rho_fwd_vol"])} |
 
-Paired trimmed-minus-raw on forward Sharpe (cell 6; young cohort cell 8):
+Paired trimmed-minus-raw on forward Sharpe, per-comparison 95% intervals (cell 6; young cohort
+cell 10). Simultaneous lower bounds over each 18-comparison family are all below zero.
 
 | | k = 3 | k = 5 | k = 10 |
 |---|---|---|---|
@@ -155,30 +173,39 @@ Paired trimmed-minus-raw on forward Sharpe (cell 6; young cohort cell 8):
 | Sharpe, 180 d | {f3(PD["all"][("sharpe", 180, 3)]["difference"])} [{f3(PD["all"][("sharpe", 180, 3)]["ci_lo"])}, {f3(PD["all"][("sharpe", 180, 3)]["ci_hi"])}] | {f3(PD["all"][("sharpe", 180, 5)]["difference"])} [{f3(PD["all"][("sharpe", 180, 5)]["ci_lo"])}, {f3(PD["all"][("sharpe", 180, 5)]["ci_hi"])}] | {f3(PD["all"][("sharpe", 180, 10)]["difference"])} [{f3(PD["all"][("sharpe", 180, 10)]["ci_lo"])}, {f3(PD["all"][("sharpe", 180, 10)]["ci_hi"])}] |
 | return, 90 d, young only | {f3(PD["young"][("ret", 90, 3)]["difference"])} [{f3(PD["young"][("ret", 90, 3)]["ci_lo"])}, {f3(PD["young"][("ret", 90, 3)]["ci_hi"])}] | {f3(PD["young"][("ret", 90, 5)]["difference"])} [{f3(PD["young"][("ret", 90, 5)]["ci_lo"])}, {f3(PD["young"][("ret", 90, 5)]["ci_hi"])}] | {f3(PD["young"][("ret", 90, 10)]["difference"])} [{f3(PD["young"][("ret", 90, 10)]["ci_lo"])}, {f3(PD["young"][("ret", 90, 10)]["ci_hi"])}] |
 
-**What this means for the ranker.** A trimmed-CAGR leg would not be a cleaner return leg; it
-would be a second volatility leg beside the Sortino and the inverse-variance sizer, and NB32 and
-NB37 have shown what ranking on stability does to return. The idea stops here, as the plan for
-it said it should. The one signal with any persistence into next month's Sharpe is the 180-day
-Sharpe itself - weak, and not separable from zero under a family-wise bound.
+**What this means for the ranker.** The screen does not establish that a trimmed return score
+predicts forward Sharpe better than the raw one, and where it looks better the score has taken
+on a strong low-volatility loading, so a trimmed-CAGR leg would be closer to a second stability
+leg than to a cleaner return leg. The idea stops at the vault level, as the plan for it said it
+should if the screen did not clear. The one signal with any persistence into next month's
+Sharpe is the 180-day Sharpe itself - weak, and not separable from zero under a family-wise
+bound. Portfolio consequences are not claimed here.
 
 ## Robustness of results
 
-- The panel is built from the archive with a fixed rule (TVL, history, fresh marks) and no
-  engine; it is therefore NOT the incumbent's candidate pool (no inclusion criteria, quarantine
-  or momentum gate), and its per-date pools are larger (~{P["rows"] / P["decisions"]:.0f} candidates). The
-  question asked is about vaults, so that is the right population; portfolio consequences are
-  not claimed.
-- Forward Sharpe is computed on 30 daily log returns of forward-filled marks; on post-break
-  polling (15-17 marks a day) a zero-return day is a real flat day, not a gap, which is why the
-  screen is restricted to decisions from 2026-04-01.
+- The panel is built from the archive with a fixed rule (TVL, history, fresh marks, a recent
+  observed mark) and no engine; it is therefore NOT the incumbent's candidate pool (no inclusion
+  criteria, quarantine or momentum gate), and its per-date pools are larger
+  (~{P["rows"] / P["decisions"]:.0f} candidates). The question asked is about vaults, so that is the right
+  population; portfolio consequences are not claimed.
+- Eligibility and forward outcomes are on observed marks (cell 4): no candidate is admitted on a
+  forward-filled TVL or a stale price, and every forward window in the panel has a real mark in
+  its last 3 days and a median of {m["forward_marks_median"]:.0f} marked days of 30. Inside a window a day
+  without a mark is still forward-filled to a zero return, which is what the trailing and
+  forward series both do.
+- The screen is shown reachable: a noisy foresight oracle clears the 31-signal family-wise
+  bound at {f3(OR["lo_simultaneous"])} (cell 8).
 - Every hypothesis shares one bootstrap; paired differences are differences of the same draws,
-  so their intervals are paired intervals. Simultaneous bounds are over the 30-signal family on
-  the primary target only; the other targets are descriptive.
-- 70 decisions of overlapping 30-day windows are about two independent months; the intervals
-  say so. The young cohort's return-trim result (p 0.02) is the strongest single finding and it
-  is explained by the volatility loading, not by cleaner return information.
-- Stratwise's figures are a current snapshot at one window and are not evidence about its
-  forward behaviour; the rule against selecting or tuning by name is unchanged.
+  so their intervals are paired intervals, and the 18 paired comparisons carry their own
+  simultaneous bound. Per-comparison p-values are add-one corrected and descriptive.
+- 70 decisions two days apart over about 138 calendar days, each with a 30-day forward window,
+  hold roughly four to five non-overlapping forward horizons; the date-block bootstrap uses
+  15-decision blocks, and the intervals reflect that overlap.
+- Forward max drawdown is in log units (`fwd_log_max_dd`); ranks are unaffected. Trimmed
+  scores are ranking transformations, not investable returns.
+- Stratwise's figures are a current snapshot at one window on the last completed UTC day and
+  are not evidence about its forward behaviour; the rule against selecting or tuning by name
+  is unchanged.
 """
 
 nb = json.loads(NB.read_text())

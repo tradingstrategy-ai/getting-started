@@ -34,11 +34,15 @@ Verdict DIAGNOSTIC: a screen, not a result.
 
 ## Method
 
-Signals, read at T-1 over trailing windows of 45, 90 and 180 rows: annualised log return (raw
-and with the best 3, 5 and 10 daily log returns removed), annualised Sharpe of daily log returns
-(raw and trimmed the same way), Sortino, realised volatility. Direction 'high' for return and
+Signals, read at T-1 over trailing windows of 45, 90 and 180 rows: a trimmed RETURN SCORE (sum
+of daily log returns with the best k removed, k in 0, 3, 5, 10, annualised over the full window
+length) and a trimmed SHARPE SCORE (mean over standard deviation of the retained days), plus
+Sortino and realised volatility. Neither trimmed score is an investable return; they are ranking
+transformations. Direction 'high' for return and
 Sharpe scores (higher is better), 'low' for volatility. Targets over (T, T + 30 d]: forward
-Sharpe (primary), forward log return, forward volatility, forward max drawdown.
+Sharpe (primary), forward log return, forward volatility, forward max drawdown in log units. A
+candidate needs a real mark within 3 days of T-1 (eligibility is never forward-filled), and a
+forward window needs at least 10 observed marks with one in its last 3 days.
 
 Inference: per date, Spearman across that date's candidates, signed so positive means "the
 signal's good end had the better outcome", averaged over dates; one two-way cluster bootstrap
@@ -85,6 +89,12 @@ POST_BREAK_START = pd.Timestamp("2026-04-01")
 DECISION_STEP_DAYS = 2
 MIN_TVL_USD = 7_500.0
 MIN_FRESH = 5
+#: A candidate must have an ACTUAL mark within this many days before the decision (no stale
+#: forward-filled eligibility), and a forward window must contain at least MIN_FORWARD_MARKS
+#: observed marks with one in its last MAX_STALE_DAYS days, so a vault that stopped reporting
+#: cannot supply manufactured zero-return days as an outcome.
+MAX_STALE_DAYS = 3
+MIN_FORWARD_MARKS = 10
 MIN_CANDIDATES = 8
 MIN_DATES = 40
 YOUNG_DAYS = 360          # the incumbent's CAGR leg cannot score a vault younger than this
@@ -135,28 +145,41 @@ def forward_targets(r: np.ndarray, prices: np.ndarray) -> dict:
     return {"fwd_return": float(r.sum()),
             "fwd_sharpe": float(r.mean() / sd * math.sqrt(365.0)) if sd and sd > 0 else float("nan"),
             "fwd_vol": float(sd * math.sqrt(365.0)) if sd == sd else float("nan"),
-            "fwd_max_dd": float(np.min(path - np.maximum.accumulate(path)))}
+            # Log-unit drawdown (minimum of cumulative log return below its running maximum);
+            # ranks are the same as for the percentage form.
+            "fwd_log_max_dd": float(np.min(path - np.maximum.accumulate(path)))}
 
 
 last_decision = (LAST_MARK.floor("D") - pd.Timedelta(days=FORWARD_DAYS))
 decisions = pd.date_range(POST_BREAK_START, last_decision, freq=f"{DECISION_STEP_DAYS}D")
 rows = []
+dropped = {"no_recent_mark": 0, "tvl": 0, "forward_marks": 0, "no_window": 0}
 for address, g in daily.groupby("address"):
     g = g.set_index("date")
     grid = pd.date_range(g.index.min(), LAST_MARK.floor("D"), freq="D")
+    observed = pd.Series(True, index=g.index).reindex(grid, fill_value=False)   # a real mark on this day
     full = g.reindex(grid).ffill()
     p = full["share_price"].where(full["share_price"] > 0)
     tvl = full["total_assets"]
     r = np.log(p).diff()
     born = g.index.min()
+    mark_days = observed[observed].index
     for t in decisions:
         if t not in full.index:
             continue
         t1 = t - pd.Timedelta(days=1)
-        if not (tvl.get(t1, 0.0) >= MIN_TVL_USD):
+        # Eligibility on OBSERVED information: a real mark within MAX_STALE_DAYS of T-1, and the
+        # TVL from that mark. A vault whose last mark is older is not a live candidate.
+        recent = mark_days[(mark_days <= t1) & (mark_days > t1 - pd.Timedelta(days=MAX_STALE_DAYS))]
+        if len(recent) == 0:
+            dropped["no_recent_mark"] += 1
+            continue
+        if not (g.loc[recent[-1], "total_assets"] >= MIN_TVL_USD):
+            dropped["tvl"] += 1
             continue
         age = int((t - born).days)
-        row = {"address": address, "date": t, "age_days": age, "young": age < YOUNG_DAYS}
+        row = {"address": address, "date": t, "age_days": age, "young": age < YOUNG_DAYS,
+               "days_since_mark": int((t1 - recent[-1]).days)}
         scored_any = False
         for w in WINDOWS:
             win = r[(r.index > t1 - pd.Timedelta(days=w)) & (r.index <= t1)].dropna().to_numpy()
@@ -172,13 +195,24 @@ for address, g in daily.groupby("address"):
                 row[f"{key.split('_')[0]}{w}_{key.split('_')[1]}" if "_" in key else f"{key}{w}"] = value
             row[f"fresh{w}"] = int((np.abs(win) > 0).sum())
         if not scored_any:
+            dropped["no_window"] += 1
             continue
-        fwd = r[(r.index > t) & (r.index <= t + pd.Timedelta(days=FORWARD_DAYS))].dropna().to_numpy()
-        if len(fwd) < FORWARD_DAYS:
+        t_end = t + pd.Timedelta(days=FORWARD_DAYS)
+        fwd = r[(r.index > t) & (r.index <= t_end)].dropna().to_numpy()
+        fwd_marks = mark_days[(mark_days > t) & (mark_days <= t_end)]
+        # The forward window must be OBSERVED, not manufactured: enough real marks and one near
+        # its end. Otherwise a vault that stopped reporting scores as perfectly calm.
+        if len(fwd) < FORWARD_DAYS or len(fwd_marks) < MIN_FORWARD_MARKS or \
+                (len(fwd_marks) and (t_end - fwd_marks[-1]).days > MAX_STALE_DAYS) or not len(fwd_marks):
+            dropped["forward_marks"] += 1
             continue
+        row["fwd_marks"] = int(len(fwd_marks))
         row.update(forward_targets(fwd, None))
         rows.append(row)
 panel = pd.DataFrame(rows)
+print("candidate-dates dropped:", dropped)
+print(f"forward-window observed marks: median {panel['fwd_marks'].median():.0f} of {FORWARD_DAYS} days, "
+      f"5th percentile {panel['fwd_marks'].quantile(0.05):.0f}; days since last mark at T-1: mean {panel['days_since_mark'].mean():.2f}")
 panel["name"] = panel["address"].map(names)
 print(f"panel: {len(panel):,} rows, {panel['address'].nunique()} vaults, {panel['date'].nunique()} decisions "
       f"{panel['date'].min().date()} to {panel['date'].max().date()}; young (< {YOUNG_DAYS} d) share of rows "
@@ -193,9 +227,9 @@ for w in WINDOWS:
     SIGNALS.append({"name": f"vol{w}", "direction": "low", "window": w, "k": None, "family": "vol"})
 SIGNAL_NAMES = [s["name"] for s in SIGNALS]
 SIGNAL_SIGN = {s["name"]: (1.0 if s["direction"] == "high" else -1.0) for s in SIGNALS}
-TARGETS = ["fwd_sharpe", "fwd_return", "fwd_vol", "fwd_max_dd"]
+TARGETS = ["fwd_sharpe", "fwd_return", "fwd_vol", "fwd_log_max_dd"]
 #: positive = the signal's good end had the better outcome: higher Sharpe/return, LOWER vol, shallower (larger) max DD
-TARGET_SIGN = {"fwd_sharpe": 1.0, "fwd_return": 1.0, "fwd_vol": -1.0, "fwd_max_dd": 1.0}
+TARGET_SIGN = {"fwd_sharpe": 1.0, "fwd_return": 1.0, "fwd_vol": -1.0, "fwd_log_max_dd": 1.0}
 coverage = pd.DataFrame({s: np.isfinite(panel[s]).mean() for s in SIGNAL_NAMES}, index=["finite_share"]).T
 display(coverage.round(3).T)
 display(panel[TARGETS].describe(percentiles=[0.05, 0.25, 0.5, 0.75, 0.95]).round(4))
@@ -316,8 +350,10 @@ def screen(frame: pd.DataFrame, label: str, verbose: bool = True) -> dict:
         row["p_sharpe"] = fam["p"][i]
         rows.append(row)
     table = pd.DataFrame(rows).set_index("signal")
-    # Paired trimmed-minus-raw differences on the primary target, on the same draws.
-    diffs = []
+    # Paired trimmed-minus-raw differences on the primary target, on the same draws. The
+    # per-comparison interval and add-one p are DESCRIPTIVE; the 18 comparisons are also one
+    # family, so a simultaneous max-T lower bound over them is reported as the controlled figure.
+    diffs, d_obs, d_reps = [], [], []
     for w in WINDOWS:
         for fam_name in ("ret", "sharpe"):
             base = SIGNAL_NAMES.index(f"{fam_name}{w}_k0")
@@ -325,24 +361,60 @@ def screen(frame: pd.DataFrame, label: str, verbose: bool = True) -> dict:
                 idx = SIGNAL_NAMES.index(f"{fam_name}{w}_k{k}")
                 obs = boot["observed"][idx, j] - boot["observed"][base, j]
                 rep = boot["draws"][:, idx, j] - boot["draws"][:, base, j]
-                rep = rep[np.isfinite(rep)]
+                d_obs.append(obs); d_reps.append(rep)
+                fin = rep[np.isfinite(rep)]
+                centred = fin - obs
+                n = len(fin)
+                p_hi = (1.0 + (centred >= obs).sum()) / (n + 1.0)
+                p_lo = (1.0 + (centred <= obs).sum()) / (n + 1.0)
                 diffs.append({"family": fam_name, "window": w, "k": k, "trimmed_rho": boot["observed"][idx, j],
                               "raw_rho": boot["observed"][base, j], "difference": obs,
-                              "ci_lo": float(np.percentile(rep, 2.5)) if len(rep) >= 100 else np.nan,
-                              "ci_hi": float(np.percentile(rep, 97.5)) if len(rep) >= 100 else np.nan,
-                              "p_two_sided": float(2 * min((rep - obs >= obs).mean(), (rep - obs <= obs).mean())) if len(rep) >= 100 else np.nan,
-                              "draws": int(len(rep))})
+                              "ci_lo": float(np.percentile(fin, 2.5)) if n >= 100 else np.nan,
+                              "ci_hi": float(np.percentile(fin, 97.5)) if n >= 100 else np.nan,
+                              "p_two_sided_add_one": float(min(1.0, 2 * min(p_hi, p_lo))) if n >= 100 else np.nan,
+                              "draws": int(n)})
     paired = pd.DataFrame(diffs)
+    pfam = simultaneous_lower(np.array(d_obs), np.column_stack(d_reps))
+    paired["lo_simultaneous_18"] = pfam["lower"]
+    paired["se"] = pfam["se"]
     return {"label": label, "table": table, "paired": paired, "critical": fam["critical"],
-            "family_size": fam["family_size"], "complete_draws": fam["complete_draws"], "boot": boot}
+            "family_size": fam["family_size"], "complete_draws": fam["complete_draws"], "boot": boot,
+            "paired_critical": pfam["critical"], "paired_family_size": pfam["family_size"]}
 
 
 full = screen(panel, "all candidates")
 print(f"\\nprimary family: {full['family_size']} signals, critical {full['critical']:.4f} on {full['complete_draws']} complete draws")
 display(full["table"][["family", "window", "k", "dates", "evaluated", "rho_fwd_sharpe", "se_sharpe", "lo_sharpe_simultaneous",
-                       "lo_sharpe_unadjusted", "p_sharpe", "rho_fwd_return", "rho_fwd_vol", "rho_fwd_max_dd"]].round(4))
-print("\\nPAIRED trimmed - raw on forward Sharpe (95% percentile interval on shared draws):")
+                       "lo_sharpe_unadjusted", "p_sharpe", "rho_fwd_return", "rho_fwd_vol", "rho_fwd_log_max_dd"]].round(4))
+print(f"\\nPAIRED trimmed - raw on forward Sharpe (95% percentile interval on shared draws; simultaneous lower bound over "
+      f"the {full['paired_family_size']} paired comparisons, critical {full['paired_critical']:.4f}):")
 display(full["paired"].round(4))
+'''))
+
+cells.append(md("""### Reachability: can this screen produce a positive simultaneous bound at all?
+
+Standing rule 9. A noisy foresight oracle - the forward Sharpe itself plus 5% noise - is added
+to the family and run through the identical panel, bootstrap and max-T. If it does not clear
+the family-wise lower bound, the all-fail result above is a property of the machinery, not of
+the signals. Diagnostic only; nothing here is reported as a finding.
+"""))
+cells.append(code('''rng = np.random.default_rng(SEED + 1)
+oracle_panel = panel.copy()
+oracle_panel["oracle_fwd_sharpe"] = oracle_panel["fwd_sharpe"] + rng.normal(0.0, 0.05 * float(oracle_panel["fwd_sharpe"].std()), len(oracle_panel))
+_saved = (SIGNALS, SIGNAL_NAMES, SIGNAL_SIGN)
+SIGNALS = list(SIGNALS) + [{"name": "oracle_fwd_sharpe", "direction": "high", "window": None, "k": None, "family": "oracle"}]
+SIGNAL_NAMES = [s["name"] for s in SIGNALS]
+SIGNAL_SIGN = {s["name"]: (1.0 if s["direction"] == "high" else -1.0) for s in SIGNALS}
+try:
+    oracle_res = screen(oracle_panel, "oracle reachability (31-signal family)", verbose=False)
+finally:
+    SIGNALS, SIGNAL_NAMES, SIGNAL_SIGN = _saved
+orow = oracle_res["table"].loc["oracle_fwd_sharpe"]
+print(f"oracle: rho {orow['rho_fwd_sharpe']:.4f}, simultaneous lower bound {orow['lo_sharpe_simultaneous']:.4f} over "
+      f"{oracle_res['family_size']} signals (critical {oracle_res['critical']:.4f}), finite target rows "
+      f"{int(np.isfinite(panel['fwd_sharpe']).sum())} of {len(panel)}")
+assert orow["lo_sharpe_simultaneous"] > 0, "the screen cannot produce a positive simultaneous bound even for a foresight oracle"
+print("reachable: a foresight signal clears the family-wise bound; the thirty real signals fail it on their merits")
 '''))
 
 cells.append(md("""## Part 3. The young cohort and the old
@@ -354,6 +426,7 @@ rest, separately, so the two are not averaged into each other.
 cells.append(code('''young = screen(panel[panel["young"]], "young (< 360 days)", verbose=False)
 old = screen(panel[~panel["young"]], "old (>= 360 days)", verbose=False)
 COLS = ["window", "k", "dates", "evaluated", "rho_fwd_sharpe", "lo_sharpe_simultaneous", "p_sharpe", "rho_fwd_return", "rho_fwd_vol"]
+print(f"note: the young and old screens are separate bootstraps on separate samples; their paired-difference intervals are descriptive")
 for res in (young, old):
     print(f"\\n{res['label']}: family {res['family_size']}, critical {res['critical']:.4f}, complete draws {res['complete_draws']}")
     display(res["table"][COLS].round(4))
@@ -371,15 +444,19 @@ date. This is description; nothing here is evidence about forward behaviour.
 """))
 cells.append(code('''snapshot_rows = []
 snap_dates = {}
+SNAP_DAY = LAST_MARK.floor("D") - pd.Timedelta(days=1)   # the last COMPLETED UTC day, not the partial one
 for w in WINDOWS:
-    t = LAST_MARK.floor("D")
+    t = SNAP_DAY
     snap_dates[w] = t
     for address, g in daily.groupby("address"):
         g = g.set_index("date")
+        if g.index.min() > t:
+            continue
         grid = pd.date_range(g.index.min(), t, freq="D")
         full_ = g.reindex(grid).ffill()
         p = full_["share_price"].where(full_["share_price"] > 0)
-        if not (full_["total_assets"].iloc[-1] >= MIN_TVL_USD):
+        recent_marks = g.index[(g.index <= t) & (g.index > t - pd.Timedelta(days=MAX_STALE_DAYS))]
+        if len(recent_marks) == 0 or not (g.loc[recent_marks[-1], "total_assets"] >= MIN_TVL_USD):
             continue
         r = np.log(p).diff()
         win = r[(r.index > t - pd.Timedelta(days=w)) & (r.index <= t)].dropna().to_numpy()
@@ -439,7 +516,12 @@ manifest = {
     "snapshot_agreement": pd.DataFrame(agreement).round(6).to_dict(orient="records"),
     "stratwise": {str(w): (snapshot[(snapshot["window"] == w) & (snapshot["address"] == STRATWISE)].drop(columns=["address"]).round(6).to_dict(orient="records"))
                   for w in WINDOWS},
-    "stratwise_age_days": int((LAST_MARK.floor("D") - daily[daily["address"] == STRATWISE]["date"].min()).days),
+    "stratwise_age_days": int((SNAP_DAY - daily[daily["address"] == STRATWISE]["date"].min()).days),
+    "dropped": dropped,
+    "forward_marks_median": float(panel["fwd_marks"].median()), "forward_marks_p05": float(panel["fwd_marks"].quantile(0.05)),
+    "oracle": {"rho": float(orow["rho_fwd_sharpe"]), "lo_simultaneous": float(orow["lo_sharpe_simultaneous"]),
+               "family_size": oracle_res["family_size"], "critical": oracle_res["critical"]},
+    "paired_family": {k: {"critical": SC_["paired_critical"], "size": SC_["paired_family_size"]} for k, SC_ in (("all", full), ("young", young), ("old", old))},
 }
 Path("_build/manifest_38.json").write_text(json.dumps(manifest, indent=1, default=str))
 print("wrote _build/manifest_38.json")
