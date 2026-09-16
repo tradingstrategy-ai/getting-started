@@ -98,8 +98,7 @@ YOUNG_DAYS = 360
 DRAWS = 500
 #: Date blocks must be at least as long as the forward horizon (60 days = 30 decisions) so that
 #: overlapping outcomes stay together inside a block; blocks are NOT wrapped circularly, because
-#: joining July 2026 to July 2025 would splice two polling regimes. 45 decisions (90 days) is an
-#: intermediate sensitivity; the 180-day score persistence is covered only by DATE_BLOCK_LONG.
+#: joining July 2026 to July 2025 would splice two polling regimes. 45 is run as a sensitivity.
 DATE_BLOCK = 30
 DATE_BLOCK_SENSITIVITY = 45
 #: 90 decisions = 180 days, the longest trailing-score window. With 192 decisions this leaves
