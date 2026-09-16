@@ -1,6 +1,7 @@
 """Generate NB37's heading from _build/manifest_37.json. Every number from the manifest; the
 qualitative claims are asserted so the prose cannot outlive a different result."""
 import json
+import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -41,6 +42,8 @@ assert S[NALL]["max_dd"] > -0.02 and S[NALL]["cycle_vol"] < 0.06
 assert S[f"{C}_nall_equal"]["cagr"] < 0
 assert G["thr150"]["gate_2_mask"] and not G["thr150"]["gate_6_plateau"]
 assert G["thr200"]["verdict"].startswith("NOT CONFIRMED")
+assert S["thr250"]["inert"] and S["thr250"]["max_abs_cycle_return_diff"] < 1e-12
+assert all(G[l]["verdict"].startswith(("REJECT", "UNEVALUATED", "NOT CONFIRMED", "PASSES STANDING")) for l in G)
 best6 = max((l for l in S if S[l]["mean_holdings"] > 5.5 and l != "anchor"), key=lambda l: S[l]["cycle_sharpe"])
 nall_gate7_segment = [k for k in ("sparse_cagr", "dense_cagr", "late_cagr") if S[NALL][k] <= 0]
 
@@ -84,14 +87,18 @@ for the rankers, [02-better-format.ipynb](02-better-format.ipynb) as the anchor.
 **1. The calibration knee is not where this book earns its return.** The vault-level crash rate
 triples at 100% annualised volatility, but the incumbent's return comes from vaults between
 50% and 150%. Threshold 1.0 removes {S["thr100"]["crash_excluded_mean"]:.0f} names per decision, changes
-the book on {S["thr100"]["decisions_changed"]:.0f} of 126 decisions, halves the volatility ({vol("thr100")}
-against {vol("anchor")}) and the drawdown ({dd("thr100")} against {dd("anchor")}) - and gives up
+the book on {S["thr100"]["decisions_changed"]:.0f} of 126 decisions, cuts the volatility by
+{pc(1 - S["thr100"]["cycle_vol"] / A["cycle_vol"])} ({vol("thr100")} against {vol("anchor")}) and the drawdown by
+{pc(1 - S["thr100"]["max_dd"] / A["max_dd"])} ({dd("thr100")} against {dd("anchor")}) - and gives up
 {pc(S["anchor"]["cagr"] - S["thr100"]["cagr"])} of CAGR for a LOWER Sharpe ({sh("thr100")} against {sh("anchor")}),
 with mask retention {f3(G["thr100"]["mask_retention"])} below the 0.70 bar (cells 27, 33). The family
 runs {sh("thr075")} / {sh("thr100")} / {sh("thr150")} / {sh("thr200")} / {sh("thr250")} in Sharpe at 0.75 / 1.0 /
-1.5 / 2.0 / 2.5; at 2.5 the filter changes no decision at all - the {S["thr250"]["crash_excluded_mean"]:.1f}
-names it removes per decision are ones the ranker never picked (cell 27). The best of the family,
-1.5, is `measured_8` restated: {cg("thr150")} / {sh("thr150")} / {dd("thr150")}, {S["thr150"]["decisions_changed"]:.0f}
+1.5 / 2.0 / 2.5; at 2.5 the filter changes no decision and no cycle return (max difference
+{S["thr250"]["max_abs_cycle_return_diff"]:.1e}) - the {S["thr250"]["crash_excluded_mean"]:.1f} names it removes per decision are
+ones the ranker never picked (cell 27). The best of the family, 1.5, is the threshold analogue
+of `measured_8` (which excluded exactly eight measurable names per decision and reached 2.374;
+this excludes {S["thr150"]["crash_excluded_min"]:.0f}-{S["thr150"]["crash_excluded_max"]:.0f}, mean
+{S["thr150"]["crash_excluded_mean"]:.1f}): {cg("thr150")} / {sh("thr150")} / {dd("thr150")}, {S["thr150"]["decisions_changed"]:.0f}
 decisions changed, mask retention {f3(G["thr150"]["mask_retention"])}, better than the anchor on both
 extra windows (window A {pc(W[WA]["thr150"]["cumulative_return"])} / {f2(W[WA]["thr150"]["cycle_sharpe"])} /
 {pc(W[WA]["thr150"]["max_dd"])}, window B {pc(W[WB]["thr150"]["cumulative_return"])} / {f2(W[WB]["thr150"]["cycle_sharpe"])} /
@@ -110,8 +117,9 @@ ratio of {f3(S["nocap"]["luck_ratio"])} (cell 27). With the 1.0 filter on top it
 {sh("thr100_nocap")}, with 1.5 it is {cg(f"{C}_nocap")} / {sh(f"{C}_nocap")}. The cap is doing real work:
 it stops the sizer from making one quiet vault the whole book.
 
-**3. Fewer names is worse at every N below six, and one name is a losing strategy.** With the
-cap off (the only way a one-name book can exist), CAGR / Sharpe / max drawdown (cell 29):
+**3. Below six names the book is worse on drawdown and concentration at every N, one name is
+a losing strategy, and the one high number is a spike.** With the cap off (the only way a
+one-name book can exist), CAGR / Sharpe / max drawdown (cell 29):
 
 {n_table()}
 
@@ -122,20 +130,26 @@ every filter. N = 4 with filter 1.5 posts the notebook's highest CAGR and Sharpe
 {pc(S[f"{C}_n4"]["mean_largest_weight"])}, top five positions {pc(S[f"{C}_n4"]["top5_gross_share"])} of gross
 profit, top vault {pc(S[f"{C}_n4"]["top_vault_pnl_share"])} of positive P&L, drawdown {dd(f"{C}_n4")}, held-book
 volatility above the anchor's (gate 3), and a step from N = 3 ({sh(f"{C}_n3")}) that fails the
-plateau by {f2(S[f"{C}_n4"]["cycle_sharpe"] - S[f"{C}_n3"]["cycle_sharpe"])} (cell 33). Every N < 6 run fails at
-least two standing gates.
+plateau by {f2(S[f"{C}_n4"]["cycle_sharpe"] - S[f"{C}_n3"]["cycle_sharpe"])} (cell 33). Gate status, not raw outcome:
+every N < 6 run is REJECTED on at least one standing gate - {"; ".join(f"{l}: {G[l]['failed_standing_gates']}" for l in sorted(G) if re.search(r"_n[1-4]$", l))} -
+and none had the mask run.
 
-**4. Holding every survivor of the filter, sized by inverse variance, is a different strategy
-- and it is the stable-curve shape this track was asked for.** `{NALL}`: {cg(NALL)} CAGR,
-cycle volatility {vol(NALL)}, ulcer {f3(S[NALL]["ulcer"])}, max drawdown {dd(NALL)}, {S[NALL]["mean_holdings"]:.0f}
-names on average, largest {pc(S[NALL]["mean_largest_weight"])}, turnover {pc(S[NALL]["turnover_per_decision"])}
-per decision (cell 29). That is a third of the anchor's volatility and a quarter of its drawdown
+**4. An uncapped candidate set sized by inverse variance is a different strategy - and it is
+the stable-curve shape this track was asked for.** `{NALL}` makes every filter survivor a
+candidate ({S[NALL]["crash_survivors_mean"]:.0f} per decision on average) and lets the sizer allocate: the
+TVL size limit, the 0.5% weight epsilon and the trade thresholds truncate the inverse-variance
+tail, so it actually holds {S[NALL]["mean_holdings"]:.0f} names on average, the largest at
+{pc(S[NALL]["mean_largest_weight"])}, with turnover {pc(S[NALL]["turnover_per_decision"])} per decision (cell 29).
+Result: {cg(NALL)} CAGR, cycle volatility {vol(NALL)}, ulcer {f3(S[NALL]["ulcer"])}, max drawdown {dd(NALL)}. That is a third of the anchor's volatility and a quarter of its drawdown
 for a quarter of its return, with a Sharpe of {sh(NALL)} that sits {f2(A["cycle_sharpe"] - S[NALL]["cycle_sharpe"])}
 below the anchor's. It fails gate 7 ({", ".join(k.replace("_cagr", "") for k in nall_gate7_segment)} CAGR
 {", ".join(pc(S[NALL][k]) for k in nall_gate7_segment)}) and its best cycle is {pc(CC[NALL]["best_cycle"])} of a
-{pc(CC[NALL]["total_log_return"])} total log return, kurtosis {CC[NALL]["kurtosis"]:.0f} (cell 37). The same book
-equal-weighted is a disaster ({cg(f"{C}_nall_equal")} CAGR): holding {S[f"{C}_nall_equal"]["mean_holdings"]:.0f} names
-equally is holding the junk. The inverse-variance version is not a competitor to the
+{pc(CC[NALL]["total_log_return"])} total log return, kurtosis {CC[NALL]["kurtosis"]:.0f} (cell 37). The same
+candidate set equal-weighted produced {cg(f"{C}_nall_equal")} CAGR under this implementation, holding
+{S[f"{C}_nall_equal"]["mean_holdings"]:.0f} names with {S[f"{C}_nall_equal"]["trades"]:.0f} trades against the inverse-variance
+book's {S[NALL]["trades"]:.0f} (cell 29); the notebook does not decompose that loss between constituent
+selection, turnover, fees and residual-size handling, so no cause is claimed. The
+inverse-variance version is not a competitor to the
 incumbent on the incumbent's objective; it is a low-volatility product, and it has not been
 designed or gated as one. It should get its own plan with its own objective (target volatility,
 drawdown, minimum return) rather than be judged against a 2.16 Sharpe here.
@@ -145,11 +159,14 @@ the cap kept, `cagr_sharpe_weight` with inverse variance is the best six-name Sh
 notebook ({cg(BEST)} / {sh(BEST)}, window B {pc(W[WB][BEST]["cumulative_return"])} /
 {f2(W[WB][BEST]["cycle_sharpe"])}) and fails the mask at {f3(G[BEST]["mask_retention"])} retention, with
 {S[BEST]["decisions_changed"]:.0f} decisions changed from the anchor; on window A it is below the anchor
-({pc(W[WA][BEST]["cumulative_return"])} / {f2(W[WA][BEST]["cycle_sharpe"])}) (cells 31, 33, 35). Equal weighting
-costs 20 or more CAGR points under every ranker; `inverse_vol` (k = 1) is a little worse than
-inverse variance (k = 2) everywhere; `cagr_downside_weight` and `calm_score` lose money or
-nearly so, as NB32 found (cell 31). Nothing in this part passes the standing gates and beats
-the anchor.
+({pc(W[WA][BEST]["cumulative_return"])} / {f2(W[WA][BEST]["cycle_sharpe"])}) (cells 31, 33, 35). Under the two
+rankers that earn anything, equal weighting costs 20 or more CAGR points ({cg(f"{C}_cagr_sortino__equal")}
+and {cg(f"{C}_cagr_sharpe__equal")} against {cg(C)} and {cg(BEST)}) and `inverse_vol` (k = 1) is below
+inverse variance (k = 2) on Sharpe ({sh(f"{C}_cagr_sortino__inverse_vol")} and {sh(f"{C}_cagr_sharpe__inverse_vol")}
+against {sh(C)} and {sh(BEST)}); under `cagr_downside_weight` and `calm_score` every weighter loses
+money or nearly so ({cg(f"{C}_cagr_downside__inverse_variance")} to {cg(f"{C}_cagr_downside__equal")}, and
+{cg(f"{C}_calm__inverse_variance")} to {cg(f"{C}_calm__equal")}), as NB32 found, and the weighter ordering
+reverses there (cell 31). Nothing in this part passes every standing gate and beats the anchor.
 
 ## Summary of results
 
@@ -162,8 +179,8 @@ Standing-gate scorecard, six-name books (cell 33; CAGR / Sharpe / vol / max DD f
 | thr100 (pre-stated) | {cg("thr100")} / {sh("thr100")} / {vol("thr100")} / {dd("thr100")} | ✓ | ✓ | ✓ | ✗ | ✗ {f3(G["thr100"]["mask_retention"])} | REJECT |
 | thr150 (centre) | {cg("thr150")} / {sh("thr150")} / {vol("thr150")} / {dd("thr150")} | ✓ | ✓ | ✓ | ✗ (cliff at 1.0) | ✓ {f3(G["thr150"]["mask_retention"])} | REJECT by gate 6; economically NOT CONFIRMED |
 | thr200 | {cg("thr200")} / {sh("thr200")} / {vol("thr200")} / {dd("thr200")} | ✓ | ✓ | ✓ | ✓ | ✓ {f3(G["thr200"]["mask_retention"])} | NOT CONFIRMED, below the anchor |
-| thr250 | inert (= anchor) | | | | | | no effect |
-| nocap | {cg("nocap")} / {sh("nocap")} / {vol("nocap")} / {dd("nocap")} | ✓ | ✓ | ✓ | - | not run | worse than the anchor |
+| thr250 | inert (= anchor) | ✓ | ✓ | ✗ (equal, not lower) | ✓ | not run | NO EFFECT |
+| nocap | {cg("nocap")} / {sh("nocap")} / {vol("nocap")} / {dd("nocap")} | ✓ | ✓ | ✓ | - | not run | UNEVALUATED; below the anchor |
 | {BEST} | {cg(BEST)} / {sh(BEST)} / {vol(BEST)} / {dd(BEST)} | ✓ | ✓ | ✓ | - | ✗ {f3(G[BEST]["mask_retention"])} | REJECT |
 | {NALL} | {cg(NALL)} / {sh(NALL)} / {vol(NALL)} / {dd(NALL)} | ✓ | ✗ | ✓ | - | {("✓ " + f3(G[NALL]["mask_retention"])) if G[NALL].get("gate_2_mask") else ("✗ " + f3(G[NALL]["mask_retention"]) if G[NALL].get("mask_retention") == G[NALL].get("mask_retention") else "not run")} | different objective; own plan |
 
@@ -181,14 +198,15 @@ Windows (cell 35): thr150 beats the anchor on A ({pc(W[WA]["thr150"]["cumulative
 ## Robustness of results
 
 - Anchor parity at 1e-5 with the crash splice present and off (cell 25); threshold 2.5 is
-  bit-identical to the anchor on every cycle (cell 27), so the splice is inert when it excludes
-  nothing the ranker would pick.
+  inert against the anchor - `inert` True, max cycle-return difference
+  {S["thr250"]["max_abs_cycle_return_diff"]:.1e} on the shared cycle clock (cell 27) - so the splice changes nothing
+  when it excludes nothing the ranker would pick.
 - Basket differences are measured from the position statistics directly (`basket_difference`),
   not from a log the filter does not write.
 - The centre for Parts 2-3 was chosen on this window by Sharpe (cell 27). Everything downstream
   of it is exploratory, and the pre-stated 1.0 was run through Parts 2 and 5 regardless.
-- The single-vault mask was run for {len(m["lovo_labels"])} configurations; every other gate-2 cell is
-  "not run", which is absent from the verdict, not a failure.
+- The single-vault mask was run for {len(m["lovo_labels"])} configurations; every other run's verdict is
+  UNEVALUATED on gate 2 (and on gate 6 where there is no ordered axis) - never a pass.
 - The luck ratio is undefined (NaN) for most runs that change the book heavily; gate 4 within
   tolerance holds only for {", ".join(l for l in G if G[l]["diag_4_luck_within_tolerance"])} (cell 33).
 - Same limits as the whole track: one window, overlapping sub-windows, the same 126 decisions;

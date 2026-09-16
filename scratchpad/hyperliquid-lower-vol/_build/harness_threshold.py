@@ -46,14 +46,19 @@ def crash_stats(entry: dict) -> dict:
     log = entry.get("crash_log") or {}
     if not log:
         return {"crash_decisions": 0, "crash_excluded_mean": float("nan"), "crash_excluded_min": np.nan,
-                "crash_excluded_max": np.nan, "crash_excluded_held_total": 0, "crash_measured_share": float("nan")}
+                "crash_excluded_max": np.nan, "crash_excluded_held_total": 0, "crash_measured_share": float("nan"),
+                "crash_survivors_mean": float("nan")}
     excluded = np.array([r["excluded_count"] for r in log.values()], dtype=float)
     pools = np.array([r["pool_size"] for r in log.values()], dtype=float)
     measured = np.array([r["measured_count"] for r in log.values()], dtype=float)
     return {"crash_decisions": len(log), "crash_excluded_mean": float(excluded.mean()),
             "crash_excluded_min": int(excluded.min()), "crash_excluded_max": int(excluded.max()),
             "crash_excluded_held_total": int(sum(r["excluded_held"] for r in log.values())),
-            "crash_measured_share": float((measured / np.maximum(pools, 1)).mean())}
+            "crash_measured_share": float((measured / np.maximum(pools, 1)).mean()),
+            # Survivors of the filter = the candidate set the ranker and sizer then see. For an
+            # "unlimited" book this is the UPPER bound on holdings; the sizer's TVL caps, the
+            # 0.5% weight epsilon and the trade thresholds decide how many are actually held.
+            "crash_survivors_mean": float((pools - excluded).mean())}
 
 
 def basket_difference(entry: dict, reference_label: str = "anchor") -> dict:
@@ -67,8 +72,10 @@ def basket_difference(entry: dict, reference_label: str = "anchor") -> dict:
     changed = sum(1 for t in common if mine[t] != theirs[t])
     aligned = pd.concat([entry["cycle_returns"].rename("a"), base["cycle_returns"].rename("b")], axis=1).dropna()
     identical = bool(len(aligned) and np.allclose(aligned["a"], aligned["b"], atol=1e-12))
+    max_diff = float((aligned["a"] - aligned["b"]).abs().max()) if len(aligned) else float("nan")
     return {"decisions_compared": len(common), "decisions_changed": changed,
-            "share_of_decisions_changed": (changed / len(common)) if common else float("nan"), "inert": identical}
+            "share_of_decisions_changed": (changed / len(common)) if common else float("nan"),
+            "cycles_compared": int(len(aligned)), "max_abs_cycle_return_diff": max_diff, "inert": identical}
 
 
 def summary_row(label: str, anchor_label: str = "anchor") -> dict:
@@ -126,16 +133,21 @@ def standing_gates(label: str, neighbours: list, anchor_label: str = "anchor", r
         out["gate_2_mask"] = None
         out["mask_retention"] = float("nan")
         out["masked"] = "not run"
-    scored = {k: v for k, v in out.items() if k.startswith("gate_") and v is not None}
+    STANDING = ("gate_1_positive", "gate_7_subperiod", "gate_3_held_vol", "gate_6_plateau", "gate_2_mask")
+    scored = {k: out[k] for k in STANDING if out[k] is not None}
+    unrun = [k for k in STANDING if out[k] is None]
     failed = [k for k, v in scored.items() if not v]
     out["failed_standing_gates"] = ", ".join(failed)
     out["standing_gates_scored"] = ", ".join(scored)
+    out["standing_gates_not_run"] = ", ".join(unrun)
     sharpe_gap = float(row["cycle_sharpe"]) - float(anchor["cycle_sharpe"])
     out["sharpe_gap_to_anchor"] = sharpe_gap
+    # A gate that was not run is UNEVALUATED, never passed: a run with any standing gate unrun
+    # cannot receive a passing verdict, and a REJECT names the gate it rests on.
     if failed:
         out["verdict"] = "REJECT"
-    elif out["gate_2_mask"] is None:
-        out["verdict"] = "PASSES SCORED GATES (mask not run)"
+    elif unrun:
+        out["verdict"] = "UNEVALUATED (" + ", ".join(unrun) + " not run)"
     elif abs(sharpe_gap) <= INDIFFERENCE_BAND:
         out["verdict"] = "NOT CONFIRMED (inside indifference band)"
     else:
