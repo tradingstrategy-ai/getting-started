@@ -36,8 +36,9 @@ masked or tuned by name.
 
 Marks: one per vault per UTC day (the last poll of the day). Events: consecutive marks; event
 return = log price ratio; event span = days between them. A candidate at decision T needs, in
-the trailing window (T-1-W, T-1] for W in 90 and 180 days, at least 8 marks, its last mark within
-14 days of T-1, and a TVL of at least 7,500 USD at that mark. Scores per window: return score
+the trailing window (T-1-W, T-1] for W in 90 and 180 days, at least 8 event returns (9 marks) and a
+mark at or before the window start, its last mark within 14 days of T-1, and a TVL of at least
+7,500 USD at that mark. Scores per window: return score
 (sum of event returns, annualised over W; raw and with the best 10% and 25% of events removed),
 Sharpe score (return score over event volatility sqrt(sum r^2 / W x 365), raw and trimmed the
 same way), Sortino, event volatility, mark count. Forward outcomes over (T, T + H] for H = 60
@@ -100,6 +101,10 @@ DRAWS = 500
 #: joining July 2026 to July 2025 would splice two polling regimes. 45 is run as a sensitivity.
 DATE_BLOCK = 30
 DATE_BLOCK_SENSITIVITY = 45
+#: 90 decisions = 180 days, the longest trailing-score window. With 192 decisions this leaves
+#: about two blocks per draw, so its bounds are as much a statement about the sample size as
+#: about the dependence; it is run because no shorter block covers the score persistence.
+DATE_BLOCK_LONG = 90
 SEED = 20260917
 LEVEL = 0.95
 REGIMES = [("weekly 2025", pd.Timestamp("2025-01-01"), pd.Timestamp("2026-01-01")),
@@ -422,12 +427,15 @@ print(f"\\nprimary family: {full['family_size']} signals, critical {full['critic
 display(full["table"][TABLE_COLS].round(4))
 # Sensitivity to the block length: 45 decisions (90 days), the trailing-score persistence length.
 full45 = screen(panel, "all regimes, block 45", verbose=False, block=DATE_BLOCK_SENSITIVITY)
+full90 = screen(panel, "all regimes, block 90", verbose=False, block=DATE_BLOCK_LONG)
 sens = pd.DataFrame({"rho": full["table"][f"rho_{PRIMARY}"], "lo_block30": full["table"]["lo_primary_simultaneous"],
-                     "lo_block45": full45["table"]["lo_primary_simultaneous"], "se_block30": full["table"]["se_primary"],
-                     "se_block45": full45["table"]["se_primary"]})
-sens["clears_block30"] = sens["lo_block30"] > 0; sens["clears_block45"] = sens["lo_block45"] > 0
-print(f"\\nblock-length sensitivity (critical {full['critical']:.3f} at 30, {full45['critical']:.3f} at 45): "
-      f"{int(sens['clears_block30'].sum())} signals clear at block 30, {int(sens['clears_block45'].sum())} at block 45")
+                     "lo_block45": full45["table"]["lo_primary_simultaneous"], "lo_block90": full90["table"]["lo_primary_simultaneous"],
+                     "se_block30": full["table"]["se_primary"], "se_block45": full45["table"]["se_primary"], "se_block90": full90["table"]["se_primary"]})
+for b in (30, 45, 90):
+    sens[f"clears_block{b}"] = sens[f"lo_block{b}"] > 0
+print(f"\\nblock-length sensitivity (critical {full['critical']:.3f} at 30, {full45['critical']:.3f} at 45, {full90['critical']:.3f} at 90 decisions): "
+      f"{int(sens['clears_block30'].sum())} signals clear at block 30, {int(sens['clears_block45'].sum())} at 45, {int(sens['clears_block90'].sum())} at 90 "
+      f"(90 decisions = 180 days = the longest trailing window; {math.ceil(len(full['boot']['dates']) / DATE_BLOCK_LONG)} blocks per draw)")
 display(sens.round(4))
 print(f"\\nPAIRED trimmed - raw on {PRIMARY} (per-comparison 95% intervals; simultaneous lower bound over the "
       f"{full['paired_family_size']} paired comparisons, critical {full['paired_critical']:.4f}):")
@@ -503,7 +511,7 @@ manifest = {
     "constants": {"windows": list(WINDOWS), "trim_fractions": list(TRIM_FRACTIONS), "horizons": {str(k): v for k, v in HORIZONS.items()},
                   "primary": PRIMARY, "panel_start": str(PANEL_START.date()), "min_tvl_usd": MIN_TVL_USD, "min_events": MIN_EVENTS,
                   "stale_days": STALE_DAYS, "min_candidates": MIN_CANDIDATES, "min_dates": MIN_DATES, "young_days": YOUNG_DAYS,
-                  "draws": DRAWS, "date_block": DATE_BLOCK, "date_block_sensitivity": DATE_BLOCK_SENSITIVITY, "seed": SEED},
+                  "draws": DRAWS, "date_block": DATE_BLOCK, "date_block_sensitivity": DATE_BLOCK_SENSITIVITY, "date_block_long": DATE_BLOCK_LONG, "seed": SEED},
     "regimes": [(n, str(a.date()), str(b.date())) for n, a, b in REGIMES],
     "density": dens.round(6).reset_index().astype({"month": str}).to_dict(orient="records"),
     "panel": {"rows": int(len(panel)), "vaults": int(panel["address"].nunique()), "decisions": int(panel["date"].nunique()),
@@ -511,7 +519,7 @@ manifest = {
     "dropped": dropped,
     "by_regime": by_regime.round(6).to_dict(orient="index"),
     "coverage": coverage["finite_share"].round(6).to_dict(),
-    "screens": {"all": table_records(full), "all_block45": table_records(full45),
+    "screens": {"all": table_records(full), "all_block45": table_records(full45), "all_block90": table_records(full90),
                 **{n: table_records(r) for n, r in by_regime_screens.items()},
                 "young": table_records(young), "old": table_records(old)},
     "block_sensitivity": sens.round(6).to_dict(orient="index"),
