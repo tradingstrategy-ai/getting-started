@@ -665,19 +665,21 @@
    "critical": 2.2812325435208565,
    "family_size": 16,
    "complete_draws": 500,
-   "paired_critical": 2.331188865584239,
+   "paired_critical": 2.3311888655842394,
    "paired_family_size": 8,
    "rows": 29912,
    "decisions": 192,
    "block": 30,
    "coverage": {
-    "coverage_min": 0.9234945802923299,
-    "coverage_max": 1.1066826667715854,
-    "coverage_first": 1.014710916137155,
-    "coverage_last": 0.9998544252749199,
-    "coverage_ends": 1.0072826707060374,
-    "coverage_middle": 0.9966896951336193,
-    "draw_length_mean": 203.332
+    "coverage_min": 0.9228997316717416,
+    "coverage_max": 1.1021000413926114,
+    "coverage_first": 1.0149080033214648,
+    "coverage_last": 1.0003417721255525,
+    "coverage_ends": 1.0076248877235088,
+    "coverage_middle": 0.99653414194386,
+    "draw_length_mean": 203.332,
+    "raw_inclusion_min": 0.9234945802923299,
+    "raw_inclusion_max": 1.1066826667715854
    }
   },
   "all_block45": {
@@ -1096,19 +1098,21 @@
    "critical": 2.3865267835239248,
    "family_size": 16,
    "complete_draws": 500,
-   "paired_critical": 2.2505913426062985,
+   "paired_critical": 2.2505913426062993,
    "paired_family_size": 8,
    "rows": 29912,
    "decisions": 192,
    "block": 45,
    "coverage": {
-    "coverage_min": 0.8907804681658711,
-    "coverage_max": 1.0895496635417266,
-    "coverage_first": 1.0259108018123373,
-    "coverage_last": 1.0474645808170857,
-    "coverage_ends": 1.0366876913147114,
-    "coverage_middle": 0.96762850766349,
-    "draw_length_mean": 208.644
+    "coverage_min": 0.8849768334726842,
+    "coverage_max": 1.0904407864955747,
+    "coverage_first": 1.0280874444061032,
+    "coverage_last": 1.0505736865007367,
+    "coverage_ends": 1.0393305654534202,
+    "coverage_middle": 0.965296559894041,
+    "draw_length_mean": 208.644,
+    "raw_inclusion_min": 0.8907804681658711,
+    "raw_inclusion_max": 1.0895496635417266
    }
   },
   "all_block90": {
@@ -1527,19 +1531,21 @@
    "critical": 2.4648561459984184,
    "family_size": 16,
    "complete_draws": 500,
-   "paired_critical": 2.196624439155878,
+   "paired_critical": 2.1966244391558787,
    "paired_family_size": 8,
    "rows": 29912,
    "decisions": 192,
    "block": 90,
    "coverage": {
-    "coverage_min": 0.9361456226524125,
-    "coverage_max": 1.0921698930944812,
-    "coverage_first": 1.0005393431570835,
-    "coverage_last": 1.0021188481171146,
-    "coverage_ends": 1.001329095637099,
-    "coverage_middle": 0.9800635654435134,
-    "draw_length_mean": 221.504
+    "coverage_min": 0.9268338827777445,
+    "coverage_max": 1.1097733217899437,
+    "coverage_first": 1.0014258833600176,
+    "coverage_last": 1.00237676694282,
+    "coverage_ends": 1.0019013251514188,
+    "coverage_middle": 0.9714801227287172,
+    "draw_length_mean": 221.504,
+    "raw_inclusion_min": 0.9361456226524125,
+    "raw_inclusion_max": 1.0921698930944812
    }
   },
   "weekly 2025": {
@@ -1964,13 +1970,15 @@
    "decisions": 62,
    "block": 30,
    "coverage": {
-    "coverage_min": 0.9420768057673644,
-    "coverage_max": 1.0349091917371411,
-    "coverage_first": 1.0149101159942695,
-    "coverage_last": 0.9855704977124635,
-    "coverage_ends": 1.0002403068533665,
-    "coverage_middle": 0.9927907943990018,
-    "draw_length_mean": 72.13
+    "coverage_min": 0.9508264932563513,
+    "coverage_max": 1.0465021996243866,
+    "coverage_first": 1.0151641238055251,
+    "coverage_last": 0.9861236097586664,
+    "coverage_ends": 1.0006438667820956,
+    "coverage_middle": 0.9806839965371299,
+    "draw_length_mean": 72.13,
+    "raw_inclusion_min": 0.9420768057673644,
+    "raw_inclusion_max": 1.0349091917371411
    }
   },
   "dense Apr 2026 on": {
@@ -2386,7 +2394,7 @@
      "se": 0.089882
     }
    ],
-   "critical": 2.466131203699677,
+   "critical": 2.4661312036996783,
    "family_size": 16,
    "complete_draws": 500,
    "paired_critical": 2.3825060736339885,
@@ -2395,13 +2403,15 @@
    "decisions": 55,
    "block": 30,
    "coverage": {
-    "coverage_min": 0.9278590735390064,
-    "coverage_max": 1.0850653990741603,
-    "coverage_first": 0.9619774028852228,
-    "coverage_last": 1.0330050434440408,
-    "coverage_ends": 0.9974912231646317,
+    "coverage_min": 0.9235962673222234,
+    "coverage_max": 1.0867506903151782,
+    "coverage_first": 0.9608535681933948,
+    "coverage_last": 1.0354697686755634,
+    "coverage_ends": 0.9981616684344791,
     "coverage_middle": NaN,
-    "draw_length_mean": 64.374
+    "draw_length_mean": 64.374,
+    "raw_inclusion_min": 0.9278590735390064,
+    "raw_inclusion_max": 1.0850653990741603
    }
   },
   "young": {
@@ -2817,7 +2827,7 @@
      "se": 0.051851
     }
    ],
-   "critical": 2.424440865553487,
+   "critical": 2.4244408655534873,
    "family_size": 16,
    "complete_draws": 500,
    "paired_critical": 2.218347388674118,
@@ -2826,13 +2836,15 @@
    "decisions": 192,
    "block": 30,
    "coverage": {
-    "coverage_min": 0.9120603015075378,
-    "coverage_max": 1.1287688442211057,
-    "coverage_first": 0.9868090452261306,
-    "coverage_last": 0.9831658291457288,
-    "coverage_ends": 0.9849874371859297,
-    "coverage_middle": 1.006823892188214,
-    "draw_length_mean": 203.776
+    "coverage_min": 0.9105243329811266,
+    "coverage_max": 1.1301208252948771,
+    "coverage_first": 0.9870629083488287,
+    "coverage_last": 0.9834535951259272,
+    "coverage_ends": 0.9852582517373779,
+    "coverage_middle": 1.0067007946648283,
+    "draw_length_mean": 203.776,
+    "raw_inclusion_min": 0.9120603015075378,
+    "raw_inclusion_max": 1.1287688442211057
    }
   },
   "old": {
@@ -3248,7 +3260,7 @@
      "se": 0.067678
     }
    ],
-   "critical": 2.269990956808914,
+   "critical": 2.2699909568089143,
    "family_size": 16,
    "complete_draws": 500,
    "paired_critical": 2.267108380735693,
@@ -3257,13 +3269,15 @@
    "decisions": 192,
    "block": 30,
    "coverage": {
-    "coverage_min": 0.94480424191434,
-    "coverage_max": 1.0762879336320414,
-    "coverage_first": 0.9754837699818037,
-    "coverage_last": 0.9973977186014203,
-    "coverage_ends": 0.986440744291612,
-    "coverage_middle": 1.0061632980492674,
-    "draw_length_mean": 204.436
+    "coverage_min": 0.9452547334944972,
+    "coverage_max": 1.0791409845507283,
+    "coverage_first": 0.9765899292770189,
+    "coverage_last": 0.9975827119735541,
+    "coverage_ends": 0.9870863206252866,
+    "coverage_middle": 1.0058698542612332,
+    "draw_length_mean": 204.436,
+    "raw_inclusion_min": 0.94480424191434,
+    "raw_inclusion_max": 1.0762879336320414
    }
   }
  },

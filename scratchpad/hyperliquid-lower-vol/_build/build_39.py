@@ -313,44 +313,55 @@ cells.append(code('''def per_date_blocks(frame: pd.DataFrame) -> dict:
     return out
 
 
-def _spearman(x: np.ndarray, y: np.ndarray) -> float:
-    xr, yr = rankdata(x), rankdata(y)
-    if np.ptp(xr) == 0 or np.ptp(yr) == 0:
-        return float("nan")
-    xc, yc = xr - xr.mean(), yr - yr.mean()
-    return float((xc * yc).sum() / math.sqrt((xc ** 2).sum() * (yc ** 2).sum()))
-
-
 def date_statistics(values: np.ndarray) -> tuple:
     """Per-date signed Spearman for every (signal, target) on each pair's own complete cases, plus
-    the MATCHED paired statistics for the primary target: for each (raw, trimmed) pair, both
-    Spearmans on the joint finite mask, returned as (raw, trimmed, difference, n)."""
+    the MATCHED paired statistics for the primary target (raw, trimmed, difference, n on the joint
+    finite mask). Exact: pairs that share a complete-case mask are ranked once on that subset
+    together, which gives the same ranks as ranking each pair separately."""
     S, T = len(SIGNAL_NAMES), len(TARGETS)
     out = np.full((S, T), np.nan)
-    targets = values[:, S:]
-    for i, name in enumerate(SIGNAL_NAMES):
-        x = values[:, i]
-        for j, target in enumerate(TARGETS):
-            y = targets[:, j]
-            ok = np.isfinite(x) & np.isfinite(y)
-            if ok.sum() < MIN_CANDIDATES:
-                continue
-            rho = _spearman(x[ok], y[ok])
-            if np.isfinite(rho):
-                out[i, j] = SIGNAL_SIGN[name] * TARGET_SIGN[target] * rho
-    pairs = np.full((len(PAIRS), 4), np.nan)
-    jp = TARGETS.index(PRIMARY)
-    y = targets[:, jp]
-    for k, (ia, ib) in enumerate(PAIR_INDEX):
-        xa, xb = values[:, ia], values[:, ib]
-        ok = np.isfinite(xa) & np.isfinite(xb) & np.isfinite(y)
-        if ok.sum() < MIN_CANDIDATES:
+    finite = np.isfinite(values)
+    sig_sign = np.array([SIGNAL_SIGN[nm] for nm in SIGNAL_NAMES])
+    tgt_sign = np.array([TARGET_SIGN[t] for t in TARGETS])
+    # Group (signal, target) pairs by their joint mask; rank the needed columns once per group.
+    groups = {}
+    for i in range(S):
+        for j in range(T):
+            key = np.packbits(finite[:, i] & finite[:, S + j]).tobytes()
+            groups.setdefault(key, (finite[:, i] & finite[:, S + j], [])) [1].append((i, j))
+    for mask, pairs in groups.values():
+        n_ok = int(mask.sum())
+        if n_ok < MIN_CANDIDATES:
             continue
-        ra, rb = _spearman(xa[ok], y[ok]), _spearman(xb[ok], y[ok])
-        if np.isfinite(ra) and np.isfinite(rb):
-            sign = SIGNAL_SIGN[SIGNAL_NAMES[ia]] * TARGET_SIGN[PRIMARY]
-            pairs[k] = (sign * ra, sign * rb, sign * (rb - ra), float(ok.sum()))
-    return out, pairs
+        cols = sorted({i for i, _ in pairs} | {S + j for _, j in pairs})
+        sub = values[mask][:, cols]
+        ranks = rankdata(sub, axis=0)
+        centred = ranks - ranks.mean(axis=0)
+        norms = np.sqrt((centred ** 2).sum(axis=0))
+        col_pos = {c: k for k, c in enumerate(cols)}
+        for i, j in pairs:
+            a, b = col_pos[i], col_pos[S + j]
+            if norms[a] == 0 or norms[b] == 0:
+                continue
+            out[i, j] = sig_sign[i] * tgt_sign[j] * float((centred[:, a] * centred[:, b]).sum() / (norms[a] * norms[b]))
+    pairs_out = np.full((len(PAIRS), 4), np.nan)
+    jp = S + TARGETS.index(PRIMARY)
+    for k, (ia, ib) in enumerate(PAIR_INDEX):
+        ok = finite[:, ia] & finite[:, ib] & finite[:, jp]
+        n_ok = int(ok.sum())
+        if n_ok < MIN_CANDIDATES:
+            continue
+        sub = values[ok][:, [ia, ib, jp]]
+        ranks = rankdata(sub, axis=0)
+        centred = ranks - ranks.mean(axis=0)
+        norms = np.sqrt((centred ** 2).sum(axis=0))
+        if norms[0] == 0 or norms[1] == 0 or norms[2] == 0:
+            continue
+        ra = float((centred[:, 0] * centred[:, 2]).sum() / (norms[0] * norms[2]))
+        rb = float((centred[:, 1] * centred[:, 2]).sum() / (norms[1] * norms[2]))
+        sign = SIGNAL_SIGN[SIGNAL_NAMES[ia]] * TARGET_SIGN[PRIMARY]
+        pairs_out[k] = (sign * ra, sign * rb, sign * (rb - ra), float(n_ok))
+    return out, pairs_out
 
 
 def mean_over_dates(blocks: dict, dates: list, counts: dict | None = None) -> tuple:
@@ -401,6 +412,7 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
     reps = np.full((draws,) + observed.shape, np.nan)
     pair_reps = np.full((draws,) + pair_observed.shape, np.nan)
     inclusion = np.zeros(n)
+    effective = np.zeros(n)     # sum over draws of multiplicity / draw length: the weight the statistic gives a date
     draw_lengths = []
     for d in range(draws):
         offset = int(rng.integers(0, block))
@@ -412,6 +424,7 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
             chosen.append(tiles[int(rng.integers(0, len(tiles)))])
         index = np.concatenate(chosen)          # whole tiles only; never truncated
         np.add.at(inclusion, index, 1)
+        np.add.at(effective, index, 1.0 / len(index))
         draw_lengths.append(len(index))
         drawn = rng.choice(len(vaults), size=len(vaults), replace=True)
         counts = {}
@@ -423,19 +436,26 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
     # Coverage check: with uniform tile selection and no truncation, every date's inclusion count
     # should be equal in expectation. Report the spread across dates relative to the mean and
     # fail if the ends of the archive are systematically under- or over-represented.
-    coverage = inclusion / inclusion.mean()
+    # Coverage is measured on the EFFECTIVE weight each date receives in the statistic: the
+    # per-draw mean over dates weights every occurrence by 1 / draw length, and draws differ in
+    # length because whole tiles are kept. Reported relative to the mean over dates; the first
+    # and last blocks are asserted separately, and every single date is asserted within a
+    # tolerance, so neither an asymmetric end bias nor an outlying date can hide in an average.
+    coverage = effective / effective.mean()
+    raw_coverage = inclusion / inclusion.mean()
     first, last = float(np.mean(coverage[:block])), float(np.mean(coverage[-block:]))
     ends = float(np.mean(np.concatenate([coverage[:block], coverage[-block:]])))
     middle = float(np.mean(coverage[block:-block])) if n > 2 * block else float("nan")
-    print(f"  coverage over {draws} draws: min {coverage.min():.3f}, max {coverage.max():.3f} of mean; first {block} dates {first:.3f}, "
-          f"last {block} dates {last:.3f}, middle {middle:.3f}; draw length mean {np.mean(draw_lengths):.1f} of {n} decisions")
-    # The first and last blocks are asserted SEPARATELY, so an asymmetric bias cannot cancel in an
-    # average; 0.15 of the mean is the tolerance for 500 draws of a random-offset tiling.
+    print(f"  effective coverage over {draws} draws: min {coverage.min():.3f}, max {coverage.max():.3f} of mean; first {block} dates "
+          f"{first:.3f}, last {block} dates {last:.3f}, middle {middle:.3f} (raw inclusion min {raw_coverage.min():.3f}, max "
+          f"{raw_coverage.max():.3f}); draw length mean {np.mean(draw_lengths):.1f} of {n} decisions")
     assert abs(first - 1.0) < 0.15 and abs(last - 1.0) < 0.15, f"tiled bootstrap misweights an end: first {first:.3f}, last {last:.3f}"
+    assert coverage.min() > 0.8 and coverage.max() < 1.2, f"a date's effective weight is outside 0.8-1.2 of the mean: {coverage.min():.3f}-{coverage.max():.3f}"
     return {"observed": observed, "draws": reps, "n_dates": n_dates, "dates": dates, "rows": len(frame),
             "pair_observed": pair_observed, "pair_draws": pair_reps, "pair_n": pair_n,
             "coverage_min": float(coverage.min()), "coverage_max": float(coverage.max()), "coverage_first": first,
-            "coverage_last": last, "coverage_ends": ends, "coverage_middle": middle, "draw_length_mean": float(np.mean(draw_lengths))}
+            "coverage_last": last, "coverage_ends": ends, "coverage_middle": middle, "draw_length_mean": float(np.mean(draw_lengths)),
+            "raw_inclusion_min": float(raw_coverage.min()), "raw_inclusion_max": float(raw_coverage.max())}
 
 
 def simultaneous_lower(observed: np.ndarray, reps: np.ndarray, level: float = LEVEL) -> dict:
@@ -592,7 +612,7 @@ cells.append(code('''def table_records(res):
             "critical": res["critical"], "family_size": res["family_size"], "complete_draws": res["complete_draws"],
             "paired_critical": res["paired_critical"], "paired_family_size": res["paired_family_size"],
             "rows": int(res["boot"]["rows"]), "decisions": int(len(res["boot"]["dates"])), "block": res["block"],
-            "coverage": {k: res["boot"][k] for k in ("coverage_min", "coverage_max", "coverage_first", "coverage_last", "coverage_ends", "coverage_middle", "draw_length_mean")}}
+            "coverage": {k: res["boot"][k] for k in ("coverage_min", "coverage_max", "coverage_first", "coverage_last", "coverage_ends", "coverage_middle", "draw_length_mean", "raw_inclusion_min", "raw_inclusion_max")}}
 
 manifest = {
     "verdict": "DIAGNOSTIC - a vault-level screen on the full archive, not a result",

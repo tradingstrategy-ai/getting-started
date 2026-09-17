@@ -114,7 +114,7 @@ Inference as NB38 with one change forced by the horizon: per-date signed Spearma
 over dates, one two-way cluster bootstrap of TILED, non-wrapping {m["constants"]["date_block"]}-decision (60-day)
 date blocks (a random offset per draw, every decision in exactly one tile, whole tiles resampled
 with replacement and never truncated; measured coverage of the first and last block of dates
-{f3(COV["all"]["coverage_first"])} and {f3(COV["all"]["coverage_last"])} of the mean against {f3(COV["all"]["coverage_middle"])} for the middle, cell 6) x vault clusters, {m["constants"]["draws"]} draws, seed {m["constants"]["seed"]}, shared across every hypothesis,
+{f3(COV["all"]["coverage_first"])} and {f3(COV["all"]["coverage_last"])} of the mean in effective weight against {f3(COV["all"]["coverage_middle"])} for the middle, cell 6) x vault clusters, {m["constants"]["draws"]} draws, seed {m["constants"]["seed"]}, shared across every hypothesis,
 studentised max-T simultaneous lower bounds over the 16-signal family on the primary target
 (critical {f2(SC["all"]["critical"])}), the same with {m["constants"]["date_block_sensitivity"]}-decision (90-day) tiles (critical
 {f2(SC["all_block45"]["critical"])}) and {m["constants"]["date_block_long"]}-decision (180-day) tiles (critical {f2(SC["all_block90"]["critical"])}; the
@@ -137,8 +137,8 @@ the 180-day Sharpe and Sortino scores: `sharpe180_f10` {f3(rho("all", "sharpe180
 Sortino scores correlate with forward RETURN at {f3(min(rret("all", "sharpe180_f00"), rret("all", "sortino180"), rret("all", "sharpe180_f10")))} to
 {f3(max(rret("all", "sharpe180_f00"), rret("all", "sortino180"), rret("all", "sharpe180_f10")))} and with 30-day forward Sharpe at {f3(min(r30("all", "sharpe180_f00"), r30("all", "sortino180"), r30("all", "sharpe180_f10")))} to
 {f3(max(r30("all", "sharpe180_f00"), r30("all", "sortino180"), r30("all", "sharpe180_f10")))}. NB38 saw {f3(n38)} for the 180-day Sharpe on {n38_dec} decisions at a 30-day horizon and
-could not clear a family bound (its manifest values are displayed in cell 6); this screen has three times the
-decisions and a horizon that holds enough marks. Going from 60- to 90-day tiles leaves the
+could not clear a family bound (its manifest values are displayed in cell 6); this screen has
+{P["decisions"] / n38_dec:.2f} times the decisions and a horizon that holds enough marks. Going from 60- to 90-day tiles leaves the
 passing set {"unchanged" if set(clear45) == set(clear_all) else "at " + str(len(clear45))} and moves individual bounds in both directions by at most
 {f3(max_shift)}; the 180-day tiles cover the trailing scores' own persistence but the archive holds only
 {block_equiv:.2f} of them, so their bounds are descriptive, not a robustness proof.
@@ -230,10 +230,13 @@ young {f3(rho("young", "sharpe180_f00"))} ({f3(lo("young", "sharpe180_f00"))}), 
 - The screen is reachable: a foresight oracle clears the 17-signal bound at
   {f3(OR["lo_simultaneous"])} (cell 8).
 - Date blocks are tiled 30-decision (60-day) blocks with a random offset per draw, no wrapping,
-  whole tiles never truncated; measured inclusion of the first / last block of dates is
+  whole tiles never truncated; the EFFECTIVE weight of a date (its multiplicity over the draw's
+  length, summed over draws) for the first / last block of dates is
   {f3(COV["all"]["coverage_first"])} / {f3(COV["all"]["coverage_last"])} of the mean at 60-day tiles, {f3(COV["all_block45"]["coverage_first"])} / {f3(COV["all_block45"]["coverage_last"])} at 90,
   {f3(COV["all_block90"]["coverage_first"])} / {f3(COV["all_block90"]["coverage_last"])} at 180 (each end asserted within 0.15 of 1.0), against
-  {f3(COV["all"]["coverage_middle"])} / {f3(COV["all_block45"]["coverage_middle"])} / {f3(COV["all_block90"]["coverage_middle"])} for the middle (cell 6). The passing set is {len(clear_all)} / {len(clear45)} / {len(clear90)} across the three. The 180-day tiles
+  {f3(COV["all"]["coverage_middle"])} / {f3(COV["all_block45"]["coverage_middle"])} / {f3(COV["all_block90"]["coverage_middle"])} for the middle, and every single date's
+  effective weight lies within {f3(min(c["coverage_min"] for c in COV.values()))}-{f3(max(c["coverage_max"] for c in COV.values()))} of the mean (asserted within 0.8-1.2)
+  (cell 6). The passing set is {len(clear_all)} / {len(clear45)} / {len(clear90)} across the three. The 180-day tiles
   match the longest trailing window but the archive holds {block_equiv:.2f} of them, so no block choice
   here is both long enough for the dependence and numerous enough for a well-behaved bootstrap;
   the bounds are the computed figures under each choice and are not claimed as controlled
