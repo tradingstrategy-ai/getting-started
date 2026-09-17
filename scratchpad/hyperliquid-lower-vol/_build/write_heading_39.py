@@ -52,7 +52,7 @@ assert PD["all"][("sharpe", 90, 0.25)]["difference"] < 0
 assert lo(WK, "sharpe180_f00") > 0
 assert OR["lo_simultaneous"] > 0
 n38 = m["nb38_reference"]["nb38_sharpe180_rho_fwd30_sharpe"]
-assert all(abs(c["coverage_ends"] - 1.0) < 0.15 for c in COV.values())
+assert all(abs(c["coverage_first"] - 1.0) < 0.15 and abs(c["coverage_last"] - 1.0) < 0.15 for c in COV.values())
 
 HEADING = f"""# NB39 - trimmed trailing scores on the full archive, in event time
 
@@ -114,7 +114,7 @@ Inference as NB38 with one change forced by the horizon: per-date signed Spearma
 over dates, one two-way cluster bootstrap of TILED, non-wrapping {m["constants"]["date_block"]}-decision (60-day)
 date blocks (a random offset per draw, every decision in exactly one tile, whole tiles resampled
 with replacement and never truncated; measured coverage of the first and last block of dates
-{f3(COV["all"]["coverage_ends"])} of the mean against {f3(COV["all"]["coverage_middle"])} for the middle, cell 6) x vault clusters, {m["constants"]["draws"]} draws, seed {m["constants"]["seed"]}, shared across every hypothesis,
+{f3(COV["all"]["coverage_first"])} and {f3(COV["all"]["coverage_last"])} of the mean against {f3(COV["all"]["coverage_middle"])} for the middle, cell 6) x vault clusters, {m["constants"]["draws"]} draws, seed {m["constants"]["seed"]}, shared across every hypothesis,
 studentised max-T simultaneous lower bounds over the 16-signal family on the primary target
 (critical {f2(SC["all"]["critical"])}), the same with {m["constants"]["date_block_sensitivity"]}-decision (90-day) tiles (critical
 {f2(SC["all_block45"]["critical"])}) and {m["constants"]["date_block_long"]}-decision (180-day) tiles (critical {f2(SC["all_block90"]["critical"])}; the
@@ -143,8 +143,10 @@ passing set {"unchanged" if set(clear45) == set(clear_all) else "at " + str(len(
 {f3(max_shift)}; the 180-day tiles cover the trailing scores' own persistence but the archive holds only
 {block_equiv:.2f} of them, so their bounds are descriptive, not a robustness proof.
 
-**2. No trim improvement is detected under a family bound.** The return-score trim at 90 days
-lifts the correlation from {f3(rho("all", "ret90_f00"))} to {f3(rho("all", "ret90_f10"))} (paired difference
+**2. No trim improvement is detected under a family bound.** Paired comparisons are MATCHED: raw
+and trimmed Spearmans are computed per date on the joint finite mask of both scores and the
+target, so a difference is trimming alone (cell 6). The return-score trim at 90 days lifts the
+matched correlation from {f3(PD["all"][("ret", 90, 0.1)]["raw_rho_matched"])} to {f3(PD["all"][("ret", 90, 0.1)]["trimmed_rho_matched"])} (difference
 {f3(PD["all"][("ret", 90, 0.1)]["difference"])} [{f3(PD["all"][("ret", 90, 0.1)]["ci_lo"])}, {f3(PD["all"][("ret", 90, 0.1)]["ci_hi"])}], add-one p
 {f3(PD["all"][("ret", 90, 0.1)]["p_two_sided_add_one"])} alone, simultaneous bound over the 8 paired comparisons
 {f3(PD["all"][("ret", 90, 0.1)]["lo_simultaneous_family"])}); at 180 days the difference is {f3(PD["all"][("ret", 180, 0.1)]["difference"])}. As in NB38
@@ -204,8 +206,9 @@ the score's good end had LOWER forward volatility.
     f"| {s} | {f3(rho('all', s))} | {f3(lo('all', s))} | {f3(SENS[s]['lo_block45'])} | {f3(p('all', s))} | {f3(rret('all', s))} | {f3(rvol('all', s))} | {f3(r30('all', s))} |"
     for s in T["all"]) + f"""
 
-Paired trimmed-minus-raw on forward 60-day Sharpe (cell 6): per-comparison 95% intervals and
-add-one p; simultaneous lower bounds over each 8-comparison family are all below zero.
+Matched paired trimmed-minus-raw on forward 60-day Sharpe (cell 6; both Spearmans on the joint
+finite mask per date): per-comparison 95% intervals and add-one p; simultaneous lower bounds
+over each 8-comparison family are all below zero.
 
 | | 10% of events removed | 25% of events removed |
 |---|---|---|
@@ -227,10 +230,10 @@ young {f3(rho("young", "sharpe180_f00"))} ({f3(lo("young", "sharpe180_f00"))}), 
 - The screen is reachable: a foresight oracle clears the 17-signal bound at
   {f3(OR["lo_simultaneous"])} (cell 8).
 - Date blocks are tiled 30-decision (60-day) blocks with a random offset per draw, no wrapping,
-  whole tiles never truncated; measured inclusion of the first and last block of dates is
-  {f3(COV["all"]["coverage_ends"])} / {f3(COV["all_block45"]["coverage_ends"])} / {f3(COV["all_block90"]["coverage_ends"])} of the mean at 60 / 90 / 180-day tiles
-  (asserted within 0.15 of 1.0), against {f3(COV["all"]["coverage_middle"])} / {f3(COV["all_block45"]["coverage_middle"])} / {f3(COV["all_block90"]["coverage_middle"])} for the
-  middle (cell 6). The passing set is {len(clear_all)} / {len(clear45)} / {len(clear90)} across the three. The 180-day tiles
+  whole tiles never truncated; measured inclusion of the first / last block of dates is
+  {f3(COV["all"]["coverage_first"])} / {f3(COV["all"]["coverage_last"])} of the mean at 60-day tiles, {f3(COV["all_block45"]["coverage_first"])} / {f3(COV["all_block45"]["coverage_last"])} at 90,
+  {f3(COV["all_block90"]["coverage_first"])} / {f3(COV["all_block90"]["coverage_last"])} at 180 (each end asserted within 0.15 of 1.0), against
+  {f3(COV["all"]["coverage_middle"])} / {f3(COV["all_block45"]["coverage_middle"])} / {f3(COV["all_block90"]["coverage_middle"])} for the middle (cell 6). The passing set is {len(clear_all)} / {len(clear45)} / {len(clear90)} across the three. The 180-day tiles
   match the longest trailing window but the archive holds {block_equiv:.2f} of them, so no block choice
   here is both long enough for the dependence and numerous enough for a well-behaved bootstrap;
   the bounds are the computed figures under each choice and are not claimed as controlled

@@ -290,6 +290,11 @@ SIGNAL_SIGN = {s["name"]: (1.0 if s["direction"] == "high" else -1.0) for s in S
 TARGETS = ["fwd60_sharpe", "fwd60_return", "fwd60_vol", "fwd60_log_max_dd", "fwd30_sharpe", "fwd30_return"]
 TARGET_SIGN = {"fwd60_sharpe": 1.0, "fwd60_return": 1.0, "fwd60_vol": -1.0, "fwd60_log_max_dd": 1.0, "fwd30_sharpe": 1.0, "fwd30_return": 1.0}
 PRIMARY = f"fwd{PRIMARY_H}_sharpe"
+#: Raw/trimmed pairs for the MATCHED paired comparison: both Spearmans on the joint finite mask
+#: of raw score, trimmed score and primary target (sixth review), so a difference is trimming
+#: alone and not a change of eligible vaults.
+PAIRS = [(f"{fam}{W}_f00", f"{fam}{W}_f{int(f * 100):02d}") for W in WINDOWS for fam in ("ret", "sharpe") for f in TRIM_FRACTIONS[1:]]
+PAIR_INDEX = [(SIGNAL_NAMES.index(a), SIGNAL_NAMES.index(b)) for a, b in PAIRS]
 coverage = pd.DataFrame({s: np.isfinite(panel[s]).mean() for s in SIGNAL_NAMES}, index=["finite_share"]).T
 display(coverage.round(3).T)
 '''))
@@ -308,7 +313,18 @@ cells.append(code('''def per_date_blocks(frame: pd.DataFrame) -> dict:
     return out
 
 
-def date_statistics(values: np.ndarray) -> np.ndarray:
+def _spearman(x: np.ndarray, y: np.ndarray) -> float:
+    xr, yr = rankdata(x), rankdata(y)
+    if np.ptp(xr) == 0 or np.ptp(yr) == 0:
+        return float("nan")
+    xc, yc = xr - xr.mean(), yr - yr.mean()
+    return float((xc * yc).sum() / math.sqrt((xc ** 2).sum() * (yc ** 2).sum()))
+
+
+def date_statistics(values: np.ndarray) -> tuple:
+    """Per-date signed Spearman for every (signal, target) on each pair's own complete cases, plus
+    the MATCHED paired statistics for the primary target: for each (raw, trimmed) pair, both
+    Spearmans on the joint finite mask, returned as (raw, trimmed, difference, n)."""
     S, T = len(SIGNAL_NAMES), len(TARGETS)
     out = np.full((S, T), np.nan)
     targets = values[:, S:]
@@ -319,17 +335,28 @@ def date_statistics(values: np.ndarray) -> np.ndarray:
             ok = np.isfinite(x) & np.isfinite(y)
             if ok.sum() < MIN_CANDIDATES:
                 continue
-            xr, yr = rankdata(x[ok]), rankdata(y[ok])
-            if np.ptp(xr) == 0 or np.ptp(yr) == 0:
-                continue
-            xc, yc = xr - xr.mean(), yr - yr.mean()
-            out[i, j] = SIGNAL_SIGN[name] * TARGET_SIGN[target] * float((xc * yc).sum() / math.sqrt((xc ** 2).sum() * (yc ** 2).sum()))
-    return out
+            rho = _spearman(x[ok], y[ok])
+            if np.isfinite(rho):
+                out[i, j] = SIGNAL_SIGN[name] * TARGET_SIGN[target] * rho
+    pairs = np.full((len(PAIRS), 4), np.nan)
+    jp = TARGETS.index(PRIMARY)
+    y = targets[:, jp]
+    for k, (ia, ib) in enumerate(PAIR_INDEX):
+        xa, xb = values[:, ia], values[:, ib]
+        ok = np.isfinite(xa) & np.isfinite(xb) & np.isfinite(y)
+        if ok.sum() < MIN_CANDIDATES:
+            continue
+        ra, rb = _spearman(xa[ok], y[ok]), _spearman(xb[ok], y[ok])
+        if np.isfinite(ra) and np.isfinite(rb):
+            sign = SIGNAL_SIGN[SIGNAL_NAMES[ia]] * TARGET_SIGN[PRIMARY]
+            pairs[k] = (sign * ra, sign * rb, sign * (rb - ra), float(ok.sum()))
+    return out, pairs
 
 
 def mean_over_dates(blocks: dict, dates: list, counts: dict | None = None) -> tuple:
     S, T = len(SIGNAL_NAMES), len(TARGETS)
     total, n = np.zeros((S, T)), np.zeros((S, T))
+    ptotal, pn = np.zeros((len(PAIRS), 4)), np.zeros((len(PAIRS), 4))
     for date in dates:
         block = blocks.get(date)
         if block is None:
@@ -340,12 +367,16 @@ def mean_over_dates(blocks: dict, dates: list, counts: dict | None = None) -> tu
             if repeats.sum() < MIN_CANDIDATES:
                 continue
             values = np.repeat(values, repeats, axis=0)
-        stats = date_statistics(values)
+        stats, pairs = date_statistics(values)
         finite = np.isfinite(stats)
         total[finite] += stats[finite]
         n[finite] += 1
+        pf = np.isfinite(pairs)
+        ptotal[pf] += pairs[pf]
+        pn[pf] += 1
     with np.errstate(invalid="ignore"):
-        return np.where(n > 0, total / np.maximum(n, 1), np.nan), n
+        return (np.where(n > 0, total / np.maximum(n, 1), np.nan), n,
+                np.where(pn > 0, ptotal / np.maximum(pn, 1), np.nan), pn)
 
 
 def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose: bool = True, block: int = DATE_BLOCK) -> dict:
@@ -363,11 +394,12 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
     blocks = per_date_blocks(frame)
     dates = sorted(blocks)
     vaults = sorted(frame["address"].unique())
-    observed, n_dates = mean_over_dates(blocks, dates)
+    observed, n_dates, pair_observed, pair_n = mean_over_dates(blocks, dates)
     rng = np.random.default_rng(seed)
     n = len(dates)
     block = min(block, n)
     reps = np.full((draws,) + observed.shape, np.nan)
+    pair_reps = np.full((draws,) + pair_observed.shape, np.nan)
     inclusion = np.zeros(n)
     draw_lengths = []
     for d in range(draws):
@@ -385,21 +417,25 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
         counts = {}
         for v in drawn:
             counts[vaults[v]] = counts.get(vaults[v], 0) + 1
-        reps[d], _ = mean_over_dates(blocks, [dates[i] for i in index], counts)
+        reps[d], _, pair_reps[d], _ = mean_over_dates(blocks, [dates[i] for i in index], counts)
         if verbose and (d + 1) % 100 == 0:
             print(f"  draw {d + 1}/{draws}")
     # Coverage check: with uniform tile selection and no truncation, every date's inclusion count
     # should be equal in expectation. Report the spread across dates relative to the mean and
     # fail if the ends of the archive are systematically under- or over-represented.
     coverage = inclusion / inclusion.mean()
+    first, last = float(np.mean(coverage[:block])), float(np.mean(coverage[-block:]))
     ends = float(np.mean(np.concatenate([coverage[:block], coverage[-block:]])))
     middle = float(np.mean(coverage[block:-block])) if n > 2 * block else float("nan")
-    print(f"  coverage over {draws} draws: min {coverage.min():.3f}, max {coverage.max():.3f} of mean; first/last {block} dates "
-          f"{ends:.3f} vs middle {middle:.3f}; draw length mean {np.mean(draw_lengths):.1f} of {n} decisions")
-    assert abs(ends - 1.0) < 0.15, f"tiled bootstrap under- or over-weights the archive's ends: {ends:.3f}"
+    print(f"  coverage over {draws} draws: min {coverage.min():.3f}, max {coverage.max():.3f} of mean; first {block} dates {first:.3f}, "
+          f"last {block} dates {last:.3f}, middle {middle:.3f}; draw length mean {np.mean(draw_lengths):.1f} of {n} decisions")
+    # The first and last blocks are asserted SEPARATELY, so an asymmetric bias cannot cancel in an
+    # average; 0.15 of the mean is the tolerance for 500 draws of a random-offset tiling.
+    assert abs(first - 1.0) < 0.15 and abs(last - 1.0) < 0.15, f"tiled bootstrap misweights an end: first {first:.3f}, last {last:.3f}"
     return {"observed": observed, "draws": reps, "n_dates": n_dates, "dates": dates, "rows": len(frame),
-            "coverage_min": float(coverage.min()), "coverage_max": float(coverage.max()), "coverage_ends": ends,
-            "coverage_middle": middle, "draw_length_mean": float(np.mean(draw_lengths))}
+            "pair_observed": pair_observed, "pair_draws": pair_reps, "pair_n": pair_n,
+            "coverage_min": float(coverage.min()), "coverage_max": float(coverage.max()), "coverage_first": first,
+            "coverage_last": last, "coverage_ends": ends, "coverage_middle": middle, "draw_length_mean": float(np.mean(draw_lengths))}
 
 
 def simultaneous_lower(observed: np.ndarray, reps: np.ndarray, level: float = LEVEL) -> dict:
@@ -433,22 +469,28 @@ def screen(frame: pd.DataFrame, label: str, verbose: bool = True, block: int = D
         row["p_primary"] = fam["p"][i]
         rows.append(row)
     table = pd.DataFrame(rows).set_index("signal")
+    # MATCHED paired differences: per date, raw and trimmed Spearmans on the joint finite mask of
+    # both scores and the primary target, so the difference is trimming alone; resampled on the
+    # same draws. The unmatched per-signal correlations in the table above use each score's own
+    # complete cases and can differ slightly from the matched values here.
     diffs, d_obs, d_reps = [], [], []
-    for W in WINDOWS:
-        for fam_name in ("ret", "sharpe"):
-            base = SIGNAL_NAMES.index(f"{fam_name}{W}_f00")
-            for f in TRIM_FRACTIONS[1:]:
-                idx = SIGNAL_NAMES.index(f"{fam_name}{W}_f{int(f * 100):02d}")
-                obs = boot["observed"][idx, j] - boot["observed"][base, j]
-                rep = boot["draws"][:, idx, j] - boot["draws"][:, base, j]
-                d_obs.append(obs); d_reps.append(rep)
-                fin = rep[np.isfinite(rep)]; n = len(fin); centred = fin - obs
-                p_hi = (1.0 + (centred >= obs).sum()) / (n + 1.0); p_lo = (1.0 + (centred <= obs).sum()) / (n + 1.0)
-                diffs.append({"family": fam_name, "window": W, "trim": f, "trimmed_rho": boot["observed"][idx, j],
-                              "raw_rho": boot["observed"][base, j], "difference": obs,
-                              "ci_lo": float(np.percentile(fin, 2.5)) if n >= 100 else np.nan,
-                              "ci_hi": float(np.percentile(fin, 97.5)) if n >= 100 else np.nan,
-                              "p_two_sided_add_one": float(min(1.0, 2 * min(p_hi, p_lo))) if n >= 100 else np.nan, "draws": int(n)})
+    for k, (raw_name, trim_name) in enumerate(PAIRS):
+        fam_name = "ret" if raw_name.startswith("ret") else "sharpe"
+        W = int(raw_name.replace(fam_name, "").split("_")[0])
+        f = int(trim_name.split("_f")[1]) / 100.0
+        obs = boot["pair_observed"][k, 2]
+        rep = boot["pair_draws"][:, k, 2]
+        d_obs.append(obs); d_reps.append(rep)
+        fin = rep[np.isfinite(rep)]; n = len(fin); centred = fin - obs
+        p_hi = (1.0 + (centred >= obs).sum()) / (n + 1.0); p_lo = (1.0 + (centred <= obs).sum()) / (n + 1.0)
+        diffs.append({"family": fam_name, "window": W, "trim": f,
+                      "raw_rho_matched": boot["pair_observed"][k, 0], "trimmed_rho_matched": boot["pair_observed"][k, 1],
+                      "raw_rho_unmatched": boot["observed"][SIGNAL_NAMES.index(raw_name), j],
+                      "trimmed_rho_unmatched": boot["observed"][SIGNAL_NAMES.index(trim_name), j],
+                      "difference": obs, "matched_candidates_mean": boot["pair_observed"][k, 3],
+                      "ci_lo": float(np.percentile(fin, 2.5)) if n >= 100 else np.nan,
+                      "ci_hi": float(np.percentile(fin, 97.5)) if n >= 100 else np.nan,
+                      "p_two_sided_add_one": float(min(1.0, 2 * min(p_hi, p_lo))) if n >= 100 else np.nan, "draws": int(n)})
     paired = pd.DataFrame(diffs)
     pfam = simultaneous_lower(np.array(d_obs), np.column_stack(d_reps))
     paired["lo_simultaneous_family"] = pfam["lower"]
@@ -479,11 +521,12 @@ for b in (30, 45, 90):
     sens[f"clears_block{b}"] = sens[f"lo_block{b}"] > 0
 print(f"\\nblock-length sensitivity (critical {full['critical']:.3f} at 30, {full45['critical']:.3f} at 45, {full90['critical']:.3f} at 90 decisions): "
       f"{int(sens['clears_block30'].sum())} signals clear at block 30, {int(sens['clears_block45'].sum())} at 45, {int(sens['clears_block90'].sum())} at 90 "
-      f"(90 decisions = 180 days = the longest trailing window; {len(full['boot']['dates'])} decisions tile into "
-      f"{len(full['boot']['dates']) // DATE_BLOCK_LONG} full tiles plus remainders per draw)")
+      f"(90 decisions = 180 days = the longest trailing window; the {len(full['boot']['dates'])} decisions are "
+      f"{len(full['boot']['dates']) / DATE_BLOCK_LONG:.2f} block-equivalents; the source tiling is one or two full tiles plus "
+      f"remainders depending on the offset, and a draw repeats tiles)")
 display(sens.round(4))
-print(f"\\nPAIRED trimmed - raw on {PRIMARY} (per-comparison 95% intervals; simultaneous lower bound over the "
-      f"{full['paired_family_size']} paired comparisons, critical {full['paired_critical']:.4f}):")
+print(f"\\nMATCHED PAIRED trimmed - raw on {PRIMARY}, both Spearmans on the joint finite mask per date (per-comparison 95% "
+      f"intervals; simultaneous lower bound over the {full['paired_family_size']} paired comparisons, critical {full['paired_critical']:.4f}):")
 display(full["paired"].round(4))
 '''))
 
@@ -549,7 +592,7 @@ cells.append(code('''def table_records(res):
             "critical": res["critical"], "family_size": res["family_size"], "complete_draws": res["complete_draws"],
             "paired_critical": res["paired_critical"], "paired_family_size": res["paired_family_size"],
             "rows": int(res["boot"]["rows"]), "decisions": int(len(res["boot"]["dates"])), "block": res["block"],
-            "coverage": {k: res["boot"][k] for k in ("coverage_min", "coverage_max", "coverage_ends", "coverage_middle", "draw_length_mean")}}
+            "coverage": {k: res["boot"][k] for k in ("coverage_min", "coverage_max", "coverage_first", "coverage_last", "coverage_ends", "coverage_middle", "draw_length_mean")}}
 
 manifest = {
     "verdict": "DIAGNOSTIC - a vault-level screen on the full archive, not a result",
