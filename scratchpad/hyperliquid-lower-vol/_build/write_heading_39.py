@@ -173,7 +173,7 @@ Young vaults ({SC["young"]["decisions"]} decisions): `sharpe180_f00` {f3(rho("yo
 {f3(lo("young", "sharpe180_f00"))}), `ret90_f10` {f3(rho("young", "ret90_f10"))} (bound {f3(lo("young", "ret90_f10"))}), {len(clear_young)} of 16
 clear. Old vaults ({SC["old"]["decisions"]} decisions): `sharpe180_f00` {f3(rho("old", "sharpe180_f00"))} (bound
 {f3(lo("old", "sharpe180_f00"))}), `sortino180` {f3(rho("old", "sortino180"))}, and only {len(clear_old)} clear
-({", ".join(f"`{s}`" for s in clear_old)}); the return scores sit at {f3(rho("old", "ret90_f00"))}-{f3(rho("old", "ret180_f00"))} with
+({", ".join(f"`{s}`" for s in clear_old)}); the return scores sit at {f3(min(rho("old", "ret90_f00"), rho("old", "ret180_f00")))}-{f3(max(rho("old", "ret90_f00"), rho("old", "ret180_f00")))} with
 bounds below zero (cell 10). The two are estimates on different samples, not a test of a
 difference. The incumbent's 360-day CAGR leg cannot score a vault younger than a year; the
 scores that carry over in both cohorts need 180 days.
