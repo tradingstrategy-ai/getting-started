@@ -20,7 +20,9 @@ clear45 = [s for s in SENS if SENS[s]["clears_block45"]]
 clear90 = [s for s in SENS if SENS[s]["clears_block90"]]
 max_shift = max(abs(SENS[s]["lo_block45"] - SENS[s]["lo_block30"]) for s in SENS)
 n_full_long = P["decisions"] // m["constants"]["date_block_long"]
-n38_dec = m38["panel"]["decisions"]
+n38_dec = m["nb38_reference"]["nb38_decisions"]
+COV = {k: SC[k]["coverage"] for k in ("all", "all_block45", "all_block90")}
+block_equiv = P["decisions"] / m["constants"]["date_block_long"]
 prov = m["provenance"]
 WK, TR, DN = "weekly 2025", "transition Jan-Mar 2026", "dense Apr 2026 on"
 
@@ -49,7 +51,8 @@ assert abs(PD["all"][("ret", 180, 0.1)]["difference"]) < 0.02
 assert PD["all"][("sharpe", 90, 0.25)]["difference"] < 0
 assert lo(WK, "sharpe180_f00") > 0
 assert OR["lo_simultaneous"] > 0
-n38 = m38["screens"]["all"]["table"]["sharpe180_k0"]["rho_fwd_sharpe"]
+n38 = m["nb38_reference"]["nb38_sharpe180_rho_fwd30_sharpe"]
+assert all(abs(c["coverage_ends"] - 1.0) < 0.15 for c in COV.values())
 
 HEADING = f"""# NB39 - trimmed trailing scores on the full archive, in event time
 
@@ -75,9 +78,9 @@ scores are positively associated with the next 60 days' Sharpe - the 180-day Sha
 lead at rho {f2(rho("all", best_all))}, and {len(clear_all)} of 16 signals clear the computed simultaneous bound with
 60-day blocks, {len(clear45)} with 90-day blocks and {len(clear90)} with 180-day blocks - and no trim improvement
 is detected.** No block choice is both long enough to cover the 180-day persistence of the
-trailing scores and numerous enough for reliable controlled bootstrap inference (180-day tiles
-give {n_full_long} full tiles plus remainders per draw), so the bounds are the computed figures under each
-block choice, not a controlled family-wise result; NB38's four-month, 30-day-horizon screen could not resolve any
+trailing scores and numerous enough for reliable controlled bootstrap inference (the 192
+decisions are {block_equiv:.2f} 180-day block-equivalents), so the bounds are the computed figures under
+each block choice, not a controlled family-wise result; NB38's four-month, 30-day-horizon screen could not resolve any
 of this.
 
 **Based on:** [38-research-trimmed-return-screen.ipynb](38-research-trimmed-return-screen.ipynb)
@@ -91,8 +94,8 @@ Marks: one per vault per UTC day (the last poll of the day). Events: consecutive
 return = log price ratio; event span = days between them. A candidate at decision T needs, in
 the trailing window (T-1-W, T-1] for W in 90 and 180 days, at least 8 event returns (9 marks), a
 mark at or before the window start, its first in-window mark within 14 days of that start and
-its last mark within 14 days of T-1 (so a W-day score spans W days), and a TVL of at least
-7,500 USD at the last mark. Scores per window: return score
+its last mark within 14 days of T-1 (so marks bracket the window and the observed event span is
+between W - 28 and W days), and a TVL of at least 7,500 USD at the last mark. Scores per window: return score
 (sum of event returns, annualised over W; raw and with the best 10% and 25% of events removed),
 Sharpe score (return score over event volatility sqrt(sum r^2 / W x 365), raw and trimmed the
 same way), Sortino, event volatility. Forward outcomes over (T, T + H] for H = 60 (primary) and
@@ -109,12 +112,14 @@ the transition, {BR[DN]["events90_median"]:.0f} in the dense regime; marks per 6
 
 Inference as NB38 with one change forced by the horizon: per-date signed Spearman averaged
 over dates, one two-way cluster bootstrap of TILED, non-wrapping {m["constants"]["date_block"]}-decision (60-day)
-date blocks (a random offset per draw, every decision in exactly one tile, tiles resampled with
-replacement, so coverage is uniform across dates) x vault clusters, {m["constants"]["draws"]} draws, seed {m["constants"]["seed"]}, shared across every hypothesis,
+date blocks (a random offset per draw, every decision in exactly one tile, whole tiles resampled
+with replacement and never truncated; measured coverage of the first and last block of dates
+{f3(COV["all"]["coverage_ends"])} of the mean against {f3(COV["all"]["coverage_middle"])} for the middle, cell 6) x vault clusters, {m["constants"]["draws"]} draws, seed {m["constants"]["seed"]}, shared across every hypothesis,
 studentised max-T simultaneous lower bounds over the 16-signal family on the primary target
 (critical {f2(SC["all"]["critical"])}), the same with {m["constants"]["date_block_sensitivity"]}-decision (90-day) tiles (critical
-{f2(SC["all_block45"]["critical"])}) and {m["constants"]["date_block_long"]}-decision (180-day) tiles (critical {f2(SC["all_block90"]["critical"])};
-{n_full_long} full tiles plus remainders per draw), paired trimmed-minus-raw differences on the same draws
+{f2(SC["all_block45"]["critical"])}) and {m["constants"]["date_block_long"]}-decision (180-day) tiles (critical {f2(SC["all_block90"]["critical"])}; the
+source tiling is one or two full tiles plus remainders depending on the offset, and a draw
+repeats tiles), paired trimmed-minus-raw differences on the same draws
 with their own family bound, and a foresight-oracle reachability assertion (lower bound
 {f3(OR["lo_simultaneous"])}, cell 8). Regime cohorts contain only decisions whose whole 60-day horizon lies
 inside the regime ({", ".join(f"{k}: {v}" for k, v in RC.items())} decisions).
@@ -124,7 +129,7 @@ inside the regime ({", ".join(f"{k}: {v}" for k, v in RC.items())} decisions).
 **1. On a year of data, trailing risk-adjusted scores are positively associated with the next
 60 days' Sharpe.** With 60-day blocks, {len(clear_all)} of 16 signals clear the computed simultaneous lower
 bound of zero on forward 60-day Sharpe; with 90-day blocks {"the same " + str(len(clear45)) if set(clear45) == set(clear_all) else str(len(clear45))}, and with 180-day
-tiles - the longest trailing window, {n_full_long} full tiles plus remainders per draw - {len(clear90)} (cell 6). The strongest are
+tiles - the longest trailing window, {block_equiv:.2f} block-equivalents in the archive - {len(clear90)} (cell 6). The strongest are
 the 180-day Sharpe and Sortino scores: `sharpe180_f10` {f3(rho("all", "sharpe180_f10"))} (bounds
 {f3(lo("all", "sharpe180_f10"))} / {f3(SENS["sharpe180_f10"]["lo_block45"])} / {f3(SENS["sharpe180_f10"]["lo_block90"])} at 60 / 90 / 180-day blocks), `sortino180`
 {f3(rho("all", "sortino180"))} ({f3(lo("all", "sortino180"))} / {f3(SENS["sortino180"]["lo_block45"])} / {f3(SENS["sortino180"]["lo_block90"])}), `sharpe180_f00`
@@ -132,11 +137,11 @@ the 180-day Sharpe and Sortino scores: `sharpe180_f10` {f3(rho("all", "sharpe180
 Sortino scores correlate with forward RETURN at {f3(min(rret("all", "sharpe180_f00"), rret("all", "sortino180"), rret("all", "sharpe180_f10")))} to
 {f3(max(rret("all", "sharpe180_f00"), rret("all", "sortino180"), rret("all", "sharpe180_f10")))} and with 30-day forward Sharpe at {f3(min(r30("all", "sharpe180_f00"), r30("all", "sortino180"), r30("all", "sharpe180_f10")))} to
 {f3(max(r30("all", "sharpe180_f00"), r30("all", "sortino180"), r30("all", "sharpe180_f10")))}. NB38 saw {f3(n38)} for the 180-day Sharpe on {n38_dec} decisions at a 30-day horizon and
-could not clear a family bound (`_build/manifest_38.json`); this screen has three times the
+could not clear a family bound (its manifest values are displayed in cell 6); this screen has three times the
 decisions and a horizon that holds enough marks. Going from 60- to 90-day tiles leaves the
 passing set {"unchanged" if set(clear45) == set(clear_all) else "at " + str(len(clear45))} and moves individual bounds in both directions by at most
-{f3(max_shift)}; the 180-day tiles cover the trailing scores' own persistence but leave {n_full_long} full
-tiles plus remainders per draw, so their bounds are descriptive, not a robustness proof.
+{f3(max_shift)}; the 180-day tiles cover the trailing scores' own persistence but the archive holds only
+{block_equiv:.2f} of them, so their bounds are descriptive, not a robustness proof.
 
 **2. No trim improvement is detected under a family bound.** The return-score trim at 90 days
 lifts the correlation from {f3(rho("all", "ret90_f00"))} to {f3(rho("all", "ret90_f10"))} (paired difference
@@ -221,13 +226,15 @@ young {f3(rho("young", "sharpe180_f00"))} ({f3(lo("young", "sharpe180_f00"))}), 
   its "Sharpe" is a coarse quantity built from interval returns between them.
 - The screen is reachable: a foresight oracle clears the 17-signal bound at
   {f3(OR["lo_simultaneous"])} (cell 8).
-- Date blocks are tiled 30-decision (60-day) blocks with a random offset per draw, no wrapping
-  and uniform expected coverage of every date; 45-decision (90-day) and 90-decision (180-day)
-  tiles are run as sensitivities (cell 6). The passing set is {len(clear_all)} / {len(clear45)} / {len(clear90)} across the
-  three. The 180-day tiles match the longest trailing window but leave {n_full_long} full tiles plus
-  remainders per draw, so no block choice here is both long enough for the dependence and
-  numerous enough for a well-behaved bootstrap; the bounds are the computed figures under each
-  choice and are not claimed as controlled family-wise evidence.
+- Date blocks are tiled 30-decision (60-day) blocks with a random offset per draw, no wrapping,
+  whole tiles never truncated; measured inclusion of the first and last block of dates is
+  {f3(COV["all"]["coverage_ends"])} / {f3(COV["all_block45"]["coverage_ends"])} / {f3(COV["all_block90"]["coverage_ends"])} of the mean at 60 / 90 / 180-day tiles
+  (asserted within 0.15 of 1.0), against {f3(COV["all"]["coverage_middle"])} / {f3(COV["all_block45"]["coverage_middle"])} / {f3(COV["all_block90"]["coverage_middle"])} for the
+  middle (cell 6). The passing set is {len(clear_all)} / {len(clear45)} / {len(clear90)} across the three. The 180-day tiles
+  match the longest trailing window but the archive holds {block_equiv:.2f} of them, so no block choice
+  here is both long enough for the dependence and numerous enough for a well-behaved bootstrap;
+  the bounds are the computed figures under each choice and are not claimed as controlled
+  family-wise evidence.
   {P["decisions"]} decisions over about a year hold roughly six non-overlapping 60-day horizons.
 - One bootstrap per screen; the regime and cohort screens are separate samples with separate
   bootstraps and their intervals are not comparable across screens in a paired sense. Regime

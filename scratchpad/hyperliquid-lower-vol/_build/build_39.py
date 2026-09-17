@@ -353,10 +353,12 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
 
     Per draw the date axis is cut into consecutive tiles of `block` decisions starting at a random
     offset in [0, block) - the first and last tiles are the shorter remainders - and tiles are
-    resampled with replacement until the draw holds at least as many decisions as the panel. No
-    tile wraps from the end of the archive to its start, and every decision belongs to exactly
-    one tile in every draw, so expected coverage is uniform across dates; a moving-block scheme
-    with starts restricted to whole blocks under-weights the archive's ends (fourth review).
+    resampled with replacement until the draw holds at least as many decisions as the panel. The
+    draw is NOT truncated: the last selected tile is kept whole, so a draw can be slightly longer
+    than the panel. Because every decision belongs to exactly one tile and tiles are selected
+    with equal probability, every decision has the same expected inclusion count (the equal-weight
+    mean over the draw's dates is what the statistic uses). Coverage is measured over the draws
+    and asserted below. No tile wraps from the end of the archive to its start.
     """
     blocks = per_date_blocks(frame)
     dates = sorted(blocks)
@@ -366,6 +368,8 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
     n = len(dates)
     block = min(block, n)
     reps = np.full((draws,) + observed.shape, np.nan)
+    inclusion = np.zeros(n)
+    draw_lengths = []
     for d in range(draws):
         offset = int(rng.integers(0, block))
         edges = [0] + list(range(offset, n, block)) + [n]
@@ -374,7 +378,9 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
         chosen = []
         while sum(len(t) for t in chosen) < n:
             chosen.append(tiles[int(rng.integers(0, len(tiles)))])
-        index = np.concatenate(chosen)[:n]
+        index = np.concatenate(chosen)          # whole tiles only; never truncated
+        np.add.at(inclusion, index, 1)
+        draw_lengths.append(len(index))
         drawn = rng.choice(len(vaults), size=len(vaults), replace=True)
         counts = {}
         for v in drawn:
@@ -382,7 +388,18 @@ def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose
         reps[d], _ = mean_over_dates(blocks, [dates[i] for i in index], counts)
         if verbose and (d + 1) % 100 == 0:
             print(f"  draw {d + 1}/{draws}")
-    return {"observed": observed, "draws": reps, "n_dates": n_dates, "dates": dates, "rows": len(frame)}
+    # Coverage check: with uniform tile selection and no truncation, every date's inclusion count
+    # should be equal in expectation. Report the spread across dates relative to the mean and
+    # fail if the ends of the archive are systematically under- or over-represented.
+    coverage = inclusion / inclusion.mean()
+    ends = float(np.mean(np.concatenate([coverage[:block], coverage[-block:]])))
+    middle = float(np.mean(coverage[block:-block])) if n > 2 * block else float("nan")
+    print(f"  coverage over {draws} draws: min {coverage.min():.3f}, max {coverage.max():.3f} of mean; first/last {block} dates "
+          f"{ends:.3f} vs middle {middle:.3f}; draw length mean {np.mean(draw_lengths):.1f} of {n} decisions")
+    assert abs(ends - 1.0) < 0.15, f"tiled bootstrap under- or over-weights the archive's ends: {ends:.3f}"
+    return {"observed": observed, "draws": reps, "n_dates": n_dates, "dates": dates, "rows": len(frame),
+            "coverage_min": float(coverage.min()), "coverage_max": float(coverage.max()), "coverage_ends": ends,
+            "coverage_middle": middle, "draw_length_mean": float(np.mean(draw_lengths))}
 
 
 def simultaneous_lower(observed: np.ndarray, reps: np.ndarray, level: float = LEVEL) -> dict:
@@ -443,10 +460,16 @@ def screen(frame: pd.DataFrame, label: str, verbose: bool = True, block: int = D
 
 TABLE_COLS = ["family", "window", "trim", "dates", "evaluated", f"rho_{PRIMARY}", "se_primary", "lo_primary_simultaneous",
               "lo_primary_unadjusted", "p_primary", "rho_fwd60_return", "rho_fwd60_vol", "rho_fwd60_log_max_dd", "rho_fwd30_sharpe", "rho_fwd30_return"]
+manifest_38 = json.loads(Path("_build/manifest_38.json").read_text())
+nb38_ref = {"nb38_decisions": manifest_38["panel"]["decisions"], "nb38_rows": manifest_38["panel"]["rows"],
+            "nb38_sharpe180_rho_fwd30_sharpe": manifest_38["screens"]["all"]["table"]["sharpe180_k0"]["rho_fwd_sharpe"],
+            "nb38_sharpe180_lo_simultaneous": manifest_38["screens"]["all"]["table"]["sharpe180_k0"]["lo_sharpe_simultaneous"]}
+print("NB38 comparison values (from _build/manifest_38.json):", {k: (round(v, 4) if isinstance(v, float) else v) for k, v in nb38_ref.items()})
 full = screen(panel, "all regimes")
 print(f"\\nprimary family: {full['family_size']} signals, critical {full['critical']:.4f} on {full['complete_draws']} complete draws")
 display(full["table"][TABLE_COLS].round(4))
-# Sensitivity to the block length: 45 decisions (90 days), the trailing-score persistence length.
+# Sensitivity to the block length: 45 decisions (90 days) as an intermediate, 90 decisions (180 days) as the
+# longest trailing-score window.
 full45 = screen(panel, "all regimes, block 45", verbose=False, block=DATE_BLOCK_SENSITIVITY)
 full90 = screen(panel, "all regimes, block 90", verbose=False, block=DATE_BLOCK_LONG)
 sens = pd.DataFrame({"rho": full["table"][f"rho_{PRIMARY}"], "lo_block30": full["table"]["lo_primary_simultaneous"],
@@ -525,7 +548,8 @@ cells.append(code('''def table_records(res):
     return {"table": res["table"].round(6).to_dict(orient="index"), "paired": res["paired"].round(6).to_dict(orient="records"),
             "critical": res["critical"], "family_size": res["family_size"], "complete_draws": res["complete_draws"],
             "paired_critical": res["paired_critical"], "paired_family_size": res["paired_family_size"],
-            "rows": int(res["boot"]["rows"]), "decisions": int(len(res["boot"]["dates"]))}
+            "rows": int(res["boot"]["rows"]), "decisions": int(len(res["boot"]["dates"])), "block": res["block"],
+            "coverage": {k: res["boot"][k] for k in ("coverage_min", "coverage_max", "coverage_ends", "coverage_middle", "draw_length_mean")}}
 
 manifest = {
     "verdict": "DIAGNOSTIC - a vault-level screen on the full archive, not a result",
@@ -546,6 +570,7 @@ manifest = {
                 "young": table_records(young), "old": table_records(old)},
     "block_sensitivity": sens.round(6).to_dict(orient="index"),
     "regime_contained_decisions": {k: int(v) for k, v in panel.groupby("regime_contained")["date"].nunique().to_dict().items()},
+    "nb38_reference": nb38_ref,
     "oracle": {"rho": float(orow[f"rho_{PRIMARY}"]), "lo_simultaneous": float(orow["lo_primary_simultaneous"]),
                "family_size": oracle_res["family_size"], "critical": oracle_res["critical"]},
 }
