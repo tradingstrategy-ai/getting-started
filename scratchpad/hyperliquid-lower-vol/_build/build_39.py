@@ -47,9 +47,9 @@ event volatility, event Sharpe, log max drawdown on the mark path; a window need
 (H = 60) or 4 (H = 30) marks and one within 14 days of its end.
 
 Inference as NB38 with one change forced by the horizon: per-date signed Spearman averaged
-over dates, one two-way cluster bootstrap of NON-WRAPPING 30-decision (60-day) date blocks x
-vault clusters, 500 draws, seed 20260917, shared across every hypothesis (45-decision blocks
-as a sensitivity), studentised max-T simultaneous lower bounds over the signal family on the
+over dates, one two-way cluster bootstrap of TILED, non-wrapping 30-decision (60-day) date
+blocks x vault clusters, 500 draws, seed 20260917, shared across every hypothesis (45- and
+90-decision blocks as sensitivities), studentised max-T simultaneous lower bounds over the signal family on the
 primary target, paired trimmed-minus-raw differences on the same draws with their own family
 bound, and a foresight-oracle reachability assertion.
 
@@ -98,7 +98,8 @@ YOUNG_DAYS = 360
 DRAWS = 500
 #: Date blocks must be at least as long as the forward horizon (60 days = 30 decisions) so that
 #: overlapping outcomes stay together inside a block; blocks are NOT wrapped circularly, because
-#: joining July 2026 to July 2025 would splice two polling regimes. 45 is run as a sensitivity.
+#: joining July 2026 to July 2025 would splice two polling regimes. 45 decisions (90 days) is an
+#: intermediate sensitivity; the 180-day score persistence is covered only by DATE_BLOCK_LONG.
 DATE_BLOCK = 30
 DATE_BLOCK_SENSITIVITY = 45
 #: 90 decisions = 180 days, the longest trailing-score window. With 192 decisions this leaves
@@ -131,6 +132,8 @@ def regime_contained(t, H):
 df = pd.read_parquet(ARCHIVE, columns=["address", "chain", "share_price", "total_assets", "name"])
 df = df[df["chain"] == HYPERCORE_CHAIN].reset_index()
 df["timestamp"] = pd.to_datetime(df["timestamp"])
+# Vault age is measured from the vault's FIRST mark anywhere in the archive, before any date cut.
+FIRST_MARK = df.groupby("address")["timestamp"].min().dt.floor("D")
 df = df[df["timestamp"] >= pd.Timestamp("2025-01-01")].sort_values(["address", "timestamp"])
 df["date"] = df["timestamp"].dt.floor("D")
 marks = df.groupby(["address", "date"])[["share_price", "total_assets"]].last().reset_index()
@@ -198,7 +201,7 @@ for address, g in marks.groupby("address"):
     mdays = g.index
     prices = g["share_price"].to_numpy()
     tvls = g["total_assets"].to_numpy()
-    born = mdays[0]
+    born = FIRST_MARK[address]
     for t in decisions:
         t1 = t - pd.Timedelta(days=1)
         i_last = int(mdays.searchsorted(t1, side="right")) - 1   # last mark at or before T-1
@@ -209,7 +212,7 @@ for address, g in marks.groupby("address"):
             dropped["tvl"] += 1
             continue
         row = {"address": address, "date": t, "age_days": int((t - born).days), "regime": regime_of(t),
-               "days_since_mark": int((t1 - mdays[i_last]).days)}
+               "days_since_mark": int((t1 - mdays[i_last]).days), "first_mark_before_2025": bool(born < pd.Timestamp("2025-01-01"))}
         scored_any = False
         for W in WINDOWS:
             start = t1 - pd.Timedelta(days=W)
@@ -217,7 +220,10 @@ for address, g in marks.groupby("address"):
             n_marks = i_last - i_first + 1
             # The vault must have existed before the window (a mark at or before its start), so a
             # W-day score is never computed on a vault younger than W days.
-            if n_marks < MIN_EVENTS + 1 or i_first == 0:
+            # The score must SPAN the window: a mark at or before the window start, the first
+            # in-window mark within STALE_DAYS of the start, and the last within STALE_DAYS of T-1
+            # (already required). Otherwise a W-day score could be eight clustered late events.
+            if n_marks < MIN_EVENTS + 1 or i_first == 0 or (mdays[i_first] - start).days > STALE_DAYS:
                 for f in TRIM_FRACTIONS:
                     tag = f"f{int(f * 100):02d}"
                     row[f"ret{W}_{tag}"] = np.nan; row[f"sharpe{W}_{tag}"] = np.nan
@@ -258,7 +264,9 @@ panel["young"] = panel["age_days"] < YOUNG_DAYS
 panel["regime_contained"] = [regime_contained(t, PRIMARY_H) for t in panel["date"]]
 print("candidate-dates dropped:", dropped)
 print(f"panel: {len(panel):,} rows, {panel['address'].nunique()} vaults, {panel['date'].nunique()} decisions "
-      f"{panel['date'].min().date()} to {panel['date'].max().date()}; young (< {YOUNG_DAYS} d) share of rows {panel['young'].mean():.1%}")
+      f"{panel['date'].min().date()} to {panel['date'].max().date()}; young (< {YOUNG_DAYS} d from the vault's first mark in "
+      f"the whole archive) share of rows {panel['young'].mean():.1%}; rows from vaults first marked before 2025: "
+      f"{panel['first_mark_before_2025'].mean():.1%}")
 by_regime = panel.groupby("regime").agg(rows=("address", "size"), vaults=("address", "nunique"), decisions=("date", "nunique"),
                                         events90_median=("events90", "median"), events180_median=("events180", "median"),
                                         fwd60_events_median=("fwd60_events", "median"), fwd30_events_median=("fwd30_events", "median"),
@@ -341,19 +349,32 @@ def mean_over_dates(blocks: dict, dates: list, counts: dict | None = None) -> tu
 
 
 def bootstrap(frame: pd.DataFrame, draws: int = DRAWS, seed: int = SEED, verbose: bool = True, block: int = DATE_BLOCK) -> dict:
-    """Two-way cluster bootstrap: NON-WRAPPING moving date blocks of `block` decisions (starts drawn
-    uniformly from the positions where a whole block fits) and vault clusters, together."""
+    """Two-way cluster bootstrap: TILED date blocks and vault clusters, together.
+
+    Per draw the date axis is cut into consecutive tiles of `block` decisions starting at a random
+    offset in [0, block) - the first and last tiles are the shorter remainders - and tiles are
+    resampled with replacement until the draw holds at least as many decisions as the panel. No
+    tile wraps from the end of the archive to its start, and every decision belongs to exactly
+    one tile in every draw, so expected coverage is uniform across dates; a moving-block scheme
+    with starts restricted to whole blocks under-weights the archive's ends (fourth review).
+    """
     blocks = per_date_blocks(frame)
     dates = sorted(blocks)
     vaults = sorted(frame["address"].unique())
     observed, n_dates = mean_over_dates(blocks, dates)
     rng = np.random.default_rng(seed)
-    block = min(block, len(dates))
-    n_blocks = int(math.ceil(len(dates) / block))
+    n = len(dates)
+    block = min(block, n)
     reps = np.full((draws,) + observed.shape, np.nan)
     for d in range(draws):
-        starts = rng.integers(0, len(dates) - block + 1, size=n_blocks)
-        index = np.concatenate([np.arange(s, s + block) for s in starts])[:len(dates)]
+        offset = int(rng.integers(0, block))
+        edges = [0] + list(range(offset, n, block)) + [n]
+        edges = sorted(set(e for e in edges if 0 <= e <= n))
+        tiles = [np.arange(a, b) for a, b in zip(edges[:-1], edges[1:]) if b > a]
+        chosen = []
+        while sum(len(t) for t in chosen) < n:
+            chosen.append(tiles[int(rng.integers(0, len(tiles)))])
+        index = np.concatenate(chosen)[:n]
         drawn = rng.choice(len(vaults), size=len(vaults), replace=True)
         counts = {}
         for v in drawn:
@@ -435,7 +456,8 @@ for b in (30, 45, 90):
     sens[f"clears_block{b}"] = sens[f"lo_block{b}"] > 0
 print(f"\\nblock-length sensitivity (critical {full['critical']:.3f} at 30, {full45['critical']:.3f} at 45, {full90['critical']:.3f} at 90 decisions): "
       f"{int(sens['clears_block30'].sum())} signals clear at block 30, {int(sens['clears_block45'].sum())} at 45, {int(sens['clears_block90'].sum())} at 90 "
-      f"(90 decisions = 180 days = the longest trailing window; {math.ceil(len(full['boot']['dates']) / DATE_BLOCK_LONG)} blocks per draw)")
+      f"(90 decisions = 180 days = the longest trailing window; {len(full['boot']['dates'])} decisions tile into "
+      f"{len(full['boot']['dates']) // DATE_BLOCK_LONG} full tiles plus remainders per draw)")
 display(sens.round(4))
 print(f"\\nPAIRED trimmed - raw on {PRIMARY} (per-comparison 95% intervals; simultaneous lower bound over the "
       f"{full['paired_family_size']} paired comparisons, critical {full['paired_critical']:.4f}):")

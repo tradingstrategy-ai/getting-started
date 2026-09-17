@@ -19,7 +19,8 @@ RC = m["regime_contained_decisions"]
 clear45 = [s for s in SENS if SENS[s]["clears_block45"]]
 clear90 = [s for s in SENS if SENS[s]["clears_block90"]]
 max_shift = max(abs(SENS[s]["lo_block45"] - SENS[s]["lo_block30"]) for s in SENS)
-n_blocks_long = -(-P["decisions"] // m["constants"]["date_block_long"])
+n_full_long = P["decisions"] // m["constants"]["date_block_long"]
+n38_dec = m38["panel"]["decisions"]
 prov = m["provenance"]
 WK, TR, DN = "weekly 2025", "transition Jan-Mar 2026", "dense Apr 2026 on"
 
@@ -36,6 +37,8 @@ def rvol(k, s): return T[k][s]["rho_fwd60_vol"]
 
 
 clear_all = [s for s in T["all"] if lo("all", s) > 0]
+clear_young = [s for s in T["young"] if lo("young", s) > 0]
+clear_old = [s for s in T["old"] if lo("old", s) > 0]
 best_all = max(T["all"], key=lambda s: rho("all", s))
 assert len(clear_all) >= 10, clear_all
 assert len(clear45) >= 6, clear45
@@ -72,9 +75,9 @@ scores are positively associated with the next 60 days' Sharpe - the 180-day Sha
 lead at rho {f2(rho("all", best_all))}, and {len(clear_all)} of 16 signals clear the computed simultaneous bound with
 60-day blocks, {len(clear45)} with 90-day blocks and {len(clear90)} with 180-day blocks - and no trim improvement
 is detected.** No block choice is both long enough to cover the 180-day persistence of the
-trailing scores and numerous enough for reliable controlled bootstrap inference (180-day blocks
-leave about {n_blocks_long} per draw), so the bounds are the computed figures under each block choice, not a
-controlled family-wise result; NB38's four-month, 30-day-horizon screen could not resolve any
+trailing scores and numerous enough for reliable controlled bootstrap inference (180-day tiles
+give {n_full_long} full tiles plus remainders per draw), so the bounds are the computed figures under each
+block choice, not a controlled family-wise result; NB38's four-month, 30-day-horizon screen could not resolve any
 of this.
 
 **Based on:** [38-research-trimmed-return-screen.ipynb](38-research-trimmed-return-screen.ipynb)
@@ -86,16 +89,18 @@ of this.
 
 Marks: one per vault per UTC day (the last poll of the day). Events: consecutive marks; event
 return = log price ratio; event span = days between them. A candidate at decision T needs, in
-the trailing window (T-1-W, T-1] for W in 90 and 180 days, at least 8 event returns (9 marks) and a
-mark at or before the window start, its last mark within 14 days of T-1, and a TVL of at least
-7,500 USD at that mark. Scores per window: return score
+the trailing window (T-1-W, T-1] for W in 90 and 180 days, at least 8 event returns (9 marks), a
+mark at or before the window start, its first in-window mark within 14 days of that start and
+its last mark within 14 days of T-1 (so a W-day score spans W days), and a TVL of at least
+7,500 USD at the last mark. Scores per window: return score
 (sum of event returns, annualised over W; raw and with the best 10% and 25% of events removed),
 Sharpe score (return score over event volatility sqrt(sum r^2 / W x 365), raw and trimmed the
 same way), Sortino, event volatility. Forward outcomes over (T, T + H] for H = 60 (primary) and
 30: log return from the mark carried at T to the last mark in the window, event volatility,
 event Sharpe, log max drawdown on the mark path; a window needs at least 6 (H = 60) or 4
 (H = 30) marks and one within 14 days of its end. Panel: {P["rows"]:,} candidate-dates, {P["vaults"]}
-vaults, {P["decisions"]} decisions {P["first"]} to {P["last"]}, {pc(P["young_share"])} of rows under 360 days old;
+vaults, {P["decisions"]} decisions {P["first"]} to {P["last"]}, {pc(P["young_share"])} of rows under 360 days old measured from
+the vault's first mark anywhere in the archive (cell 4);
 {DR["stale_or_too_few_marks"]:,} candidate-dates dropped as stale or under-marked, {DR["tvl"]:,} for TVL, {DR["forward_marks"]}
 for an unobserved forward window (cell 4).
 Event returns per 90-day window, median: {BR[WK]["events90_median"]:.0f} in the weekly regime, {BR[TR]["events90_median"]:.0f} in
@@ -103,12 +108,13 @@ the transition, {BR[DN]["events90_median"]:.0f} in the dense regime; marks per 6
 {BR[TR]["fwd60_events_median"]:.0f} / {BR[DN]["fwd60_events_median"]:.0f} (cell 4, decision-date regimes).
 
 Inference as NB38 with one change forced by the horizon: per-date signed Spearman averaged
-over dates, one two-way cluster bootstrap of NON-WRAPPING {m["constants"]["date_block"]}-decision (60-day) date
-blocks x vault clusters, {m["constants"]["draws"]} draws, seed {m["constants"]["seed"]}, shared across every hypothesis,
+over dates, one two-way cluster bootstrap of TILED, non-wrapping {m["constants"]["date_block"]}-decision (60-day)
+date blocks (a random offset per draw, every decision in exactly one tile, tiles resampled with
+replacement, so coverage is uniform across dates) x vault clusters, {m["constants"]["draws"]} draws, seed {m["constants"]["seed"]}, shared across every hypothesis,
 studentised max-T simultaneous lower bounds over the 16-signal family on the primary target
-(critical {f2(SC["all"]["critical"])}), the same with {m["constants"]["date_block_sensitivity"]}-decision (90-day) blocks (critical
-{f2(SC["all_block45"]["critical"])}) and {m["constants"]["date_block_long"]}-decision (180-day) blocks (critical {f2(SC["all_block90"]["critical"])}, about
-{n_blocks_long} blocks per draw), paired trimmed-minus-raw differences on the same draws
+(critical {f2(SC["all"]["critical"])}), the same with {m["constants"]["date_block_sensitivity"]}-decision (90-day) tiles (critical
+{f2(SC["all_block45"]["critical"])}) and {m["constants"]["date_block_long"]}-decision (180-day) tiles (critical {f2(SC["all_block90"]["critical"])};
+{n_full_long} full tiles plus remainders per draw), paired trimmed-minus-raw differences on the same draws
 with their own family bound, and a foresight-oracle reachability assertion (lower bound
 {f3(OR["lo_simultaneous"])}, cell 8). Regime cohorts contain only decisions whose whole 60-day horizon lies
 inside the regime ({", ".join(f"{k}: {v}" for k, v in RC.items())} decisions).
@@ -118,19 +124,19 @@ inside the regime ({", ".join(f"{k}: {v}" for k, v in RC.items())} decisions).
 **1. On a year of data, trailing risk-adjusted scores are positively associated with the next
 60 days' Sharpe.** With 60-day blocks, {len(clear_all)} of 16 signals clear the computed simultaneous lower
 bound of zero on forward 60-day Sharpe; with 90-day blocks {"the same " + str(len(clear45)) if set(clear45) == set(clear_all) else str(len(clear45))}, and with 180-day
-blocks - the longest trailing window, about {n_blocks_long} blocks per draw - {len(clear90)} (cell 6). The strongest are
+tiles - the longest trailing window, {n_full_long} full tiles plus remainders per draw - {len(clear90)} (cell 6). The strongest are
 the 180-day Sharpe and Sortino scores: `sharpe180_f10` {f3(rho("all", "sharpe180_f10"))} (bounds
 {f3(lo("all", "sharpe180_f10"))} / {f3(SENS["sharpe180_f10"]["lo_block45"])} / {f3(SENS["sharpe180_f10"]["lo_block90"])} at 60 / 90 / 180-day blocks), `sortino180`
 {f3(rho("all", "sortino180"))} ({f3(lo("all", "sortino180"))} / {f3(SENS["sortino180"]["lo_block45"])} / {f3(SENS["sortino180"]["lo_block90"])}), `sharpe180_f00`
 {f3(rho("all", "sharpe180_f00"))} ({f3(lo("all", "sharpe180_f00"))} / {f3(SENS["sharpe180_f00"]["lo_block45"])} / {f3(SENS["sharpe180_f00"]["lo_block90"])}). The 180-day Sharpe and
 Sortino scores correlate with forward RETURN at {f3(min(rret("all", "sharpe180_f00"), rret("all", "sortino180"), rret("all", "sharpe180_f10")))} to
 {f3(max(rret("all", "sharpe180_f00"), rret("all", "sortino180"), rret("all", "sharpe180_f10")))} and with 30-day forward Sharpe at {f3(min(r30("all", "sharpe180_f00"), r30("all", "sortino180"), r30("all", "sharpe180_f10")))} to
-{f3(max(r30("all", "sharpe180_f00"), r30("all", "sortino180"), r30("all", "sharpe180_f10")))}. NB38 saw {f3(n38)} for the 180-day Sharpe on four months at a 30-day horizon and
-could not clear a family bound; this screen has three times the decisions and a horizon that
-holds enough marks. Going from 60- to 90-day blocks leaves the passing set unchanged and moves
-individual bounds in both directions by at most {f3(max_shift)}; going to 180-day blocks is the honest
-check against the trailing scores' own persistence, at the cost of about {n_blocks_long} blocks per draw,
-and its bounds are read with that in mind.
+{f3(max(r30("all", "sharpe180_f00"), r30("all", "sortino180"), r30("all", "sharpe180_f10")))}. NB38 saw {f3(n38)} for the 180-day Sharpe on {n38_dec} decisions at a 30-day horizon and
+could not clear a family bound (`_build/manifest_38.json`); this screen has three times the
+decisions and a horizon that holds enough marks. Going from 60- to 90-day tiles leaves the
+passing set {"unchanged" if set(clear45) == set(clear_all) else "at " + str(len(clear45))} and moves individual bounds in both directions by at most
+{f3(max_shift)}; the 180-day tiles cover the trailing scores' own persistence but leave {n_full_long} full
+tiles plus remainders per draw, so their bounds are descriptive, not a robustness proof.
 
 **2. No trim improvement is detected under a family bound.** The return-score trim at 90 days
 lifts the correlation from {f3(rho("all", "ret90_f00"))} to {f3(rho("all", "ret90_f10"))} (paired difference
@@ -155,18 +161,22 @@ pre-April marks, so this is outcome-containment, not a wholly within-regime comp
 {"Dense April on (" + str(RC.get(DN, 0)) + " decisions): `sharpe180_f00` " + f3(rho(DN, "sharpe180_f00")) + " (bound " + f3(lo(DN, "sharpe180_f00")) + ")." if DN in T else "The dense cohort has too few contained decisions to screen (" + str(RC.get(DN, 0)) + ")."}
 (cell 10). The weekly-regime estimate is the largest. Two readings are consistent with that and
 this screen cannot separate them: quality persisted more in 2025's universe (which was
-{pc(BR[WK]["young_share"])} under a year old), or coarse, irregularly observed returns - a weekly mark is a
+{pc(BR[WK]["young_share"])} under a year old, cell 4), or coarse, irregularly observed returns - a weekly mark is a
 snapshot, and the return between two of them is a week's interval return - together with
 trailing scores that barely change between marks make trailing and forward scores mechanically
 more alike than daily marks would.
 
-**4. The association is larger and more widespread in the young panel.** Young vaults
-({pc(P["young_share"])} of rows, {SC["young"]["decisions"]} decisions): `sharpe180_f00` {f3(rho("young", "sharpe180_f00"))} (bound
-{f3(lo("young", "sharpe180_f00"))}), `ret90_f10` {f3(rho("young", "ret90_f10"))} (bound {f3(lo("young", "ret90_f10"))}). Old vaults
-({SC["old"]["decisions"]} decisions): `sharpe180_f00` {f3(rho("old", "sharpe180_f00"))} (bound {f3(lo("old", "sharpe180_f00"))}),
-`sortino180` {f3(rho("old", "sortino180"))} (cell 10). The two are estimates on different samples with different
-date coverage, not a test of a difference. The incumbent's 360-day CAGR leg cannot score a
-young vault at all; the scores that predict best here need 180 days.
+**4. Young and old vaults: the 180-day risk-adjusted scores carry over to both; the return
+scores only to the young.** Age is measured from the vault's first mark anywhere in the
+archive ({pc(P["young_share"])} of rows under 360 days; {pc(m["by_regime"][WK]["young_share"])} in the weekly cohort; cell 4).
+Young vaults ({SC["young"]["decisions"]} decisions): `sharpe180_f00` {f3(rho("young", "sharpe180_f00"))} (bound
+{f3(lo("young", "sharpe180_f00"))}), `ret90_f10` {f3(rho("young", "ret90_f10"))} (bound {f3(lo("young", "ret90_f10"))}), {len(clear_young)} of 16
+clear. Old vaults ({SC["old"]["decisions"]} decisions): `sharpe180_f00` {f3(rho("old", "sharpe180_f00"))} (bound
+{f3(lo("old", "sharpe180_f00"))}), `sortino180` {f3(rho("old", "sortino180"))}, and only {len(clear_old)} clear
+({", ".join(f"`{s}`" for s in clear_old)}); the return scores sit at {f3(rho("old", "ret90_f00"))}-{f3(rho("old", "ret180_f00"))} with
+bounds below zero (cell 10). The two are estimates on different samples, not a test of a
+difference. The incumbent's 360-day CAGR leg cannot score a vault younger than a year; the
+scores that carry over in both cohorts need 180 days.
 
 **5. What this says about the incumbent's ranker.** Its Sortino leg looks back 45 days and its
 CAGR leg 360; this screen has no 45-day window, so the leg itself is not tested, but the pattern
@@ -211,12 +221,13 @@ young {f3(rho("young", "sharpe180_f00"))} ({f3(lo("young", "sharpe180_f00"))}), 
   its "Sharpe" is a coarse quantity built from interval returns between them.
 - The screen is reachable: a foresight oracle clears the 17-signal bound at
   {f3(OR["lo_simultaneous"])} (cell 8).
-- Date blocks are 30 decisions (60 days, the horizon) and do not wrap; 45-decision (90-day)
-  and 90-decision (180-day) blocks are run as sensitivities (cell 6). The passing set is
-  {len(clear_all)} / {len(clear45)} / {len(clear90)} across the three. The 180-day blocks match the longest trailing
-  window but leave about {n_blocks_long} blocks per draw, so no block choice here is both long enough for
-  the dependence and numerous enough for a well-behaved bootstrap; the bounds are the computed
-  figures under each choice and are not claimed as controlled family-wise evidence.
+- Date blocks are tiled 30-decision (60-day) blocks with a random offset per draw, no wrapping
+  and uniform expected coverage of every date; 45-decision (90-day) and 90-decision (180-day)
+  tiles are run as sensitivities (cell 6). The passing set is {len(clear_all)} / {len(clear45)} / {len(clear90)} across the
+  three. The 180-day tiles match the longest trailing window but leave {n_full_long} full tiles plus
+  remainders per draw, so no block choice here is both long enough for the dependence and
+  numerous enough for a well-behaved bootstrap; the bounds are the computed figures under each
+  choice and are not claimed as controlled family-wise evidence.
   {P["decisions"]} decisions over about a year hold roughly six non-overlapping 60-day horizons.
 - One bootstrap per screen; the regime and cohort screens are separate samples with separate
   bootstraps and their intervals are not comparable across screens in a paired sense. Regime
