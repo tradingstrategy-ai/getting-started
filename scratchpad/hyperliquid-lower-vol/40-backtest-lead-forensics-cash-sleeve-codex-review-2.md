@@ -1,0 +1,27 @@
+## Overall verdict
+
+**Not ready to sign off as written.** The second-round code fixes substantially improve the notebook: the capped unlimited comparator, matched N-neighbours, endpoint plateau handling, survivor-population reconstruction, and full-position listing are all correctly addressed. The floor/sleeve implementation and cycle-clock metrics also check out.
+
+The remaining problems are primarily material interpretation errors, rather than a demonstrated fault in the executed backtests.
+
+| Severity | Cell(s) | Finding | Concrete fix |
+|---|---:|---|---|
+| Material | 0, 46, 50 | `thr125`/`thr175` are an exploratory refinement around an already-observed `thr150` result. Cell 46 correctly calls this an assumption check, but the heading promotes `thr175` to “NOT CONFIRMED … under the rules as written”. That is a formal verdict for a newly inserted grid point, contrary to the notebook’s exploratory status and the rules’ “EXPLORATORY: no verdict” vocabulary. | Report gate outcomes as exploratory sensitivity results (“would pass/fail these gate calculations”), remove formal verdict language, and do not use the refined-grid result to revise the recorded NB37 conclusion. |
+| Material | 0, 28, 42, 50 | The conclusion conflates two distinct mechanisms: `measured_8` removes the eight lowest finite `inverse_vol` values each date; `thr150` applies a fixed volatility threshold. They are not “count form” and “threshold form” of one mechanism. Their basket changes differ materially: 9.5% versus 16.7% of decisions in cell 28. The statement “No lead is a selection improvement” also exceeds the recorded `measured_8` status, which is **NOT CONFIRMED (conditionally positive)**, not disproven. | Describe the two rules separately. Replace “No lead is a selection improvement” with “No lead is established as a selection improvement on this window.” |
+| Material | 24, 40, 0 | `band_attribution_aligned()` is a useful temporally aligned contribution analysis, but it is not causal attribution. It sums P&L in each run’s own disputed cycles; it does not construct the counterfactual P&L difference caused by excluding a particular vault. The comparison is additionally on different numbers of cycles for `thr150` and the anchor (51 versus 64). The heading mostly says “consistent with”, but the robustness section calls the aligned result “the causal one”. | Call it “aligned P&L contribution/association”, not causal evidence. State that it is consistent with the threshold explanation but cannot isolate the threshold’s causal effect from the other resulting basket and sizing changes. |
+| Minor | 0, 50 | The heading says every floor run fails gate 1 from floor 1.5 upwards. `thr150_f15` has positive CAGR (11.8%) and passes gate 1; it fails gates 7 and 6. The same summary describes the capped N family as failing gate 6 generally, but `n3cap` is unevaluated on gate 6, not failed. | Generate this prose from the complete per-row gate strings, or qualify the claims by run. |
+| Minor | 0, 40 | “Every threshold run is an admission filter” is false as written: `thr150_nall_invvar` has one held-name exclusion in cell 40. The statement is correct only for the displayed six-name and four-name threshold variants. | Limit the claim to those variants. |
+| Minor | 0, 48 | The heading says the floor exits the June position and “never gets back in”, but cell 48 shows `anchor_f10` re-entering `0x77fe..1a16` from 2026-08-17 to 2026-08-21. | Say it misses the main June-to-August run, while noting the later four-day re-entry. |
+| Minor | 0, 10 | `quality_sharpe` is a close NB39-derived statistic, but not literally identical: the module documents a different treatment of the first event, beginning from the last mark before the window. The heading calls it NB39’s score without that qualification. | Call it “NB39-derived”, and state the boundary-mark convention. |
+
+## Sections that check out
+
+- Cycle Sharpe and volatility use the native two-day return clock; cycle volatility uses sample standard deviation.
+- `quality_sharpe` is causal through the T−1 indicator interface. Its freshness, span, age and recency guards are internally consistent; forward-filled unchanged marks add zero to both return sums.
+- The quality floor is correctly placed after the crash filter and before ranking. An empty floor-qualified set proceeds to the alpha model rather than returning early; the smoke-test behaviour is consistent with closing existing positions.
+- Sleeve arithmetic is sound: scaling deployment by `k / S` and widening the normalisation cap by `S / k` preserves a full-equity cap per selected name. The full-run table is read reasonably: realised deployment is below intended deployment at high floors, not claimed to be exact.
+- The second-round plateau wrapper correctly makes one-neighbour endpoints unevaluable, and the repaired threshold/N/floor neighbour chains are like-for-like.
+- Cell 44 now distinguishes the whole candidate pool from `thr150` survivors, and cell 48’s zero-mismatch reconstruction validates the in-trade floor qualifying counts.
+- Position-ledger, drawdown, worst-cycle, and forward-return calculations are internally consistent with their stated clocks.
+
+The direct finding remains robust: this particular floor-and-sleeve construction performs badly and fails standing-gate calculations. The notebook should present that as an exploratory failure of this construction, without converting the new grid points or aligned P&L associations into stronger verdicts than the evidence supports.
