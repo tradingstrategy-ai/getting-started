@@ -439,9 +439,11 @@ cells.append(md("""## Part 4. The rescue: quality floor with a cash sleeve
 
 Four books, each with the floor family: the incumbent (six slots), `thr150` (six slots), the
 four-name `thr150` book with the cap kept (four slots), and the unlimited `thr150` book with the
-cap kept (no slots: with no fixed N the cap itself is the sleeve, so at most three names can fill
-the book). The quality/sleeve columns say what the mechanism did: how many names qualified per
-decision, how often nothing did, how often the sleeve held cash and how much.
+cap kept (no slots and no sleeve: an unlimited-capacity, capped-weight book in which every
+qualifying name is a candidate and the sizer decides how many are actually held - `mean_holdings`
+is reported beside `qualifying_mean`). The quality/sleeve columns say what the mechanism did:
+how many names qualified per decision, how often nothing did, how often the sleeve held cash
+and how much.
 """))
 cells.append(code('''for f in FLOORS:
     run_and_record(f"anchor_{ftag(f)}", "floor_anchor", **floor_overrides(f, N_SLOTS))

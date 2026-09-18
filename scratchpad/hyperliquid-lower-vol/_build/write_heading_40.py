@@ -210,10 +210,10 @@ NB37 / NB36 runs at {m["reproduction_max_abs_diff"]:.1e} on five metrics (cell 2
 
 ## Key new insights and what did we learn from this experiment?
 
-**Verdict: nothing is rescued, and the forensics change what the leads are.** The six-name
-leads overlap the anchor on 95-99% of capital and share its largest position; the four-name
-leads hold that position at twice the weight; and the quality floor removes the vaults that
-earn, including that one.
+**Verdict: nothing is rescued, and the forensics change what the leads are.** `thr150`,
+`measured_8`, `thr200` and the `cagr_sharpe` ranker overlap the anchor on 95-99% of capital and
+share its largest position; `thr150_n4` and `nofilter_n4` hold that position at twice the
+weight; and the quality floor removes the vaults that earn, including that one.
 
 1. **One position dominates the 2026 result.** `0x77fe..1a16`, held 2026-06-20 to 08-21, delivers
    {pc(top_anchor["pnl_share"])} of the anchor's net P&L ({usd(top_anchor["pnl_usd"])} of {usd(L["anchor"]["net_pnl_usd"])}) and
@@ -257,8 +257,10 @@ earn, including that one.
    {pc(L["thr150_n4"]["top_vault_pnl_share_of_positive"])} of `thr150_n4`'s positive P&L and {pc(L["nofilter_n4"]["top_vault_pnl_share_of_positive"])} of `nofilter_n4`'s; their
    {pc(first_dd_n4["depth"])} drawdown ({first_dd_n4["peak"]} to {first_dd_n4["trough"]}) is that vault and `0x4dec..27f6` in two weeks of July
    (cell 36), and `nofilter_n4` lost {usd(-n4_loss["pnl_usd"])} on `{n4_loss["vault"]}` at a {f2(n4_loss["peak_weight"])} peak weight over its last
-   {n4_loss["days"]} days (cell 34). {pc(OVERLAP["nofilter_n4"]["capital_share_in_reference_names"])} of the four-name books' capital is in names the anchor holds: the
-   extra return is concentration, not selection. With the cap KEPT the family is
+   {n4_loss["days"]} days (cell 34). {pc(OVERLAP["nofilter_n4"]["capital_share_in_reference_names"])} of the four-name books' capital is in names the anchor holds,
+   at weights near twice the anchor's, which is consistent with concentration being the major
+   contributor to the extra return - the overlap does not isolate it from subset choice or
+   trade timing. With the cap KEPT the family is
    {" / ".join(f3(x) for x in ncap)} / {sh("anchor")} at N = 3 / 4 / 5 / 6 (cell 46) - N = 4 stands above both neighbours in
    the capped family as in the uncapped one, N = 5 with the filter masks at {f2(G["thr150_n5"]["mask_retention"])}, and every
    N < 6 fails gate 3. This is the risky trading the operator asked about: a {R["thr150_n4"]["mean_holdings"]:.1f}-name book
@@ -278,9 +280,10 @@ earn, including that one.
    floor run holds that vault only {f10_engine_spans} - it sells out on June 18 as the
    score dips through 1.0, misses the June-to-August run, and re-enters for {f10_engine_reentry[0]["days"] if f10_engine_reentry else 0} days in
    August (cell 48): the winners' scores sit AT the floor family's bottom and the floor has no
-   hysteresis. Holding EVERY vault above 1.0
-   (unlimited, cap kept) earns {cg("thr150_nallcap_f10")} at {vol("thr150_nallcap_f10")} volatility, Sharpe {sh("thr150_nallcap_f10")}: the names that clear
-   the floor comfortably are the low-return part of the universe. Every one of the {len(floor_runs)} floor runs
+   hysteresis. The unlimited-capacity capped book with the floor at 1.0 ({S["thr150_nallcap_f10"]["qualifying_mean"]:.1f} names
+   qualify per decision, {S["thr150_nallcap_f10"]["mean_holdings"]:.1f} are held) earns {cg("thr150_nallcap_f10")} at {vol("thr150_nallcap_f10")} volatility, Sharpe {sh("thr150_nallcap_f10")},
+   against {cg("thr150_nallcap")} / {sh("thr150_nallcap")} for the same book without the floor: the names that clear the
+   floor comfortably are the low-return part of the universe. Every one of the {len(floor_runs)} floor runs
    fails the gate 7 calculation and {len(floor_gate1_fail)} of them fail gate 1 (cell 50). This tests a FLOOR on NB39's score, not a ranker on
    it: the floor-and-sleeve construction is what failed. NB39's universe-wide rank correlation of
    about 0.25 stands as measured; what it does at the top of a six-name book is untested, and a
@@ -360,9 +363,10 @@ is untested. If a lead's gate is to be re-examined, it is gate 6's dependence on
   hysteresis and the exit threshold remain unverified by any result in this track.
 - The floor's score is measured on a mean {FS["measured"]["mean"]:.0f} of {FS["candidates"]["mean"]:.0f} candidates per decision (cell 44): a vault
   younger than 180 days, or one whose marks do not span the window, can never qualify. The
-  anchor's own held names are measured on {FS["anchor_held_measured"]["mean"] * 126:.0f} of {FS["anchor_held"]["mean"] * 126:.0f} holding-decisions, so the floor's damage
-  is not a coverage artefact - the anchor's winners are measured and score at or near the
-  bottom of the floor family.
+  anchor's own held names are measured on {FS["anchor_held_measured"]["mean"] * 126:.0f} of {FS["anchor_held"]["mean"] * 126:.0f} holding-decisions and the engine
+  position is measured, so poor coverage does not explain the loss of that position; it is
+  still part of the construction's effect, because every unmeasured candidate is excluded by
+  design.
 - Same limits as the whole track: one window, 126 decisions, in sample throughout; the luck
   ratio is undefined for most runs that change the book heavily.
 """
