@@ -1,0 +1,313 @@
+"""Generate NB40's heading from _build/manifest_40.json. Every number from the manifest; the
+qualitative claims are asserted so the prose cannot outlive a different result."""
+import json
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+NB = HERE.parent / "40-backtest-lead-forensics-cash-sleeve.ipynb"
+m = json.loads((HERE / "manifest_40.json").read_text())
+G37 = json.loads((HERE / "manifest_37.json").read_text())["gates"]
+
+S = m["summary"]
+R = m["risk"]
+RR = m["rescue_risk"]
+L = m["ledgers"]
+MASK = m["mask"]
+SECOND = m["second_mask"]
+BANDS = m["bands"]
+EXCL = m["exclusion_outcomes"]
+SPARSE = m["sparse"]
+OVERLAP = m["overlap"]
+BS = m["band_summary"]
+FS = m["floor_summary"]
+G = m["gates"]
+RP = m["replateau"]
+W = m["windows"]
+AL = m["anchor_lovo"]
+AQ = m["anchor_quality_at_open"]
+LD = m["ledger_detail"]
+FLD = m["floor_ledger_detail"]
+DE = m["drawdown_episodes"]
+A = S["anchor"]
+WA, WB = "A: incumbent period", "B: full data period"
+RANKER = "thr150_cagr_sharpe__inverse_variance"
+NALL = "thr150_nall_invvar"
+
+
+def f2(x): return f"{x:.2f}"
+def f3(x): return f"{x:.3f}"
+def pc(x): return f"{x * 100:.1f}%"
+def usd(x): return f"-${-x / 1000:.1f}k" if x < 0 else f"${x / 1000:.1f}k"
+def sh(l): return f3(S[l]["cycle_sharpe"])
+def cg(l): return pc(S[l]["cagr"])
+def vol(l): return f3(S[l]["cycle_vol"])
+def dd(l): return pc(S[l]["max_dd"])
+def gap(l): return f"{S[l]['cycle_sharpe'] - A['cycle_sharpe']:+.2f}"
+
+
+# --- claims the prose makes, asserted against the manifest ---
+assert m["reproduction_max_abs_diff"] < 1e-6
+top_anchor = AQ[0]
+assert top_anchor["vault"] == "0x77fe..1a16" and top_anchor["pnl_share"] > 0.40
+assert L["anchor"]["top_vault"] == "0x77fe..1a16"
+for l in ("thr150", "measured_8", "thr200", RANKER):
+    assert MASK[l]["masked_vault"] == "0x77fe..1a16", l
+assert MASK["thr100"]["masked_vault"] != "0x77fe..1a16"
+assert SECOND["thr100"]["retention_second"] < 0.5 and SECOND[RANKER]["retention_second"] > 0.85
+assert all(EXCL[l]["held_exclusions"] == 0 for l in ("thr100", "thr150", "thr200", "thr150_n4", "thr100_n4"))
+band = BANDS[0]
+assert band["wide"] == "thr150" and band["tight"] == "thr100" and band["wide_band_pnl_share_of_net"] > 0.6
+thr_axis = [S[l]["cycle_sharpe"] for l in ("thr100", "thr125", "thr150", "thr175", "thr200")]
+assert thr_axis[1] < thr_axis[0] < thr_axis[2] and abs(thr_axis[2] - thr_axis[3]) < 1e-9 and thr_axis[4] < thr_axis[2]
+assert G["thr175"]["verdict"].startswith("NOT CONFIRMED") and G["thr125"]["verdict"] == "REJECT"
+assert not RP["thr150"]["passes"] and not RP["nofilter_n4"]["passes"] and not RP["thr150_n4"]["passes"]
+assert abs(W[WB]["thr150"]["cycle_sharpe"] - W[WB]["thr175"]["cycle_sharpe"]) > 0.1
+ncap = [S[l]["cycle_sharpe"] for l in ("n3cap", "n4cap", "n5cap")]
+assert ncap[1] > ncap[2] and ncap[1] > ncap[0] and ncap[1] > A["cycle_sharpe"]
+assert G["nofilter_n5"]["mask_retention"] < 0.7 and G["thr150_n5"]["mask_retention"] < 0.7
+assert OVERLAP["nofilter_n4"]["capital_share_in_reference_names"] > 0.99
+assert SPARSE[NALL]["sparse_capital_share"] > 2 * SPARSE["anchor"]["sparse_capital_share"]
+assert L[NALL]["net_pnl_usd"] < 0.3 * L["anchor"]["net_pnl_usd"]
+floors = ["anchor_f10", "anchor_f15", "anchor_f20", "anchor_f25", "anchor_f30"]
+assert all(G[l]["verdict"] == "REJECT" for l in floors + [l.replace("anchor", "thr150") for l in floors]
+           + ["thr150_n4cap_f10", "thr150_n4cap_f20", "thr150_n4cap_f30", "thr150_nallcap_f10", "thr150_nallcap_f20", "thr150_nallcap_f30"])
+assert S["anchor_f10"]["cagr"] < 0.05 and S["anchor_f10"]["sleeve_active_share"] == 0
+assert S["thr150_nallcap_f10"]["cycle_vol"] < 0.05 and S["thr150_nallcap_f10"]["cagr"] < 0.10
+assert FS["anchor_held_median_quality"]["median"] < 1.5 and FS["anchor_held_clear_f10"]["mean"] < 4
+assert S["anchor_f30"]["mean_invested"] < 0.25 and S["anchor_f30"]["sleeve_active_share"] > 0.9
+assert not G["thr150_n4cap"]["gate_3_held_vol"] and not G["n4cap"]["gate_3_held_vol"]
+assert all(RR[l]["max_dd"] < -0.09 for l in ("thr150_n4cap_f10",))
+assert AL["retention"] > 0.7, AL
+
+first_dd_n4 = DE["thr150_n4|1"]
+first_dd_anchor = DE["anchor|1"]
+winners_quality = ", ".join(f"{r['vault']} {r['quality_at_open']:.2f}" if r["quality_at_open"] == r["quality_at_open"] else f"{r['vault']} n/a" for r in AQ[:5])
+# The floor at 1.0 and the anchor's engine position: opened at a quality just above the floor, and
+# the floor run holds that vault only before and after the run, never through it.
+engine_quality = top_anchor["quality_at_open"]
+assert 1.0 <= engine_quality < 1.5
+f10_engine = [r for r in FLD["anchor_f10"] if r["vault"] == "0x77fe..1a16"]
+assert f10_engine and all(not (str(r["opened"]) <= "2026-06-20" and (r["closed"] is None or str(r["closed"]) >= "2026-08-21")) for r in f10_engine)
+f10_engine_spans = "; ".join(f"{r['opened']} to {r['closed'] or 'open'} ({usd(r['pnl_usd'])})" for r in sorted(f10_engine, key=lambda r: str(r["opened"])))
+n4_top = LD["thr150_n4"][0]
+assert n4_top["vault"] == "0x77fe..1a16" and n4_top["peak_weight"] > 0.5
+nall_top_weight = max(r["peak_weight"] for r in LD[NALL])
+nall_top_weight_row = max(LD[NALL], key=lambda r: r["peak_weight"])
+assert nall_top_weight > 0.35
+n4_loss = min(LD["nofilter_n4"], key=lambda r: r["pnl_usd"])
+assert n4_loss["pnl_usd"] < -5000 and n4_loss["peak_weight"] > 0.7
+
+
+def lead_table():
+    rows = [("anchor", "anchor", ""), ("measured_8", "count 8 (NB36)", "NOT CONFIRMED"), ("thr150", "threshold 1.5", "REJECT gate 6"),
+            ("thr200", "threshold 2.0", "NOT CONFIRMED"), ("thr100", "threshold 1.0", "REJECT gates 6, 2"),
+            (RANKER, "cagr_sharpe ranker, thr 1.5", "REJECT gate 2 (0.68)"), ("nofilter_n4", "N = 4, cap off", "REJECT gates 3, 6"),
+            ("thr150_n4", "N = 4, thr 1.5, cap off", "REJECT gates 3, 6"), ("nofilter_n3", "N = 3, cap off", "REJECT gates 3, 6"),
+            ("nocap", "cap off", "UNEVALUATED"), (NALL, "unlimited, inverse-variance, cap off", "REJECT gate 7")]
+    lines = ["| run | what | recorded verdict | CAGR | Sharpe | max DD | worst 5 cycles | top vault share of +P&L | largest weight | held-book vol |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    for l, what, verdict in rows:
+        r = R[l]
+        lines.append(f"| {l} | {what} | {verdict} | {cg(l)} | {sh(l)} | {dd(l)} | {pc(r['worst5_cycles_sum'])} | {pc(r['top_vault_pnl_share'])} | {f2(r['mean_largest_weight'])} | {r['held_vol_post']:.4f} |")
+    return "\n".join(lines)
+
+
+def axis_table():
+    lines = ["| exit threshold | 1.0 | 1.25 | 1.5 | 1.75 | 2.0 | off (anchor) |", "|---|---|---|---|---|---|---|"]
+    lines.append("| CAGR | " + " | ".join(cg(l) for l in ("thr100", "thr125", "thr150", "thr175", "thr200", "anchor")) + " |")
+    lines.append("| Sharpe | " + " | ".join(sh(l) for l in ("thr100", "thr125", "thr150", "thr175", "thr200", "anchor")) + " |")
+    def verdict(l):
+        if l == "anchor":
+            return "-"
+        row = G[l] if l in G else G37[l]
+        text = row["verdict"].split(" (")[0]
+        failed = row.get("failed_standing_gates") or ""
+        return f"{text} ({failed.replace('gate_', '').replace('_plateau', '').replace('_mask', '').replace('_held_vol', '').replace('_subperiod', '').replace('_positive', '')})" if failed else text
+    lines.append("| verdict (standing gates) | " + " | ".join(verdict(l) for l in ("thr100", "thr125", "thr150", "thr175", "thr200", "anchor")) + " |")
+    return "\n".join(lines)
+
+
+def n_table():
+    lines = ["| N | 3 | 4 | 5 | 6 |", "|---|---|---|---|---|"]
+    lines.append("| cap kept, no filter: Sharpe / max DD | " + " | ".join(f"{sh(l)} / {dd(l)}" for l in ("n3cap", "n4cap", "n5cap", "anchor")) + " |")
+    lines.append("| cap kept, thr 1.5 | " + " | ".join(f"{sh(l)} / {dd(l)}" for l in ("thr150_n3cap", "thr150_n4cap", "thr150_n5cap", "thr150")) + " |")
+    lines.append("| cap off, no filter | " + " | ".join(f"{sh(l)} / {dd(l)}" for l in ("nofilter_n3", "nofilter_n4", "nofilter_n5", "nocap")) + " |")
+    lines.append("| cap off, thr 1.5 | " + " | ".join(f"{sh(l)} / {dd(l)}" for l in ("thr150_n3", "thr150_n4", "thr150_n5")) + " | not re-run (NB37) |")
+    return "\n".join(lines)
+
+
+def floor_table():
+    lines = ["| floor on 180-day event Sharpe | off | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 |", "|---|---|---|---|---|---|---|"]
+    for prefix, base, name in (("anchor", "anchor", "incumbent, six slots"), ("thr150", "thr150", "thr 1.5, six slots")):
+        cells = [f"{cg(base)} / {sh(base)}"] + [f"{cg(f'{prefix}_{t}')} / {sh(f'{prefix}_{t}')}" for t in ("f10", "f15", "f20", "f25", "f30")]
+        lines.append(f"| {name}: CAGR / Sharpe | " + " | ".join(cells) + " |")
+    lines.append("| qualifying names per decision (mean / min) | - | " + " | ".join(f"{S[f'anchor_{t}']['qualifying_mean']:.1f} / {S[f'anchor_{t}']['qualifying_min']:.0f}" for t in ("f10", "f15", "f20", "f25", "f30")) + " |")
+    lines.append("| mean invested | " + pc(A["mean_invested"]) + " | " + " | ".join(pc(S[f"anchor_{t}"]["mean_invested"]) for t in ("f10", "f15", "f20", "f25", "f30")) + " |")
+    lines.append("| thr 1.5, N = 4, cap: CAGR / Sharpe | " + f"{cg('thr150_n4cap')} / {sh('thr150_n4cap')} | " + " | ".join(f"{cg(f'thr150_n4cap_{t}')} / {sh(f'thr150_n4cap_{t}')}" if f"thr150_n4cap_{t}" in S else "-" for t in ("f10", "f15", "f20", "f25", "f30")) + " |")
+    lines.append("| thr 1.5, unlimited, cap: CAGR / Sharpe / vol | " + f"{cg(NALL)} / {sh(NALL)} / {vol(NALL)} (cap off) | " + " | ".join(f"{cg(f'thr150_nallcap_{t}')} / {sh(f'thr150_nallcap_{t}')} / {vol(f'thr150_nallcap_{t}')}" if f"thr150_nallcap_{t}" in S else "-" for t in ("f10", "f15", "f20", "f25", "f30")) + " |")
+    return "\n".join(lines)
+
+
+HEADING = f"""# NB40 - lead forensics and the cash-sleeve rescue
+
+Every portfolio-level lead with a cycle Sharpe above 1.5 on the track window was REJECTED or
+left NOT CONFIRMED by a numerical gate in NB36 and NB37. This notebook reads those rejections
+off the trades instead of the numbers: the equity curve, the positions that made and lost the
+money, the drawdowns and the worst cycles, the vault behind each single-vault mask, the vaults
+that sit in the band between two thresholds when a plateau fails, and whether the crash filter's
+exits actually avoided losses. Some positive luck is allowed; the question asked of each lead is
+whether it traded too riskily and whether it did what it was built to do.
+
+It then checks whether the N and threshold assumptions the leads were scored under were sensible
+(the position family with the 33% cap kept, a finer threshold family around 1.5), and tries one
+rescue: a QUALITY FLOOR with a CASH SLEEVE. A candidate is allocated capital only if its trailing
+180-day event-time Sharpe - the score NB39 found to be the strongest predictor of forward 60-day
+Sharpe on the full archive - clears a floor; slots no qualifying vault fills stay in cash. The
+floor family 1.0 / 1.5 / 2.0 / 2.5 / 3.0 was pre-stated from NB39's candidate distribution before
+any run.
+
+**Verdicts use the standing gates only** (RESEARCH-RULES.md, idiot-gate audit of 2026-09-16):
+1 positive return, 2 single-vault mask, 3 held-book volatility, 6 plateau, 7 sub-period sign.
+Nothing here is out of sample.
+
+**Based on:** [37-backtest-threshold-crash-filter.ipynb](37-backtest-threshold-crash-filter.ipynb)
+and [36-backtest-calm-closeout.ipynb](36-backtest-calm-closeout.ipynb) for the leads and the gate
+machinery, [39-research-trimmed-screen-full-history.ipynb](39-research-trimmed-screen-full-history.ipynb)
+for the quality score, [02-better-format.ipynb](02-better-format.ipynb) as the anchor. Track
+window 2026-01-01 to 2026-09-08; windows A and B as in NB33. The eleven leads reproduce their
+NB37 / NB36 runs at {m["reproduction_max_abs_diff"]:.1e} on five metrics (cell 28).
+
+## Key new insights and what did we learn from this experiment?
+
+**Verdict: nothing is rescued, and the forensics change what the leads are.** Every six-name
+lead is the anchor's book with one position moved, every four-name lead is the anchor's best
+vault at twice the weight, and the quality floor removes the vaults that earn.
+
+1. **One position is the 2026 result.** `0x77fe..1a16`, held 2026-06-20 to 08-21, delivers
+   {pc(top_anchor["pnl_share"])} of the anchor's net P&L ({usd(top_anchor["pnl_usd"])} of {usd(L["anchor"]["net_pnl_usd"])}) and
+   {pc(MASK["thr150"]["anchor_share_of_positive_pnl"])} of its positive P&L (cells 34, 38). `thr150`, `measured_8`, `thr200` and the
+   `cagr_sharpe` ranker all hold the same position; it is {pc(MASK["thr150"]["lead_share_of_positive_pnl"])}, {pc(MASK["measured_8"]["lead_share_of_positive_pnl"])},
+   {pc(MASK["thr200"]["lead_share_of_positive_pnl"])} and {pc(MASK[RANKER]["lead_share_of_positive_pnl"])} of their positive P&L. Their books overlap the
+   anchor's on {pc(OVERLAP["thr150"]["capital_share_in_reference_names"])} ({f2(OVERLAP["thr150"]["mean_jaccard_vs_reference"])} Jaccard) of capital (cell 42). The anchor under its own
+   mask retains {f3(AL["retention"])} of its Sharpe (cell 38); the ranker lead's {f2(MASK[RANKER]["recorded_mask_retention"])} is the anchor's dependence
+   plus {pc(MASK[RANKER]["lead_share_of_positive_pnl"] - MASK[RANKER]["anchor_share_of_positive_pnl"])} more of it, and masking its second vault instead retains {f2(SECOND[RANKER]["retention_second"])}: one name, inherited.
+2. **The threshold cliff is that position.** `0x77fe..1a16` is one of the {band["band_vaults"]} names `thr100`'s
+   filter excluded on dates `thr150` held them, and `thr100` has no position in it after June 4
+   (cell 34); its top vault is `{MASK["thr100"]["masked_vault"]}` at
+   {pc(MASK["thr100"]["lead_share_of_positive_pnl"])} and masking its SECOND vault retains only {f2(SECOND["thr100"]["retention_second"])} - a thin book, not a
+   diversified one. The {band["band_vaults"]} vaults `thr150` held while `thr100`'s filter excluded them carry
+   {pc(band["wide_band_pnl_share_of_net"])} of `thr150`'s net P&L and {pc(band["reference_band_pnl_share_of_net"])} of the anchor's (cell 40). The exit branch
+   never fired: held-name exclusions are {EXCL["thr100"]["held_exclusions"]}, {EXCL["thr150"]["held_exclusions"]} and {EXCL["thr200"]["held_exclusions"]} at 1.0, 1.5 and 2.0 - every
+   threshold run is an ADMISSION filter and nothing else, so "did the exits avoid losses" has no
+   data. The anchor's capital sits {pc(BS["anchor_cap_0.0-0.5"]["mean over decisions"])} below 0.5 annualised volatility and {pc(BS["anchor_cap_0.5-1.0"]["mean over decisions"])} in
+   0.5-1.0; only {pc(BS["anchor_cap_1.0-1.25"]["mean over decisions"] + BS["anchor_cap_1.25-1.5"]["mean over decisions"])} is in 1.0-1.5 at any decision (cell 44), which is why the
+   thresholds at 1.5 and above barely change the book and the ones below do.
+3. **The threshold axis is jagged, and gate 6 depends on the grid.** Sharpe at exit 1.0 / 1.25
+   / 1.5 / 1.75 / 2.0 is {" / ".join(f3(x) for x in thr_axis)} (cell 46): 1.75 is the same book as 1.5 on this
+   window, so it passes the plateau against 1.5 and 2.0 while 1.5 fails it against 1.25. `thr175`
+   is therefore NOT CONFIRMED (inside the band at {gap("thr175")}) under the rules as written, with the
+   same mask retention ({f2(G["thr175"]["mask_retention"])}); on window B it is not the same mechanism ({f2(W[WB]["thr175"]["cycle_sharpe"])} against
+   {f2(W[WB]["thr150"]["cycle_sharpe"])}, cell 52). Read together: an admission filter between 1.5 and 1.75 is the only lead that
+   is never worse than the anchor, and its plateau verdict is a matter of which neighbours are
+   pre-registered - a property of the test, recorded here for the rules, not resolved by it.
+4. **N = 4 is one vault at twice the weight.** `0x77fe..1a16` at {f2(n4_top["peak_weight"])} peak weight is
+   {pc(L["thr150_n4"]["top_vault_pnl_share_of_positive"])} of `thr150_n4`'s positive P&L and {pc(L["nofilter_n4"]["top_vault_pnl_share_of_positive"])} of `nofilter_n4`'s; their
+   {pc(first_dd_n4["depth"])} drawdown ({first_dd_n4["peak"]} to {first_dd_n4["trough"]}) is that vault and `0x4dec..27f6` in two weeks of July
+   (cell 36), and `nofilter_n4` lost {usd(-n4_loss["pnl_usd"])} on `{n4_loss["vault"]}` at a {f2(n4_loss["peak_weight"])} peak weight over its last
+   {n4_loss["days"]} days (cell 34). {pc(OVERLAP["nofilter_n4"]["capital_share_in_reference_names"])} of the four-name books' capital is in names the anchor holds: the
+   extra return is concentration, not selection. With the cap KEPT the family is
+   {" / ".join(f3(x) for x in ncap)} / {sh("anchor")} at N = 3 / 4 / 5 / 6 (cell 46) - N = 4 stands above both neighbours in
+   the capped family as in the uncapped one, N = 5 masks at {f2(G["nofilter_n5"]["mask_retention"])}-{f2(G["thr150_n5"]["mask_retention"])}, and every
+   N < 6 fails gate 3. This is the risky trading the operator asked about: a two-name book.
+5. **The unlimited inverse-variance book is the sizing rule's stale-mark bias.** {pc(SPARSE[NALL]["sparse_capital_share"])} of its
+   capital sits in names with fewer than 30 moved marks in 90 rows against the anchor's
+   {pc(SPARSE["anchor"]["sparse_capital_share"])} (cell 42); with the cap off, `{nall_top_weight_row["vault"]}` reached a {f2(nall_top_weight)} weight over
+   {nall_top_weight_row["days"]} days (cell 34); late-period P&L per vault is within a thousand dollars (cell 42). Its
+   {cg(NALL)} at {vol(NALL)} volatility is a near-cash book, not a low-volatility strategy.
+6. **The quality floor removes the vaults that earn.** The anchor's held names have a median
+   trailing 180-day event-time Sharpe of {f2(FS["anchor_held_median_quality"]["median"])}; only {f2(FS["anchor_held_clear_f10"]["mean"])} of six clear 1.0 and
+   {f2(FS["anchor_held_clear_f20"]["mean"])} clear 2.0 on a mean decision (cell 44). Its five largest positions had quality at
+   entry of {winners_quality}. A floor of 1.0 leaves {S["anchor_f10"]["qualifying_mean"]:.0f} qualifying names per decision - the
+   sleeve never activates - and takes the incumbent from {cg("anchor")} to {cg("anchor_f10")} ({sh("anchor")} to {sh("anchor_f10")} Sharpe);
+   higher floors go negative and the sleeve holds up to {pc(1 - S["anchor_f30"]["mean_invested"])} cash at 3.0 (cell 48). The
+   engine position of finding 1 opened at a quality of {f2(engine_quality)}, a hair above the floor, and the
+   floor run holds that vault only {f10_engine_spans} - it sells out of the June run as
+   the score dips through 1.0 and never gets back in (cell 48): the winners' scores sit AT the
+   floor family's bottom and the floor has no hysteresis. Holding EVERY vault above 1.0
+   (unlimited, cap kept) earns {cg("thr150_nallcap_f10")} at {vol("thr150_nallcap_f10")} volatility, Sharpe {sh("thr150_nallcap_f10")}: the names that clear
+   the floor comfortably are the low-return part of the universe. Every floor run is REJECT on
+   gate 7 and, from 1.5 up, gate 1 (cell 50). NB39's universe-wide rank correlation of about
+   0.25 between this score and forward Sharpe is real and does not select: it ranks 150 mostly
+   losing names, not the top of the book. The "180-day risk-adjusted ranking leg" lead as stated
+   after NB39 is retired in its floor form; a ranker on this score would fill the book with the
+   names the floor keeps, and a floor WITH hysteresis below 1.0 is a different, untested rule.
+7. **The sleeve works and had nothing to rescue.** Fill equals selected over slots on every
+   decision, the cap holds as a share of full equity, and a floor of 3.0 leaves the book
+   {pc(S["anchor_f30"]["mean_invested"])} invested ({S["anchor_f30"]["decisions_none_qualifying"]:.0f} decisions with nothing qualifying). The rescue failed on the floor, not on the sleeve.
+
+## Summary of results
+
+The leads as re-run, with the risk panel (cells 28, 32, 34):
+
+{lead_table()}
+
+The threshold axis, refined (cells 46, 50):
+
+{axis_table()}
+
+The position family, cap kept and cap off, Sharpe / max drawdown (cells 46, 28):
+
+{n_table()}
+
+The rescue (cell 48):
+
+{floor_table()}
+
+Standing gates for the new runs (cell 50): `thr175` NOT CONFIRMED (inside the indifference band
+at {gap("thr175")}; mask {f2(G["thr175"]["mask_retention"])}); every other new run REJECT - the capped position family on gate 3 and
+gate 6 (N = 3 and N = 5 also on gate 7), `thr125` on gate 6, N = 5 uncapped on gates 6 and 2,
+every floor run on gate 7 (and gate 1 from a floor of 1.5). Re-reading the old leads' plateaus
+against the refined and capped neighbours changes none of them (cell 50).
+
+Windows A and B (cell 52): on the incumbent's window `thr150` and `thr175` are identical
+({f2(W[WA]["thr150"]["cycle_sharpe"])} against the anchor's {f2(W[WA]["anchor"]["cycle_sharpe"])}); on the full data period `thr150` holds {f2(W[WB]["thr150"]["cycle_sharpe"])}
+against {f2(W[WB]["anchor"]["cycle_sharpe"])} and `thr175` {f2(W[WB]["thr175"]["cycle_sharpe"])}.
+
+**What this means for the track.** No lead is a selection improvement. The one lead that is never
+worse than the anchor - an admission filter refusing names above about 1.5 annualised trailing
+volatility, in count form `measured_8` - moves {S["thr150"]["share_of_decisions_changed"] * 126:.0f} of 126 decisions and inherits every
+property of the anchor, including its dependence on one June-to-August position. Whether to
+carry it is the operator's call on priors, as recorded after NB36. Concentration (N < 6, the cap
+off) buys return with a two-name book and fails the risk gates on the trades, not on a technicality.
+The quality-floor rescue is REJECTED, and with it the plan to rank on the 180-day event-time
+Sharpe. If a lead's gate is to be re-examined, it is gate 6's dependence on grid spacing
+(finding 3), and the place for that is RESEARCH-RULES.md, not a re-scored verdict.
+
+## Robustness of results
+
+- Anchor parity holds with the floor and sleeve splices present (cell 26); the eleven leads
+  reproduce NB37 / NB36 at {m["reproduction_max_abs_diff"]:.1e} (cell 28); the smoke test `_build/verify-sleeve.ipynb`
+  asserted the anchor path writes no floor or sleeve log, fill == selected / slots, positions
+  close when their vault drops below the floor, and the cap holds under a partial fill.
+- The forensics are position statistics of the same runs, not new estimates: P&L from
+  `get_total_profit_usd()`, drawdown attribution from per-cycle cumulative `profit_usd`, band
+  membership from the crash log, quality at entry from the cached indicator at T-1.
+- The threshold and floor families were stated in cell 26 before any run; `thr175`'s plateau
+  pass is a consequence of the refined grid, reported as such (finding 3), and its window-B
+  divergence from `thr150` is reported beside it.
+- Held-name exclusions are zero on every six-name and four-name threshold run, so the
+  hysteresis and the exit threshold remain unverified by any result in this track.
+- The floor's score is measured on a mean {FS["measured"]["mean"]:.0f} of {FS["candidates"]["mean"]:.0f} candidates per decision (cell 44): a vault
+  younger than 180 days, or one whose marks do not span the window, can never qualify. The
+  anchor's own held names are measured on {FS["anchor_held_measured"]["mean"] * 126:.0f} of {FS["anchor_held"]["mean"] * 126:.0f} holding-decisions, so the floor's damage
+  is not a coverage artefact - the anchor's winners are measured and score at or near the
+  bottom of the floor family.
+- Same limits as the whole track: one window, 126 decisions, in sample throughout; the luck
+  ratio is undefined for most runs that change the book heavily.
+"""
+
+nb = json.loads(NB.read_text())
+assert nb["cells"][0]["cell_type"] == "markdown"
+nb["cells"][0]["source"] = HEADING.splitlines(keepends=True)
+NB.write_text(json.dumps(nb, indent=1))
+print(f"NB40 heading written: thr175 {G['thr175']['verdict']}; anchor_f10 {cg('anchor_f10')}; anchor mask retention {AL['retention']:.3f}")
