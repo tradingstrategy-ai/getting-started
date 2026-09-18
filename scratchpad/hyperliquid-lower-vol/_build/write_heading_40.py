@@ -75,6 +75,8 @@ assert thr_axis[1] < thr_axis[0] < thr_axis[2] and abs(thr_axis[2] - thr_axis[3]
 assert G["thr175"]["verdict"].startswith("NOT CONFIRMED") and G["thr125"]["verdict"] == "REJECT"
 assert not RP["thr150"]["passes"] and not RP["nofilter_n4"]["passes"] and not RP["thr150_n4"]["passes"]
 assert abs(W[WB]["thr150"]["cycle_sharpe"] - W[WB]["thr175"]["cycle_sharpe"]) > 0.1
+for l in ("measured_8", "thr150"):
+    assert S[l]["cagr"] >= A["cagr"] and S[l]["cycle_sharpe"] >= A["cycle_sharpe"] and abs(S[l]["max_dd"] - A["max_dd"]) < 0.001, l
 ncap = [S[l]["cycle_sharpe"] for l in ("n3cap", "n4cap", "n5cap")]
 assert ncap[1] > ncap[2] and ncap[1] > ncap[0] and ncap[1] > A["cycle_sharpe"]
 assert G["thr150_n5"]["mask_retention"] < 0.7 and G["thr150_n5"]["gate_2_mask"] is False
@@ -223,8 +225,10 @@ the weight; and the quality floor removes the vaults that earn, including that o
    are different rules - all hold the same position; it is {pc(MASK["thr150"]["lead_share_of_positive_pnl"])}, {pc(MASK["measured_8"]["lead_share_of_positive_pnl"])},
    {pc(MASK["thr200"]["lead_share_of_positive_pnl"])} and {pc(MASK[RANKER]["lead_share_of_positive_pnl"])} of their positive P&L. Their books overlap the
    anchor's on {pc(OVERLAP["thr150"]["capital_share_in_reference_names"])} ({f2(OVERLAP["thr150"]["mean_jaccard_vs_reference"])} Jaccard) of capital (cell 42). The anchor under its own
-   mask retains {f3(AL["retention"])} of its Sharpe (cell 38); the ranker lead's {f2(MASK[RANKER]["recorded_mask_retention"])} is the anchor's dependence
-   plus {(MASK[RANKER]["lead_share_of_positive_pnl"] - MASK[RANKER]["anchor_share_of_positive_pnl"]) * 100:.1f} percentage points more of it, and masking its second vault instead retains {f2(SECOND[RANKER]["retention_second"])}: one name, inherited.
+   mask retains {f3(AL["retention"])} of its Sharpe (cell 38). The ranker lead retains {f2(MASK[RANKER]["recorded_mask_retention"])} under the same mask,
+   below the anchor's own figure; that vault is {pc(MASK[RANKER]["lead_share_of_positive_pnl"])} of its positive P&L against {pc(MASK[RANKER]["anchor_share_of_positive_pnl"])} of the
+   anchor's, and masking its second vault instead retains {f2(SECOND[RANKER]["retention_second"])} - the same one name, held a little
+   larger.
 2. **The threshold cliff is consistent with that position.** `0x77fe..1a16` is one of the {band["band_vaults"]} names
    `thr100`'s filter excluded on dates `thr150` held them; `thr100`'s last position in it closed
    on {thr100_engine_last_close} and it never re-entered (cell 40, every position listed). On the disputed
@@ -250,12 +254,13 @@ the weight; and the quality floor removes the vaults that earn, including that o
    against 1.25; it would pass every standing-gate calculation (Sharpe {gap("thr175")} to the anchor, inside
    the indifference band; mask {f2(G["thr175"]["mask_retention"])}). That is a sensitivity result on a grid point inserted after
    `thr150`'s result was seen, not a verdict, and NB37's REJECT of `thr150` stands as recorded. On
-   window B the two are not the same mechanism ({f2(W[WB]["thr175"]["cycle_sharpe"])} against {f2(W[WB]["thr150"]["cycle_sharpe"])}, cell 52). What the axis
+   window B the two rules no longer produce identical realised results ({f2(W[WB]["thr175"]["cycle_sharpe"])} against {f2(W[WB]["thr150"]["cycle_sharpe"])},
+   cell 52). What the axis
    shows is that gate 6's answer for a threshold between 1.25 and 2.0 depends on which
    neighbours are pre-registered - a property of the test, recorded here for the rules.
-4. **N = 4's return is the anchor's largest position at twice the weight.** `0x77fe..1a16` at {f2(n4_top["peak_weight"])} peak weight is
-   {pc(L["thr150_n4"]["top_vault_pnl_share_of_positive"])} of `thr150_n4`'s positive P&L and {pc(L["nofilter_n4"]["top_vault_pnl_share_of_positive"])} of `nofilter_n4`'s; their
-   {pc(first_dd_n4["depth"])} drawdown ({first_dd_n4["peak"]} to {first_dd_n4["trough"]}) is that vault and `0x4dec..27f6` in two weeks of July
+4. **N = 4 is the anchor's names at about twice the weight.** `0x77fe..1a16` at {f2(n4_top["peak_weight"])} peak weight is
+   {pc(L["thr150_n4"]["top_vault_pnl_share_of_positive"])} of `thr150_n4`'s positive P&L and {pc(L["nofilter_n4"]["top_vault_pnl_share_of_positive"])} of `nofilter_n4`'s; the two largest position
+   losses inside their {pc(first_dd_n4["depth"])} drawdown ({first_dd_n4["peak"]} to {first_dd_n4["trough"]}) are that vault and `0x4dec..27f6`
    (cell 36), and `nofilter_n4` lost {usd(-n4_loss["pnl_usd"])} on `{n4_loss["vault"]}` at a {f2(n4_loss["peak_weight"])} peak weight over its last
    {n4_loss["days"]} days (cell 34). {pc(OVERLAP["nofilter_n4"]["capital_share_in_reference_names"])} of the four-name books' capital is in names the anchor holds,
    at weights near twice the anchor's, which is consistent with concentration being the major
@@ -263,8 +268,9 @@ the weight; and the quality floor removes the vaults that earn, including that o
    trade timing. With the cap KEPT the family is
    {" / ".join(f3(x) for x in ncap)} / {sh("anchor")} at N = 3 / 4 / 5 / 6 (cell 46) - N = 4 stands above both neighbours in
    the capped family as in the uncapped one, N = 5 with the filter masks at {f2(G["thr150_n5"]["mask_retention"])}, and every
-   N < 6 fails gate 3. This is the risky trading the operator asked about: a {R["thr150_n4"]["mean_holdings"]:.1f}-name book
-   whose result and whose drawdown are two names.
+   N < 6 fails gate 3. This is the risky trading the operator asked about: a {R["thr150_n4"]["mean_holdings"]:.1f}-name book in
+   which one position is about two thirds of the positive P&L and two positions most of the
+   deepest drawdown.
 5. **The unlimited inverse-variance book is the sizing rule's stale-mark bias.** {pc(SPARSE[NALL]["sparse_capital_share"])} of its
    capital sits in names with fewer than 30 moved marks in 90 rows against the anchor's
    {pc(SPARSE["anchor"]["sparse_capital_share"])} (cell 42); with the cap off, `{nall_top_weight_row["vault"]}` reached a {f2(nall_top_weight)} weight over
@@ -277,10 +283,11 @@ the weight; and the quality floor removes the vaults that earn, including that o
    sleeve never activates - and takes the incumbent from {cg("anchor")} to {cg("anchor_f10")} ({sh("anchor")} to {sh("anchor_f10")} Sharpe);
    higher floors go negative and the sleeve holds up to {pc(1 - S["anchor_f30"]["mean_invested"])} cash at 3.0 (cell 48). The
    engine position of finding 1 opened at a quality of {f2(engine_quality)}, a hair above the floor, and the
-   floor run holds that vault only {f10_engine_spans} - it sells out on June 18 as the
-   score dips through 1.0, misses the June-to-August run, and re-enters for {f10_engine_reentry[0]["days"] if f10_engine_reentry else 0} days in
-   August (cell 48): the winners' scores sit AT the floor family's bottom and the floor has no
-   hysteresis. The unlimited-capacity capped book with the floor at 1.0 ({S["thr150_nallcap_f10"]["qualifying_mean"]:.1f} names
+   floor run holds that vault only {f10_engine_spans} - the position is absent from
+   June 18 to August 17, the whole of the run, and returns for {f10_engine_reentry[0]["days"] if f10_engine_reentry else 0} days (cell 48; the log entry
+   that closed it is not printed, so whether the floor or another eligibility condition closed it
+   on that date is not shown). The winners' scores sit at the floor family's bottom and the
+   floor has no hysteresis. The unlimited-capacity capped book with the floor at 1.0 ({S["thr150_nallcap_f10"]["qualifying_mean"]:.1f} names
    qualify per decision, {S["thr150_nallcap_f10"]["mean_holdings"]:.1f} are held) earns {cg("thr150_nallcap_f10")} at {vol("thr150_nallcap_f10")} volatility, Sharpe {sh("thr150_nallcap_f10")},
    against {cg("thr150_nallcap")} / {sh("thr150_nallcap")} for the same book without the floor: the names that clear the
    floor comfortably are the low-return part of the universe. Every one of the {len(floor_runs)} floor runs
@@ -293,8 +300,10 @@ the weight; and the quality floor removes the vaults that earn, including that o
    fill; on the full runs, independently of the sleeve's own log, the largest realised position
    weight across every floor run is {f2(sleeve_worst_weight)} against a 0.33 cap and a floor of 3.0 leaves the
    book {pc(sleeve_f30["mean_invested_realised"])} invested against an intended {pc(sleeve_f30["sleeve_mean_allocation_intended"])} ({S["anchor_f30"]["decisions_none_qualifying"]:.0f} decisions with nothing
-   qualifying), and the floor's logged qualifying counts match an offline reconstruction on
-   every decision (cell 48). The rescue failed on the floor, not on the sleeve.
+   qualifying), and the floor's logged qualifying counts match an offline reconstruction on all
+   126 decisions for each of the ten six-slot runs checked (cell 48). What is verified is that
+   the sleeve deploys no more than intended; the construction that failed is the floor AND the
+   sleeve together, and this notebook does not separate their contributions.
 
 ## Summary of results
 
@@ -329,16 +338,17 @@ Windows A and B (cell 52): on the incumbent's window `thr150` and `thr175` are i
 against {f2(W[WB]["anchor"]["cycle_sharpe"])} and `thr175` {f2(W[WB]["thr175"]["cycle_sharpe"])}.
 
 **What this means for the track.** No lead is established as a selection improvement on this
-window. The two rules that are never worse than the anchor - `measured_8` (NOT CONFIRMED,
+window. The two rules no worse than the anchor on CAGR and cycle Sharpe (max drawdown within
+0.1 percentage points of it) - `measured_8` (NOT CONFIRMED,
 conditionally positive, as recorded after NB36; {S["measured_8"]["share_of_decisions_changed"] * 126:.0f} of 126 decisions changed) and an
 admission threshold near 1.5 annualised trailing volatility (`thr150`, {S["thr150"]["share_of_decisions_changed"] * 126:.0f} decisions changed,
 REJECT on gate 6 as recorded; `thr175` would pass the same calculations on the refined grid) -
 are different rules that inherit every property of the anchor, including its dependence on one
 June-to-August position. Whether to carry either is the operator's call on priors. Concentration (N < 6, the cap
 off) buys return with a book whose result is two names and fails the risk gates on the trades,
-not on a technicality. The quality-floor rescue is REJECTED in the form built here (a floor
-without hysteresis on the 180-day event-time Sharpe, with a cash sleeve); ranking on that score
-is untested. If a lead's gate is to be re-examined, it is gate 6's dependence on grid spacing
+not on a technicality. The quality-floor rescue, in the form built here (a floor without
+hysteresis on the 180-day event-time Sharpe, with a cash sleeve), would fail the standing-gate
+calculations on every run; ranking on that score is untested. If a lead's gate is to be re-examined, it is gate 6's dependence on grid spacing
 (finding 3), and the place for that is RESEARCH-RULES.md, not a re-scored verdict.
 
 ## Robustness of results
@@ -354,11 +364,12 @@ is untested. If a lead's gate is to be re-examined, it is gate 6's dependence on
   aligned P&L contribution; neither is a counterfactual, and the heading says so.
 - The quality-population table (cell 44) is drawn from two populations - the whole candidate
   pool the anchor floor family sees and `thr150`'s survivors the `thr150` floor family sees -
-  and the floor runs' logged qualifying counts match that reconstruction on every decision.
+  and the ten six-slot floor runs' logged qualifying counts match that reconstruction on every
+  decision (the N = 4 and unlimited floor runs are not checked).
 - The floor family was stated in cell 26 before any floor run; the refined threshold grid and
   the capped position family are post-hoc sensitivity checks on results already seen, and their
-  gate calculations are reported as such, never as verdicts. `thr175`'s window-B divergence
-  from `thr150` is reported beside it.
+  gate calculations are reported as such, never as verdicts. That `thr175` and `thr150` no
+  longer produce identical results on window B is reported beside it.
 - Held-name exclusions are zero on every six-name and four-name threshold run, so the
   hysteresis and the exit threshold remain unverified by any result in this track.
 - The floor's score is measured on a mean {FS["measured"]["mean"]:.0f} of {FS["candidates"]["mean"]:.0f} candidates per decision (cell 44): a vault
