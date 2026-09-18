@@ -218,7 +218,7 @@ NB37 / NB36 runs at {m["reproduction_max_abs_diff"]:.1e} on five metrics (cell 2
 ranker share its largest position; `thr150_n4` and `nofilter_n4` hold that position at twice
 the weight; and the quality floor loses that position and most of the return with it.
 
-1. **One position dominates the 2026 result.** `0x77fe..1a16`, held 2026-06-20 to 08-21, delivers
+1. **One position is the largest contributor to the 2026 result.** `0x77fe..1a16`, held 2026-06-20 to 08-21, delivers
    {pc(top_anchor["pnl_share"])} of the anchor's net P&L ({usd(top_anchor["pnl_usd"])} of {usd(L["anchor"]["net_pnl_usd"])}) and
    {pc(MASK["thr150"]["anchor_share_of_positive_pnl"])} of its positive P&L (cells 34, 38). `thr150`, `measured_8`, `thr200` and the
    `cagr_sharpe` ranker - `measured_8` removes the eight lowest finite `inverse_vol` values per
@@ -332,8 +332,8 @@ Standing-gate calculations for the new runs, as sensitivity results (cell 50): `
 pass every gate (Sharpe {gap("thr175")} to the anchor, inside the indifference band; mask {f2(G["thr175"]["mask_retention"])});
 `thr150_nocap` is unevaluable on gate 6 (a family endpoint; mask {f2(G["thr150_nocap"]["mask_retention"])}, Sharpe {gap("thr150_nocap")}); every other
 new run fails at least one gate - the capped position family fails gate 3 on all six runs and
-gate 6 on the {len(capped_n_gate6_scored_fail)} where it is scored ({", ".join(capped_n_gate6_unscored)} unscored as endpoints; N = 3 and N = 5 also fail gate
-7), `thr125` fails gate 6, N = 5 uncapped fails gate 6 (and gate 2 with the filter), every floor
+gate 6 on the {len(capped_n_gate6_scored_fail)} where it is scored ({", ".join(capped_n_gate6_unscored)} unscored as endpoints; {", ".join(f"`{l}`" for l in capped_n if not G[l]["gate_7_subperiod"])}
+also fail gate 7), `thr125` fails gate 6, N = 5 uncapped fails gate 6 (and gate 2 with the filter), every floor
 run fails gate 7 and {len(floor_gate1_fail)} of {len(floor_runs)} fail gate 1. Gate 6 is scored only where both pre-registered
 neighbours exist. Re-reading the old leads' plateaus against the refined and capped neighbours
 changes none of them (cell 50).
@@ -376,14 +376,15 @@ calculations on every run; ranking on that score is untested. If a lead's gate i
   the capped position family are post-hoc sensitivity checks on results already seen, and their
   gate calculations are reported as such, never as verdicts. That `thr175` and `thr150` no
   longer produce identical results on window B is reported beside it.
-- Held-name exclusions are zero on every six-name and four-name threshold run, so the
-  hysteresis and the exit threshold remain unverified by any result in this track.
+- Held-name exclusions are zero on every six-name and four-name threshold run; the unlimited
+  run supplies one exit observation ({EXCL[NALL]["held_exclusions"]} held-name exclusion, cell 40), not enough to assess the
+  exit threshold, and the hysteresis is unverified by any result in this track.
 - The floor's score is measured on a mean {FS["measured"]["mean"]:.0f} of {FS["candidates"]["mean"]:.0f} candidates per decision (cell 44): a vault
   younger than 180 days, or one whose marks do not span the window, can never qualify. The
   anchor's own held names are measured on {FS["anchor_held_measured"]["mean"] * 126:.0f} of {FS["anchor_held"]["mean"] * 126:.0f} holding-decisions and the engine
-  position is measured, so poor coverage does not explain the loss of that position; it is
-  still part of the construction's effect, because every unmeasured candidate is excluded by
-  design.
+  position was measured at its opening; the displayed output cannot distinguish a below-floor
+  score, a later missing score, or another eligibility change at its June 18 exit, and every
+  unmeasured candidate is excluded by design, so coverage is part of the construction's effect.
 - Same limits as the whole track: one window, 126 decisions, in sample throughout; the luck
   ratio is undefined for most runs that change the book heavily.
 """
