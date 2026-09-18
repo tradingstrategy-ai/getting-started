@@ -210,10 +210,10 @@ NB37 / NB36 runs at {m["reproduction_max_abs_diff"]:.1e} on five metrics (cell 2
 
 ## Key new insights and what did we learn from this experiment?
 
-**Verdict: nothing is rescued, and the forensics change what the leads are.** `thr150`,
-`measured_8`, `thr200` and the `cagr_sharpe` ranker overlap the anchor on 95-99% of capital and
-share its largest position; `thr150_n4` and `nofilter_n4` hold that position at twice the
-weight; and the quality floor removes the vaults that earn, including that one.
+**Verdict: nothing is rescued, and the forensics change what the leads are.** `thr150` and
+`measured_8` overlap the anchor on {pc(min(OVERLAP["thr150"]["capital_share_in_reference_names"], OVERLAP["measured_8"]["capital_share_in_reference_names"]))}-{pc(max(OVERLAP["thr150"]["capital_share_in_reference_names"], OVERLAP["measured_8"]["capital_share_in_reference_names"]))} of capital, and they, `thr200` and the `cagr_sharpe`
+ranker share its largest position; `thr150_n4` and `nofilter_n4` hold that position at twice
+the weight; and the quality floor removes the vaults that earn, including that one.
 
 1. **One position dominates the 2026 result.** `0x77fe..1a16`, held 2026-06-20 to 08-21, delivers
    {pc(top_anchor["pnl_share"])} of the anchor's net P&L ({usd(top_anchor["pnl_usd"])} of {usd(L["anchor"]["net_pnl_usd"])}) and
