@@ -491,6 +491,14 @@ assert agreement["mismatches"].sum() == 0, "the floor's in-trade qualifying coun
 for label in ["anchor_f10", "thr150_nallcap_f10"]:
     print(f"\\n{label}: largest positions, with the quality score at the opening decision")
     display(ledger_with_quality(label, top=8).round(4))
+# EVERY position of the floor runs in the engine vault, not only the eight largest: the floor
+# runs hold it in several short, small positions through the June-August run.
+engine_positions.update({l: positions_in_address(l, ENGINE) for l in RESCUE})
+print("\\nevery position in the engine vault, per floor run")
+display(pd.DataFrame([{"label": l, "positions": len(engine_positions[l]), "pnl_usd": sum(r["pnl_usd"] for r in engine_positions[l]),
+                       "peak_weight_max": max((r["peak_weight"] for r in engine_positions[l]), default=np.nan),
+                       "spans": "; ".join(f"{r['opened']}..{r['closed'] or 'open'} ({r['pnl_usd']:.0f}, w {r['peak_weight']:.2f})" for r in engine_positions[l])}
+                      for l in RESCUE]).set_index("label"))
 for title, labels in {"floor on the incumbent": ["anchor"] + [f"anchor_{ftag(f)}" for f in FLOORS],
                       "floor on thr150": ["anchor", "thr150"] + [f"thr150_{ftag(f)}" for f in FLOORS],
                       "floor on the four-name and unlimited books": ["anchor", "thr150_n4cap", "thr150_nallcap"] + [f"thr150_n4cap_{ftag(f)}" for f in FLOORS_SHORT] + [f"thr150_nallcap_{ftag(f)}" for f in FLOORS_SHORT]}.items():
