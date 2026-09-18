@@ -406,3 +406,102 @@ def summary_row_40(label: str, anchor_label: str = "anchor") -> dict:
 print(f"harness_forensics.py: QUALITY_LOG / CASH_SLEEVE_LOG lifecycle, position ledger, drawdown episodes, "
       f"held-exclusion outcomes ({EXCLUSION_HORIZON_DAYS} d), band attribution, sparse-capital share (< {SPARSE_FRESH_ROWS} moved marks), "
       f"risk rows; {len(PAIR_BY_ADDRESS)} pairs indexed by address.")
+
+
+# --- additions after the first Codex review of NB40 ---
+
+def band_attribution_aligned(wide_label: str, tight_label: str, reference_label: str = "anchor") -> dict:
+    """Like `band_attribution()`, but the P&L is aggregated ONLY over the cycles in which the wide
+    run (and, separately, the reference) held the name while the tight run's filter excluded it:
+    the cycle starting at decision t is attributed when the tight run's crash log lists the
+    address as excluded at t and the run in question held it at t. Whole-window address P&L is
+    an association; this is the P&L earned on the disputed dates."""
+    tight = run_by_label[tight_label]
+    excluded_at = {pd.Timestamp(t): set(rec["excluded_addresses"]) for t, rec in (tight.get("crash_log") or {}).items()}
+    out = {"wide": wide_label, "tight": tight_label}
+    for name, label in (("wide", wide_label), ("reference", reference_label)):
+        entry = run_by_label[label]
+        held = held_addresses_by_date(entry)
+        state_ = entry["state"]
+        # cumulative profit per position, on the statistics clock
+        series_by_position = {}
+        for p in _vault_positions(state_):
+            stats = state_.stats.positions.get(p.position_id, [])
+            if stats:
+                series_by_position[p] = pd.Series({pd.Timestamp(x.calculated_at): float(x.profit_usd or 0.0) for x in stats}).sort_index()
+        clock = sorted(held)
+        total, cycles, addresses = 0.0, 0, set()
+        for i, t in enumerate(clock[:-1]):
+            t_next = clock[i + 1]
+            disputed = {a for a in held[t] if a in excluded_at.get(t, set())}
+            if not disputed:
+                continue
+            cycles += 1
+            addresses |= disputed
+            for p, s in series_by_position.items():
+                addr = str(p.pair.pool_address).lower()
+                if addr not in disputed:
+                    continue
+                before = s[s.index <= t]
+                after = s[s.index <= t_next]
+                if after.empty:
+                    continue
+                total += float(after.iloc[-1]) - (float(before.iloc[-1]) if len(before) else 0.0)
+        net = sum(float(p.get_total_profit_usd() or 0.0) for p in _vault_positions(state_))
+        out[f"{name}_disputed_cycles"] = cycles
+        out[f"{name}_disputed_addresses"] = len(addresses)
+        out[f"{name}_disputed_pnl_usd"] = total
+        out[f"{name}_disputed_pnl_share_of_net"] = total / net if net else np.nan
+    return out
+
+
+def positions_in_address(label: str, address: str) -> list:
+    """Every position of a run in one vault, oldest first."""
+    ledger = position_ledger(label)
+    if ledger.empty:
+        return []
+    rows = ledger[ledger["address"] == str(address).lower()].sort_values("opened")
+    return [{"opened": str(r["opened"]), "closed": str(r["closed"]) if r["closed"] is not None else None,
+             "days": int(r["days"]), "pnl_usd": float(r["pnl_usd"]), "peak_weight": float(r["peak_weight"])} for _, r in rows.iterrows()]
+
+
+def sleeve_realised_check(label: str) -> dict:
+    """Independent of the sleeve's own log: the realised deployment and the largest realised
+    position weight of a run, beside what the sleeve intended. `mean_invested` is the portfolio
+    statistics' cash share; the cap is checked on the position statistics."""
+    entry = run_by_label[label]
+    weights = _position_weights(entry["state"])
+    largest = max((share for holdings in weights.values() for _p, share in holdings), default=float("nan"))
+    log = entry.get("cash_sleeve_log") or {}
+    # A decision with nothing selected buys nothing whatever `allocation_pct` says, so it counts as
+    # zero intended deployment.
+    intended = float(np.mean([r["allocation_pct"] if r["fill"] > 0 else 0.0 for r in log.values()])) if log else float("nan")
+    return {"label": label, "mean_invested_realised": float(entry["panel"]["mean_invested"]),
+            "sleeve_mean_allocation_intended": intended,
+            "largest_realised_weight": float(largest), "cap": float(Parameters.max_concentration_pct)}
+
+
+def standing_gates_40(label: str, neighbours: list, anchor_label: str = "anchor", run_lovo: bool = False) -> dict:
+    """`standing_gates()` with gate 6 scored ONLY when both pre-registered neighbours exist. A
+    family endpoint has one neighbour; the rule asks for two, so the plateau is not run there
+    and the row is UNEVALUATED on gate 6 rather than a one-sided pass."""
+    out = standing_gates(label, neighbours, anchor_label, run_lovo)
+    if len(neighbours) < 2:
+        out["gate_6_plateau"] = None
+        out["plateau_neighbours"] = ", ".join(neighbours) + " (endpoint: one neighbour, gate 6 not scored)"
+        STANDING = ("gate_1_positive", "gate_7_subperiod", "gate_3_held_vol", "gate_6_plateau", "gate_2_mask")
+        scored = {k: out[k] for k in STANDING if out[k] is not None}
+        unrun = [k for k in STANDING if out[k] is None]
+        failed = [k for k, v in scored.items() if not v]
+        out["failed_standing_gates"] = ", ".join(failed)
+        out["standing_gates_scored"] = ", ".join(scored)
+        out["standing_gates_not_run"] = ", ".join(unrun)
+        if failed:
+            out["verdict"] = "REJECT"
+        elif unrun:
+            out["verdict"] = "UNEVALUATED (" + ", ".join(unrun) + " not run)"
+        elif abs(out["sharpe_gap_to_anchor"]) <= INDIFFERENCE_BAND:
+            out["verdict"] = "NOT CONFIRMED (inside indifference band)"
+        else:
+            out["verdict"] = "PASSES STANDING GATES"
+    return out

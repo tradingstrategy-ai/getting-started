@@ -301,14 +301,23 @@ display(pd.DataFrame(second_mask).set_index("label").round(4))
 cells.append(md("""### 2f. Gate 6 - the threshold cliff, read as a list of vaults
 
 `thr150` fails the plateau because `thr100` sits 0.33 below it. The vaults in the band are the
-names `thr150` held on dates when `thr100`'s filter excluded them; their share of each run's net
-P&L says whether the cliff is a few vaults or a broad effect. Then, for every threshold run: each
+names `thr150` held on dates when `thr100`'s filter excluded them. Two attributions: the whole-
+window P&L of those names (an association), and the P&L earned only on the cycles in which the
+tight run's filter excluded a name the wide run was holding (the disputed dates). Then, for every threshold run: each
 time the filter removed a HELD name, the vault's own forward 30-day log return afterwards. A
 filter that is doing its job removes names that go on to lose; one that is not forgoes gains.
 """))
 cells.append(code('''bands = pd.DataFrame([band_attribution("thr150", "thr100"), band_attribution("thr200", "thr150"), band_attribution("thr150_n4", "thr100_n4")])
+print("whole-window P&L of the band addresses (an association: every position of those names, on every date)")
 display(bands.drop(columns=["band_addresses"]).set_index(["wide", "tight"]).round(4))
 print("band vaults thr150 vs thr100:", ", ".join(short(a) for a in bands.iloc[0]["band_addresses"]))
+print("\\nP&L earned ONLY on the cycles in which the tight run's filter excluded a name the wide run (or the anchor) held")
+bands_aligned = pd.DataFrame([band_attribution_aligned("thr150", "thr100"), band_attribution_aligned("thr200", "thr150"), band_attribution_aligned("thr150_n4", "thr100_n4")])
+display(bands_aligned.set_index(["wide", "tight"]).round(4))
+ENGINE = "0x77fee2df7bad4f1db93052fa82bf78eaab771a16"
+engine_positions = {l: positions_in_address(l, ENGINE) for l in LEAD_LABELS}
+print("\\nevery position in the engine vault, per lead")
+display(pd.DataFrame([{"label": l, "positions": len(v), "spans": "; ".join(f"{r['opened']}..{r['closed'] or 'open'} ({r['pnl_usd']:.0f})" for r in v)} for l, v in engine_positions.items()]).set_index("label"))
 
 exclusion_summary = pd.DataFrame([exclusion_outcome_summary(l) for l in ["thr100", "thr150", "thr200", "thr150_n4", "thr100_n4", "thr150_nall_invvar"]]).set_index("label")
 display(exclusion_summary.round(4))
@@ -365,20 +374,27 @@ band_summary = pd.DataFrame({"mean over decisions": band_frame.drop(columns=["ca
                              "post-break mean": band_frame.loc[band_frame.index >= POST_BREAK_START].drop(columns=["candidates", "measured"]).mean()})
 display(band_summary.round(4))
 
-# Quality score population, offline at T-1 over thr150's candidate sets.
+# Quality score population, offline at T-1. Two populations, because the floor runs after the
+# crash filter: the whole candidate pool (what the anchor floor family sees; the crash log's
+# `candidate_addresses` is written BEFORE the filter) and thr150's survivors (what the thr150
+# floor family sees; `candidate_addresses` minus `excluded_addresses`).
 floor_rows = []
 for t, rec in sorted(crash_log_150.items()):
     q = {}
     for addr in rec["candidate_addresses"]:
         pair = PAIR_BY_ADDRESS.get(addr)
         q[addr] = value_at_prior(indicator_series("quality_sharpe", pair), t) if pair is not None else np.nan
+    survivors = set(rec["candidate_addresses"]) - set(rec["excluded_addresses"])
     finite = {a: v for a, v in q.items() if np.isfinite(v)}
+    finite_surv = {a: v for a, v in finite.items() if a in survivors}
     held = anchor_held.get(pd.Timestamp(t), {})
     row = {"decision": pd.Timestamp(t), "candidates": len(q), "measured": len(finite),
+           "thr150_survivors": len(survivors), "thr150_survivors_measured": len(finite_surv),
            "anchor_held_measured": sum(1 for a in held if np.isfinite(q.get(a, np.nan))), "anchor_held": len(held),
            "anchor_held_median_quality": float(np.median([q[a] for a in held if np.isfinite(q.get(a, np.nan))])) if any(np.isfinite(q.get(a, np.nan)) for a in held) else np.nan}
     for f in FLOORS:
         row[f"clear_{ftag(f)}"] = sum(1 for v in finite.values() if v >= f)
+        row[f"thr150_survivors_clear_{ftag(f)}"] = sum(1 for v in finite_surv.values() if v >= f)
         row[f"anchor_held_clear_{ftag(f)}"] = sum(1 for a in held if np.isfinite(q.get(a, np.nan)) and q[a] >= f)
     floor_rows.append(row)
 floor_frame = pd.DataFrame(floor_rows).set_index("decision")
@@ -394,8 +410,10 @@ cells.append(md("""## Part 3. Were N and the thresholds sensible? New runs
 
 NB37 scored the position family with the cap REMOVED, so its N = 3 neighbour was a 99%-invested
 three-name book and the N = 4 plateau was judged against it. Here the family is re-run with the
-33% cap kept (N = 3, 4, 5, with and without the 1.5 filter), plus N = 5 uncapped as the missing
-neighbour, and the threshold family is refined to 1.25 and 1.75 around 1.5. These are checks on
+33% cap kept (N = 3, 4, 5, with and without the 1.5 filter), plus N = 3 and 5 uncapped with the
+filter and the uncapped six-name filtered book as the missing neighbours, the unlimited filtered
+book with the cap KEPT as the comparator for Part 4's unlimited floor family, and the threshold
+family is refined to 1.25 and 1.75 around 1.5. These are checks on
 the assumptions the verdicts rested on; a plateau that appears under a finer or a capped family
 is reported as such, not as a new verdict on the old runs.
 """))
@@ -407,9 +425,13 @@ for n in (3, 4, 5):
 run_and_record("nofilter_n5", "positions", max_assets_in_portfolio=5, **NOCAP)
 run_and_record("thr150_n5", "positions", **filter_overrides(THR_FAMILY["thr150"], max_assets_in_portfolio=5, **NOCAP))
 run_and_record("thr150_n3", "positions", **filter_overrides(THR_FAMILY["thr150"], max_assets_in_portfolio=3, **NOCAP))
+run_and_record("thr150_nocap", "cap", **filter_overrides(THR_FAMILY["thr150"], **NOCAP))
+# The un-floored comparator of the unlimited floor family: unlimited AND the cap kept.
+run_and_record("thr150_nallcap", "unlimited", **filter_overrides(THR_FAMILY["thr150"], max_assets_in_portfolio=999))
 PART3 = ["anchor", "thr100", "thr125", "thr150", "thr175", "thr200",
          "nofilter_n3", "nofilter_n4", "nofilter_n5", "nocap", "n3cap", "n4cap", "n5cap",
-         "thr150_n3", "thr150_n4", "thr150_n5", "thr150_n3cap", "thr150_n4cap", "thr150_n5cap"]
+         "thr150_n3", "thr150_n4", "thr150_n5", "thr150_nocap", "thr150_n3cap", "thr150_n4cap", "thr150_n5cap",
+         "thr150_nall_invvar", "thr150_nallcap"]
 display(summary_table(PART3).round(4))
 '''))
 
@@ -429,15 +451,47 @@ for f in FLOORS_SHORT:
     run_and_record(f"thr150_nallcap_{ftag(f)}", "floor_unlimited", **floor_overrides(f, 0, **filter_overrides(THR_FAMILY["thr150"], max_assets_in_portfolio=999)))
 RESCUE = [f"anchor_{ftag(f)}" for f in FLOORS] + [f"thr150_{ftag(f)}" for f in FLOORS] \\
          + [f"thr150_n4cap_{ftag(f)}" for f in FLOORS_SHORT] + [f"thr150_nallcap_{ftag(f)}" for f in FLOORS_SHORT]
-display(summary_table(["anchor", "thr150", "thr150_n4cap"] + RESCUE).round(4))
-rescue_risk = pd.DataFrame([risk_row(l) for l in ["anchor", "thr150", "thr150_n4cap"] + RESCUE]).set_index("label")
+display(summary_table(["anchor", "thr150", "thr150_n4cap", "thr150_nallcap"] + RESCUE).round(4))
+rescue_risk = pd.DataFrame([risk_row(l) for l in ["anchor", "thr150", "thr150_n4cap", "thr150_nallcap"] + RESCUE]).set_index("label")
 display(rescue_risk.round(4))
+# Independent of the sleeve's own log: realised deployment and the largest realised weight.
+sleeve_check = pd.DataFrame([sleeve_realised_check(l) for l in RESCUE]).set_index("label")
+display(sleeve_check.round(4))
+# The floor runs' logged qualifying counts against an offline reconstruction from the cached
+# indicator at T-1. The anchor family's population is the whole pool (cell 44's `clear_*`); a
+# thr150 floor run's population is ITS OWN crash log's survivors - the filter's hysteresis reads
+# the held set, so a floor run's survivors can differ from thr150's on a few dates.
+agreement = []
+for f in FLOORS:
+    log = run_by_label[f"anchor_{ftag(f)}"]["quality_log"]
+    logged = pd.Series({pd.Timestamp(t): r["qualifying"] for t, r in log.items()}).sort_index()
+    offline = floor_frame[f"clear_{ftag(f)}"].reindex(logged.index)
+    agreement.append({"run": f"anchor_{ftag(f)}", "decisions": len(logged), "mismatches": int((logged != offline).sum()),
+                      "max_abs_diff": float((logged - offline).abs().max())})
+for f in FLOORS:
+    entry = run_by_label[f"thr150_{ftag(f)}"]
+    logged = pd.Series({pd.Timestamp(t): r["qualifying"] for t, r in entry["quality_log"].items()}).sort_index()
+    offline = {}
+    for t, rec in entry["crash_log"].items():
+        survivors = set(rec["candidate_addresses"]) - set(rec["excluded_addresses"])
+        count = 0
+        for addr in survivors:
+            pair = PAIR_BY_ADDRESS.get(addr)
+            v = value_at_prior(indicator_series("quality_sharpe", pair), t) if pair is not None else np.nan
+            count += int(np.isfinite(v) and v >= f)
+        offline[pd.Timestamp(t)] = count
+    offline = pd.Series(offline).reindex(logged.index)
+    agreement.append({"run": f"thr150_{ftag(f)}", "decisions": len(logged), "mismatches": int((logged != offline).sum()),
+                      "max_abs_diff": float((logged - offline).abs().max())})
+agreement = pd.DataFrame(agreement).set_index("run")
+display(agreement)
+assert agreement["mismatches"].sum() == 0, "the floor's in-trade qualifying counts do not match the offline reconstruction"
 for label in ["anchor_f10", "thr150_nallcap_f10"]:
     print(f"\\n{label}: largest positions, with the quality score at the opening decision")
     display(ledger_with_quality(label, top=8).round(4))
 for title, labels in {"floor on the incumbent": ["anchor"] + [f"anchor_{ftag(f)}" for f in FLOORS],
                       "floor on thr150": ["anchor", "thr150"] + [f"thr150_{ftag(f)}" for f in FLOORS],
-                      "floor on the four-name and unlimited books": ["anchor", "thr150_n4cap"] + [f"thr150_n4cap_{ftag(f)}" for f in FLOORS_SHORT] + [f"thr150_nallcap_{ftag(f)}" for f in FLOORS_SHORT]}.items():
+                      "floor on the four-name and unlimited books": ["anchor", "thr150_n4cap", "thr150_nallcap"] + [f"thr150_n4cap_{ftag(f)}" for f in FLOORS_SHORT] + [f"thr150_nallcap_{ftag(f)}" for f in FLOORS_SHORT]}.items():
     equity_figure(f"Track window equity, {title}", labels).show()
 '''))
 
@@ -447,9 +501,10 @@ Gates 1, 7, 3 and 6 for every new run; gate 2 (a full re-simulation) for the thr
 with the largest Sharpe gap to the anchor among those passing gates 1, 7 and 3. Plateau
 neighbours: the threshold family on its refined axis (1.0 / 1.25 / 1.5 / 1.75 / 2.0); the capped
 position family on N +/- 1 with six = the anchor (or `thr150`); the uncapped family on N +/- 1
-with six = `nocap`; the floor families along the floor axis, the un-floored book as the lowest
-floor's outer neighbour. The rescue runs of the unlimited book have no ordered N axis beyond the
-floor. Gates 4 and 8 with their tolerances are diagnostics.
+with six = `nocap` (or `thr150_nocap` with the filter); the floor families along the floor axis, the un-floored book as the lowest
+floor's outer neighbour. Gate 6 is scored ONLY where both pre-registered neighbours exist: a
+family endpoint has one, so its plateau is not run and the row is UNEVALUATED on gate 6 rather
+than passed one-sided (`standing_gates_40`). Gates 4 and 8 with their tolerances are diagnostics.
 """))
 cells.append(code('''NEIGHBOURS = {}
 THR_ORDER = list(THR_FAMILY)
@@ -458,7 +513,8 @@ for i, label in enumerate(THR_ORDER):
 NEIGHBOURS["n3cap"] = ["n4cap"]; NEIGHBOURS["n4cap"] = ["n3cap", "n5cap"]; NEIGHBOURS["n5cap"] = ["n4cap", "anchor"]
 NEIGHBOURS["thr150_n3cap"] = ["thr150_n4cap"]; NEIGHBOURS["thr150_n4cap"] = ["thr150_n3cap", "thr150_n5cap"]; NEIGHBOURS["thr150_n5cap"] = ["thr150_n4cap", "thr150"]
 NEIGHBOURS["nofilter_n5"] = ["nofilter_n4", "nocap"]; NEIGHBOURS["nofilter_n4"] = ["nofilter_n3", "nofilter_n5"]
-NEIGHBOURS["thr150_n5"] = ["thr150_n4", "nocap"]; NEIGHBOURS["thr150_n4"] = ["thr150_n3", "thr150_n5"]; NEIGHBOURS["thr150_n3"] = ["thr150_n4"]
+NEIGHBOURS["thr150_n5"] = ["thr150_n4", "thr150_nocap"]; NEIGHBOURS["thr150_n4"] = ["thr150_n3", "thr150_n5"]; NEIGHBOURS["thr150_n3"] = ["thr150_n4"]
+NEIGHBOURS["thr150_nocap"] = ["thr150_n5"]
 
 
 def floor_chain(prefix: str, base: str, floors):
@@ -472,16 +528,16 @@ def floor_chain(prefix: str, base: str, floors):
 floor_chain("anchor", "anchor", FLOORS)
 floor_chain("thr150", "thr150", FLOORS)
 floor_chain("thr150_n4cap", "thr150_n4cap", FLOORS_SHORT)
-floor_chain("thr150_nallcap", "thr150_nall_invvar", FLOORS_SHORT)
+floor_chain("thr150_nallcap", "thr150_nallcap", FLOORS_SHORT)
 NEW = [l for l in PART3 + RESCUE if l not in LEADS and l != "anchor"]
 NEW = list(dict.fromkeys(NEW))
-cheap = pd.DataFrame([standing_gates(l, NEIGHBOURS.get(l, [])) for l in NEW]).set_index("label")
+cheap = pd.DataFrame([standing_gates_40(l, NEIGHBOURS.get(l, [])) for l in NEW]).set_index("label")
 CHEAP = ["gate_1_positive", "gate_7_subperiod", "gate_3_held_vol"]
 cheap["cheap_pass"] = cheap[CHEAP].all(axis=1)
 ranked = cheap[cheap["cheap_pass"]].sort_values("sharpe_gap_to_anchor", ascending=False)
 LOVO_LABELS = list(ranked.index[:3])
 print(f"leave-one-vault-out for: {LOVO_LABELS}")
-gates = pd.DataFrame([standing_gates(l, NEIGHBOURS.get(l, []), run_lovo=(l in LOVO_LABELS)) for l in NEW]).set_index("label")
+gates = pd.DataFrame([standing_gates_40(l, NEIGHBOURS.get(l, []), run_lovo=(l in LOVO_LABELS)) for l in NEW]).set_index("label")
 display(gates[["gate_1_positive", "gate_7_subperiod", "gate_3_held_vol", "gate_6_plateau", "plateau_neighbours", "gate_2_mask", "mask_retention",
                "diag_4_luck_within_tolerance", "diag_8_distinct_within_tolerance", "sharpe_gap_to_anchor",
                "failed_standing_gates", "standing_gates_not_run", "verdict"]].round(4))
@@ -588,6 +644,10 @@ manifest = {
     "floor_ledger_detail": {l: ledger_with_quality(l, top=8).round(10).to_dict(orient="records") for l in ("anchor_f10", "thr150_nallcap_f10")},
     "second_mask": pd.DataFrame(second_mask).set_index("label").round(10).to_dict(orient="index"),
     "bands": bands.drop(columns=["band_addresses"]).round(10).to_dict(orient="records"),
+    "bands_aligned": bands_aligned.round(10).to_dict(orient="records"),
+    "engine_positions": engine_positions,
+    "sleeve_check": sleeve_check.round(10).to_dict(orient="index"),
+    "quality_log_agreement": agreement.to_dict(orient="index"),
     "band_addresses_thr150_vs_thr100": bands.iloc[0]["band_addresses"],
     "exclusion_outcomes": exclusion_summary.round(10).to_dict(orient="index"),
     "sparse": sparse.round(10).to_dict(orient="index"),
