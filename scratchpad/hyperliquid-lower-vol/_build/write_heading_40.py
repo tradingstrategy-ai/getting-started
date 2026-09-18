@@ -350,7 +350,7 @@ admission threshold near 1.5 annualised trailing volatility (`thr150`, {S["thr15
 REJECT on gate 6 as recorded; `thr175` would pass the same calculations on the refined grid) -
 are different rules that share the anchor's exposures - {pc(OVERLAP["thr150"]["capital_share_in_reference_names"])} and {pc(OVERLAP["measured_8"]["capital_share_in_reference_names"])} of capital in the
 same names, the same largest position at {pc(MASK["thr150"]["lead_share_of_positive_pnl"])} and {pc(MASK["measured_8"]["lead_share_of_positive_pnl"])} of positive P&L. Whether to carry
-either is the operator's call on priors. Concentration (N < 6, the cap off) buys return with
+either is the operator's call on priors. The high-return four-name cap-off variants buy return with
 books in which the largest vault is {pc(L["thr150_n4"]["top_vault_pnl_share_of_positive"])}-{pc(L["nofilter_n4"]["top_vault_pnl_share_of_positive"])} of positive P&L, and fails the risk gates on
 the trades, not on a technicality. The quality-floor rescue, in the form built here (a floor without
 hysteresis on the 180-day event-time Sharpe, with a cash sleeve), would fail the standing-gate
