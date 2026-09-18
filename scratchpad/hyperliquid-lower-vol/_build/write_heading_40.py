@@ -178,8 +178,9 @@ def floor_table():
 
 HEADING = f"""# NB40 - lead forensics and the cash-sleeve rescue
 
-Every portfolio-level lead with a cycle Sharpe above 1.5 on the track window was REJECTED or
-left NOT CONFIRMED by a numerical gate in NB36 and NB37. This notebook reads those rejections
+Every portfolio-level lead with a cycle Sharpe above 1.5 on the track window was REJECTED, left
+NOT CONFIRMED, or left UNEVALUATED (`nocap`, whose plateau and mask were not run) by a numerical
+gate in NB36 and NB37. This notebook reads those rejections
 off the trades instead of the numbers: the equity curve, the positions that made and lost the
 money, the drawdowns and the worst cycles, the vault behind each single-vault mask, the vaults
 that sit in the band between two thresholds when a plateau fails, and whether the crash filter's
@@ -215,7 +216,7 @@ NB37 / NB36 runs at {m["reproduction_max_abs_diff"]:.1e} on five metrics (cell 2
 **Verdict: nothing is rescued, and the forensics change what the leads are.** `thr150` and
 `measured_8` overlap the anchor on {pc(min(OVERLAP["thr150"]["capital_share_in_reference_names"], OVERLAP["measured_8"]["capital_share_in_reference_names"]))}-{pc(max(OVERLAP["thr150"]["capital_share_in_reference_names"], OVERLAP["measured_8"]["capital_share_in_reference_names"]))} of capital, and they, `thr200` and the `cagr_sharpe`
 ranker share its largest position; `thr150_n4` and `nofilter_n4` hold that position at twice
-the weight; and the quality floor removes the vaults that earn, including that one.
+the weight; and the quality floor loses that position and most of the return with it.
 
 1. **One position dominates the 2026 result.** `0x77fe..1a16`, held 2026-06-20 to 08-21, delivers
    {pc(top_anchor["pnl_share"])} of the anchor's net P&L ({usd(top_anchor["pnl_usd"])} of {usd(L["anchor"]["net_pnl_usd"])}) and
@@ -227,8 +228,7 @@ the weight; and the quality floor removes the vaults that earn, including that o
    anchor's on {pc(OVERLAP["thr150"]["capital_share_in_reference_names"])} ({f2(OVERLAP["thr150"]["mean_jaccard_vs_reference"])} Jaccard) of capital (cell 42). The anchor under its own
    mask retains {f3(AL["retention"])} of its Sharpe (cell 38). The ranker lead retains {f2(MASK[RANKER]["recorded_mask_retention"])} under the same mask,
    below the anchor's own figure; that vault is {pc(MASK[RANKER]["lead_share_of_positive_pnl"])} of its positive P&L against {pc(MASK[RANKER]["anchor_share_of_positive_pnl"])} of the
-   anchor's, and masking its second vault instead retains {f2(SECOND[RANKER]["retention_second"])} - the same one name, held a little
-   larger.
+   anchor's, and masking its second vault instead retains {f2(SECOND[RANKER]["retention_second"])} - the same one name.
 2. **The threshold cliff is consistent with that position.** `0x77fe..1a16` is one of the {band["band_vaults"]} names
    `thr100`'s filter excluded on dates `thr150` held them; `thr100`'s last position in it closed
    on {thr100_engine_last_close} and it never re-entered (cell 40, every position listed). On the disputed
@@ -249,8 +249,9 @@ the weight; and the quality floor removes the vaults that earn, including that o
    0.5-1.0; only {pc(BS["anchor_cap_1.0-1.25"]["mean over decisions"] + BS["anchor_cap_1.25-1.5"]["mean over decisions"])} is in 1.0-1.5 at any decision (cell 44), which is why the
    thresholds at 1.5 and above barely change the book and the ones below do.
 3. **The threshold axis is jagged, and gate 6 depends on the grid.** Sharpe at exit 1.0 / 1.25
-   / 1.5 / 1.75 / 2.0 is {" / ".join(f3(x) for x in thr_axis)} (cell 46): 1.75 is the same book as 1.5 on this
-   window, so it WOULD pass the plateau calculation against 1.5 and 2.0 while 1.5 fails it
+   / 1.5 / 1.75 / 2.0 is {" / ".join(f3(x) for x in thr_axis)} (cell 46): 1.75 has identical displayed track-window
+   metrics to 1.5 (its survivor count differs slightly, so the books are not shown to be the
+   same), so it WOULD pass the plateau calculation against 1.5 and 2.0 while 1.5 fails it
    against 1.25; it would pass every standing-gate calculation (Sharpe {gap("thr175")} to the anchor, inside
    the indifference band; mask {f2(G["thr175"]["mask_retention"])}). That is a sensitivity result on a grid point inserted after
    `thr150`'s result was seen, not a verdict, and NB37's REJECT of `thr150` stands as recorded. On
@@ -271,12 +272,14 @@ the weight; and the quality floor removes the vaults that earn, including that o
    N < 6 fails gate 3. This is the risky trading the operator asked about: a {R["thr150_n4"]["mean_holdings"]:.1f}-name book in
    which one position is about two thirds of the positive P&L and two positions most of the
    deepest drawdown.
-5. **The unlimited inverse-variance book is the sizing rule's stale-mark bias.** {pc(SPARSE[NALL]["sparse_capital_share"])} of its
+5. **The unlimited inverse-variance book is consistent with the sizing rule's stale-mark bias.** {pc(SPARSE[NALL]["sparse_capital_share"])} of its
    capital sits in names with fewer than 30 moved marks in 90 rows against the anchor's
    {pc(SPARSE["anchor"]["sparse_capital_share"])} (cell 42); with the cap off, `{nall_top_weight_row["vault"]}` reached a {f2(nall_top_weight)} weight over
    {nall_top_weight_row["days"]} days (cell 34); late-period P&L per vault is within a thousand dollars (cell 42). Its
-   {cg(NALL)} at {vol(NALL)} volatility is a near-cash book, not a low-volatility strategy.
-6. **The quality floor removes the vaults that earn.** The anchor's held names have a median
+   {cg(NALL)} at {vol(NALL)} volatility is a near-cash book, not a low-volatility strategy. The run also changes
+   capacity and removes the cap, so the sparse-mark share is a consistent reading, not an
+   isolated cause.
+6. **The quality floor loses the June-to-August engine position and most of the return.** The anchor's held names have a median
    trailing 180-day event-time Sharpe of {f2(FS["anchor_held_median_quality"]["median"])}; only {f2(FS["anchor_held_clear_f10"]["mean"])} of six clear 1.0 and
    {f2(FS["anchor_held_clear_f20"]["mean"])} clear 2.0 on a mean decision (cell 44). Its five largest positions had quality at
    entry of {winners_quality}. A floor of 1.0 leaves {S["anchor_f10"]["qualifying_mean"]:.0f} qualifying names per decision - the
@@ -289,8 +292,10 @@ the weight; and the quality floor removes the vaults that earn, including that o
    on that date is not shown). The winners' scores sit at the floor family's bottom and the
    floor has no hysteresis. The unlimited-capacity capped book with the floor at 1.0 ({S["thr150_nallcap_f10"]["qualifying_mean"]:.1f} names
    qualify per decision, {S["thr150_nallcap_f10"]["mean_holdings"]:.1f} are held) earns {cg("thr150_nallcap_f10")} at {vol("thr150_nallcap_f10")} volatility, Sharpe {sh("thr150_nallcap_f10")},
-   against {cg("thr150_nallcap")} / {sh("thr150_nallcap")} for the same book without the floor: the names that clear the
-   floor comfortably are the low-return part of the universe. Every one of the {len(floor_runs)} floor runs
+   against {cg("thr150_nallcap")} / {sh("thr150_nallcap")} for the same book without the floor - in this implementation the
+   floor lowered the return of the unlimited book as well (one anchor winner, `0x4dec..27f6`,
+   entered at a quality of {AQ[1]["quality_at_open"]:.2f}, so qualification and return are not simply opposed). Every
+   one of the {len(floor_runs)} floor runs
    fails the gate 7 calculation and {len(floor_gate1_fail)} of them fail gate 1 (cell 50). This tests a FLOOR on NB39's score, not a ranker on
    it: the floor-and-sleeve construction is what failed. NB39's universe-wide rank correlation of
    about 0.25 stands as measured; what it does at the top of a six-name book is untested, and a
@@ -298,11 +303,11 @@ the weight; and the quality floor removes the vaults that earn, including that o
 7. **The sleeve behaved as built and had nothing to rescue.** The smoke test
    (`_build/verify-sleeve.ipynb`) asserted fill == selected / slots and the cap under a partial
    fill; on the full runs, independently of the sleeve's own log, the largest realised position
-   weight across every floor run is {f2(sleeve_worst_weight)} against a 0.33 cap and a floor of 3.0 leaves the
+   weight across every floor run is {f2(sleeve_worst_weight)} against a 0.33 cap, and a floor of 3.0 leaves the
    book {pc(sleeve_f30["mean_invested_realised"])} invested against an intended {pc(sleeve_f30["sleeve_mean_allocation_intended"])} ({S["anchor_f30"]["decisions_none_qualifying"]:.0f} decisions with nothing
    qualifying), and the floor's logged qualifying counts match an offline reconstruction on all
    126 decisions for each of the ten six-slot runs checked (cell 48). What is verified is that
-   the sleeve deploys no more than intended; the construction that failed is the floor AND the
+   mean realised deployment was no greater than mean intended deployment; the construction that failed is the floor AND the
    sleeve together, and this notebook does not separate their contributions.
 
 ## Summary of results
@@ -343,10 +348,11 @@ window. The two rules no worse than the anchor on CAGR and cycle Sharpe (max dra
 conditionally positive, as recorded after NB36; {S["measured_8"]["share_of_decisions_changed"] * 126:.0f} of 126 decisions changed) and an
 admission threshold near 1.5 annualised trailing volatility (`thr150`, {S["thr150"]["share_of_decisions_changed"] * 126:.0f} decisions changed,
 REJECT on gate 6 as recorded; `thr175` would pass the same calculations on the refined grid) -
-are different rules that inherit every property of the anchor, including its dependence on one
-June-to-August position. Whether to carry either is the operator's call on priors. Concentration (N < 6, the cap
-off) buys return with a book whose result is two names and fails the risk gates on the trades,
-not on a technicality. The quality-floor rescue, in the form built here (a floor without
+are different rules that share the anchor's exposures - {pc(OVERLAP["thr150"]["capital_share_in_reference_names"])} and {pc(OVERLAP["measured_8"]["capital_share_in_reference_names"])} of capital in the
+same names, the same largest position at {pc(MASK["thr150"]["lead_share_of_positive_pnl"])} and {pc(MASK["measured_8"]["lead_share_of_positive_pnl"])} of positive P&L. Whether to carry
+either is the operator's call on priors. Concentration (N < 6, the cap off) buys return with
+books in which the largest vault is {pc(L["thr150_n4"]["top_vault_pnl_share_of_positive"])}-{pc(L["nofilter_n4"]["top_vault_pnl_share_of_positive"])} of positive P&L, and fails the risk gates on
+the trades, not on a technicality. The quality-floor rescue, in the form built here (a floor without
 hysteresis on the 180-day event-time Sharpe, with a cash sleeve), would fail the standing-gate
 calculations on every run; ranking on that score is untested. If a lead's gate is to be re-examined, it is gate 6's dependence on grid spacing
 (finding 3), and the place for that is RESEARCH-RULES.md, not a re-scored verdict.
