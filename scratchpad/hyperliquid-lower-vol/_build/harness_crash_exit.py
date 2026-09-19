@@ -114,8 +114,9 @@ def classify_fill(record: dict, pair, collapse_date) -> dict:
     """The plan's 4-way predicate, in its fixed order, on the valuation price."""
     collapse_date = pd.Timestamp(collapse_date).normalize()
     col = candle_row(pair, collapse_date)
-    # The two pair flags must agree; `settlement_override` is a configuration fact (run_variant
-    # passes no overrides) and is printed, not tested.
+    # The two pair flags must agree; `settlement_override` is a configuration fact - run_variant
+    # passes no overrides - asserted False here rather than tested for agreement.
+    assert record["settlement_override"] is False, "this notebook passes no settlement overrides"
     flags = [record["is_async_vault"], record["has_delayed_vault_redemption"]]
     out = {"collapse_bar_open": col["open"], "collapse_bar_close": col["close"]}
     if flags[0] != flags[1]:
@@ -311,11 +312,15 @@ def archive_4h(address: str, start, end) -> pd.DataFrame:
 
 
 def bucket_coverage(address: str, start, end, freq: str = "4h") -> dict:
+    """Coverage over the WHOLE requested interval: the bucket grid is built from `start` to
+    `end` and a bucket with no mark - including the gaps before the vault's first mark and
+    after its last inside the interval - counts as empty."""
     g = _archive()
     g = g[(g["address"] == str(address).lower()) & (g["timestamp"] >= pd.Timestamp(start)) & (g["timestamp"] <= pd.Timestamp(end))]
+    grid = pd.date_range(pd.Timestamp(start).floor(freq), pd.Timestamp(end), freq=freq)
     if g.empty:
-        return {"buckets": 0, "empty_share": float("nan"), "marks_per_bucket": float("nan")}
-    counts = g.set_index("timestamp").resample(freq)["share_price"].size()
+        return {"buckets": int(len(grid)), "empty_share": 1.0, "marks_per_bucket": 0.0}
+    counts = g.set_index("timestamp").resample(freq)["share_price"].size().reindex(grid, fill_value=0)
     return {"buckets": int(len(counts)), "empty_share": float((counts == 0).mean()), "marks_per_bucket": float(counts.mean())}
 
 

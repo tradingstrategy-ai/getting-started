@@ -409,19 +409,24 @@ def get_remaining_cost_basis(position) -> float:
 
 
 WINDOW_A = ("A: incumbent period", datetime.datetime(2026, 1, 1), datetime.datetime(2026, 7, 10))
-WINDOW_RESULTS = {}
+# Recorded through `run_and_record` under their own labels (standing method rule 7: `runs` is
+# the only source for every table); the sub-period columns of `panel()` are meaningless on this
+# window and are not shown.
+WINDOW_LABELS = {}
 for label in ("anchor", "anchor_1d", "gate12_2d"):
     name, start, end = WINDOW_A
     overrides = dict(run_by_label[label]["overrides"]) if label != "anchor" else {}
-    for log in (VOL_DROP_LOG, COMPLEMENT_LOG, SLEEVE_LOG, PREFILTER_LOG, CRASH_LOG, QUALITY_LOG, CASH_SLEEVE_LOG, CLUSTER_LOG):
-        log.clear()
-    state_, equity_, returns_ = run_variant(f"{label} [{name}]", backtest_start=start, backtest_end=end, **overrides)
-    rc, _ppy = cycle_returns(equity_)
-    row = panel(f"{label} [{name}]", state_, equity_, returns_)
-    row["cumulative_return"] = float(equity_.iloc[-1] / equity_.iloc[0] - 1.0)
-    row["cycles"] = int(len(rc))
-    WINDOW_RESULTS[label] = row
-window_a = pd.DataFrame(WINDOW_RESULTS).T[["cumulative_return", "cagr", "cycle_sharpe", "cycle_vol", "ulcer", "max_dd", "mean_invested", "luck_ratio", "top5_gross_share", "cycles"]]
+    wl = f"{label}__windowA"
+    run_and_record(wl, "window_a", backtest_start=start, backtest_end=end, **overrides)
+    WINDOW_LABELS[label] = wl
+rows = {}
+for label, wl in WINDOW_LABELS.items():
+    e = run_by_label[wl]
+    row = e["panel"].copy()
+    row["cumulative_return"] = float(e["equity"].iloc[-1] / e["equity"].iloc[0] - 1.0)
+    row["cycles"] = int(len(e["cycle_returns"]))
+    rows[label] = row
+window_a = pd.DataFrame(rows).T[["cumulative_return", "cagr", "cycle_sharpe", "cycle_vol", "ulcer", "max_dd", "mean_invested", "luck_ratio", "top5_gross_share", "cycles"]]
 display(window_a.astype(float).round(4))
 '''))
 
@@ -443,7 +448,7 @@ cells.append(code('''def jsonable(obj):
     return obj
 
 
-ALL = [e["label"] for e in runs if e["label"] != "anchor" and "__lovo" not in e["label"] and not e["label"].startswith("pool_")]
+ALL = [e["label"] for e in runs if e["label"] != "anchor" and "__lovo" not in e["label"] and not e["label"].startswith("pool_") and not e["label"].endswith("__windowA")]
 manifest = {
     "provenance": provenance_record(),
     "collapse": jsonable(COLLAPSE), "collapse_dates": {k: str(v.date()) for k, v in COLLAPSE_DATES.items()}, "warning_dates": {k: str(v.date()) for k, v in WARNING_DATES.items()},
@@ -467,7 +472,7 @@ manifest = {
     "run_1d_gates": RUN_1D_GATES, "run_cluster": RUN_CLUSTER,
     "gates_1d": jsonable(gates_1d.round(10).to_dict(orient="index")) if gates_1d is not None else None,
     "cluster": jsonable(cluster_row) if cluster_row is not None else None,
-    "window_a": jsonable(window_a.astype(float).round(10).to_dict(orient="index")),
+    "window_a": jsonable(window_a.astype(float).round(10).to_dict(orient="index")), "window_a_labels": WINDOW_LABELS,
     "anchor_ledger_summary": jsonable(ledger_summary("anchor")),
 }
 Path("_build/manifest_42.json").write_text(json.dumps(manifest, indent=1, default=str))
