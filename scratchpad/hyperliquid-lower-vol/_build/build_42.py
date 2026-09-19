@@ -196,7 +196,8 @@ def class_summary(frame: pd.DataFrame) -> pd.DataFrame:
 
 FIRST_SUMMARY = class_summary(first)
 EVERY_SUMMARY = class_summary(every)
-print("first-entry rows per vault per class (the primary table; the first `first_extreme` row is the morning AFTER the extreme close)")
+print("first-entry rows per vault per class (the primary table; the first `first_extreme` row is the morning AFTER the extreme close). "
+      "Cohort: the union of the two-day pool log's candidates, evaluated on every UTC day, whether or not the vault was a candidate on that day.")
 display(FIRST_SUMMARY.round(4))
 for key, c in COLLAPSE.items():
     print(f"{key} vault's first-entry rows:")
@@ -233,9 +234,12 @@ display(fills)
 display(pd.DataFrame(LABELS).T)
 display(pd.DataFrame(LEGS).T)
 
-# The pre-registered rank-churn sell: first rank exit, calendar order, hold under four days.
-churn_rows = anchor_ledger[anchor_ledger["exit_reason"].str.startswith("outranked") & (anchor_ledger["days"] < 4)].sort_values("closed")
-CHURN_EXAMPLE = fill_record("anchor", churn_rows.iloc[0]["address"], pd.Timestamp(churn_rows.iloc[0]["closed"]))
+# The pre-registered in-pool sell: the earliest closure, calendar order, of a position held under
+# four days whose vault was still in the in-trade pool at the closing decision (an in-pool
+# sell: ranking or sizing, not the gate). No four-way label; flags, timestamps and prices only.
+closed_rows = anchor_ledger[anchor_ledger["closed"].notna() & (anchor_ledger["days"] < 4)].sort_values("closed")
+in_pool_rows = closed_rows[[in_pool_at_close("anchor", "pool_2d", r["address"], pd.Timestamp(r["closed"])) for _, r in closed_rows.iterrows()]]
+CHURN_EXAMPLE = fill_record("anchor", in_pool_rows.iloc[0]["address"], pd.Timestamp(in_pool_rows.iloc[0]["closed"]))
 display(pd.Series(CHURN_EXAMPLE, name="value").to_frame())
 
 # Lock-up: both collapse holds are past the 1-day and 4-day live lock-ups.
@@ -259,18 +263,13 @@ cycles ending on the collapse and warning dates, per run. Then the standing gate
 """))
 cells.append(code('''run_and_record("gate12_2d", "gate", gate_threshold=-0.12)
 run_and_record("gate10_2d", "gate", gate_threshold=-0.10)
-AUGUST_SELL = {}
-for label in ("gate12_2d", "gate10_2d"):
-    rec = fill_record(label, COLLAPSE["august"]["address"], WARNING_DATES["august"])
-    if rec is None:
-        AUGUST_SELL[label] = {"sold_on_19_aug": False}
-        continue
-    same_kind = np.isfinite(rec["planned_mid_price"]) and abs(rec["planned_mid_price"] - rec["decision_bar_open"]) <= REL_TOL * rec["decision_bar_open"]
-    AUGUST_SELL[label] = {"sold_on_19_aug": True, "decision": str(rec["decision"]), "planned_mid_price": rec["planned_mid_price"],
-                          "decision_bar_open": rec["decision_bar_open"], "valued_at_decision_open": bool(same_kind), "hold_days": rec["hold_days"]}
+# The same fail-closed checks as the collapse sells, plus "held going into the decision" and
+# "removed by the run's own gate".
+AUGUST_SELL = {label: sold_at_decision_open(label, COLLAPSE["august"]["address"], WARNING_DATES["august"], thr)
+               for label, thr in (("gate12_2d", -0.12), ("gate10_2d", -0.10))}
 display(pd.DataFrame(AUGUST_SELL).T)
-AUGUST_CAUGHT = bool(AUGUST_SELL["gate12_2d"].get("sold_on_19_aug") and AUGUST_SELL["gate12_2d"].get("valued_at_decision_open")) and not LATER_RUNS_DIAGNOSTIC
-print(f"gate12_2d sold the August position on 19 Aug at the H0a price kind: {AUGUST_CAUGHT}")
+AUGUST_CAUGHT = bool(AUGUST_SELL["gate12_2d"].get("all")) and not LATER_RUNS_DIAGNOSTIC
+print(f"gate12_2d sold the August position on 19 Aug at the H0a price kind, every check passing: {AUGUST_CAUGHT}")
 
 CYCLE_DATES = [WARNING_DATES["august"], COLLAPSE_DATES["august"], COLLAPSE_DATES["august"] + pd.Timedelta(days=2),
                WARNING_DATES["may"] - pd.Timedelta(days=1), COLLAPSE_DATES["may"], COLLAPSE_DATES["may"] + pd.Timedelta(days=2)]

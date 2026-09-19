@@ -114,12 +114,14 @@ def classify_fill(record: dict, pair, collapse_date) -> dict:
     """The plan's 4-way predicate, in its fixed order, on the valuation price."""
     collapse_date = pd.Timestamp(collapse_date).normalize()
     col = candle_row(pair, collapse_date)
-    flags = [record["is_async_vault"], record["has_delayed_vault_redemption"], record["settlement_override"]]
+    # The two pair flags must agree; `settlement_override` is a configuration fact (run_variant
+    # passes no overrides) and is printed, not tested.
+    flags = [record["is_async_vault"], record["has_delayed_vault_redemption"]]
     out = {"collapse_bar_open": col["open"], "collapse_bar_close": col["close"]}
-    if any(flags) and not all(flags[:2]):
+    if flags[0] != flags[1]:
         out.update({"valuation_price": float("nan"), "price_kind": "async flags disagree", "label": "UNCLASSIFIED"})
         return out
-    if any(flags):
+    if any(flags) or record["settlement_override"]:
         mid = record["executed_price"] / (1.0 - record["stored_fee"]) if np.isfinite(record["stored_fee"]) else float("nan")
         bar = candle_row(pair, record["executed_at"])
         bar_date = pd.Timestamp(record["executed_at"]).normalize()
@@ -474,3 +476,39 @@ def classify_fill(record: dict, pair, collapse_date) -> dict:
 
 
 print("harness_crash_exit.py: review-1 overrides loaded - pool-keyed ranking cache, exact churn from the in-trade pool, pre-decision fire counts, feed-delay fail-closed.")
+
+
+def sold_at_decision_open(label: str, address: str, date, gate_threshold: float) -> dict:
+    """The fail-closed test for a gate run's sell on `date`: the trade exists; the pair is not
+    async; the feed delay is zero; it executed at the decision; `planned_mid_price` equals the
+    decision bar's open at 1e-9; the position was held going into the decision (opened before
+    it); and the run's own gate removed it (T-1 `return_gate` at or below `gate_threshold`)."""
+    rec = fill_record(label, address, date)
+    if rec is None:
+        return {"sold": False}
+    pair = PAIR_BY_ADDRESS[str(address).lower()]
+    g = value_at_prior(indicator_series("return_gate", pair), pd.Timestamp(date))
+    checks = {
+        "sold": True,
+        "not_async": (not rec["is_async_vault"]) and (not rec["has_delayed_vault_redemption"]) and (not rec["settlement_override"]),
+        "zero_feed_delay": rec["market_feed_delay"] == "0:00:00",
+        "executed_at_decision": pd.Timestamp(rec["executed_at"]) == pd.Timestamp(rec["decision"]),
+        "valued_at_decision_open": bool(np.isfinite(rec["planned_mid_price"]) and rec["decision_bar_present"]
+                                        and abs(rec["planned_mid_price"] - rec["decision_bar_open"]) <= REL_TOL * rec["decision_bar_open"]),
+        "held_entering_decision": rec["hold_days"] > 0,
+        "removed_by_own_gate": bool(np.isfinite(g) and g <= gate_threshold),
+        "gate_value_T-1": float(g), "decision": str(rec["decision"]), "planned_mid_price": rec["planned_mid_price"],
+        "decision_bar_open": rec["decision_bar_open"], "hold_days": rec["hold_days"],
+    }
+    checks["all"] = all(checks[k] for k in ("not_async", "zero_feed_delay", "executed_at_decision", "valued_at_decision_open", "held_entering_decision", "removed_by_own_gate"))
+    return checks
+
+
+def in_pool_at_close(label: str, pool_label: str, address: str, closed) -> bool:
+    log = run_by_label[pool_label]["crash_log"]
+    stamps = pd.DatetimeIndex(sorted(log))
+    i = stamps.searchsorted(pd.Timestamp(closed), side="right") - 1
+    if i < 0:
+        return False
+    rec = log[stamps[i]] if stamps[i] in log else log[stamps[i].to_pydatetime()]
+    return str(address).lower() in rec["candidate_addresses"]

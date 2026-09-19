@@ -18,7 +18,7 @@
   },
   "git HEAD": {
    "bytes": null,
-   "sha256": "6f5114c"
+   "sha256": "689bfce"
   }
  },
  "collapse": {
@@ -680,20 +680,34 @@
  "later_runs_diagnostic": false,
  "august_sell": {
   "gate12_2d": {
-   "sold_on_19_aug": 1,
+   "sold": 1,
+   "not_async": 1,
+   "zero_feed_delay": 1,
+   "executed_at_decision": 1,
+   "valued_at_decision_open": 1,
+   "held_entering_decision": 1,
+   "removed_by_own_gate": 1,
+   "gate_value_T-1": -0.14501143947477757,
    "decision": "2026-08-19 00:00:00",
    "planned_mid_price": 7.468961948177204,
    "decision_bar_open": 7.468961948177204,
-   "valued_at_decision_open": 1,
-   "hold_days": 56
+   "hold_days": 56,
+   "all": 1
   },
   "gate10_2d": {
-   "sold_on_19_aug": 1,
+   "sold": 1,
+   "not_async": 1,
+   "zero_feed_delay": 1,
+   "executed_at_decision": 1,
+   "valued_at_decision_open": 1,
+   "held_entering_decision": 1,
+   "removed_by_own_gate": 1,
+   "gate_value_T-1": -0.14501143947477757,
    "decision": "2026-08-19 00:00:00",
    "planned_mid_price": 7.468961948177204,
    "decision_bar_open": 7.468961948177204,
-   "valued_at_decision_open": 1,
-   "hold_days": 56
+   "hold_days": 56,
+   "all": 1
   }
  },
  "august_caught": true,

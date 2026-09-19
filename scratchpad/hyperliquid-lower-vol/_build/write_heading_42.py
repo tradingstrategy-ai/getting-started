@@ -49,7 +49,8 @@ for k in ("august", "may"):
     assert abs(LEG[k]["close_to_open"]) < 1e-12, LEG[k]
     assert F[k]["executed_at"] == F[k]["decision"]
     assert abs(F[k]["executed_price"] - F[k]["planned_mid_price"] * (1 - F[k]["stored_fee"])) < 1e-9
-assert AS["gate12_2d"]["sold_on_19_aug"] and AS["gate12_2d"]["valued_at_decision_open"] and m["august_caught"]
+assert AS["gate12_2d"]["sold"] and AS["gate12_2d"]["all"] and m["august_caught"]
+assert AS["gate12_2d"]["removed_by_own_gate"] and AS["gate12_2d"]["zero_feed_delay"] and AS["gate12_2d"]["not_async"]
 assert G["gate12_2d"]["verdict"].startswith("NOT CONFIRMED") and G["gate12_2d"]["failed_standing_gates"] == ""
 assert G["gate10_2d"]["verdict"].startswith("UNEVALUATED")
 assert S["gate12_2d"]["cycle_sharpe"] < A["cycle_sharpe"] and S["gate12_2d"]["cagr"] < A["cagr"] and S["gate12_2d"]["max_dd"] < A["max_dd"]
@@ -142,7 +143,8 @@ notebook's most useful negative.
 2. **The premise held, and the tighter gate did what it was built to do.** At the 19 Aug
    decision the T-1 gate value is {pc(g19["gate_value_read_at_T-1"])} (the 14-day return through 18 Aug; the 19 Aug daily
    close is {pc(g19["daily_log_return_on_19_aug"])}, a coincidence of value, cell 30). `gate12_2d` sells the August position on
-   19 Aug, valued at the 19 Aug open ({AS["gate12_2d"]["planned_mid_price"]:.4f}, cell 36): the 21 Aug cycle earns {usd(aug21["gate12_2d"]["pnl_usd"])} against
+   19 Aug, valued at the 19 Aug open ({AS["gate12_2d"]["planned_mid_price"]:.4f}; non-async, zero feed delay, executed at the
+   decision, held going in, removed by its own gate at {pc(AS["gate12_2d"]["gate_value_T-1"])} - every check, cell 36): the 21 Aug cycle earns {usd(aug21["gate12_2d"]["pnl_usd"])} against
    the anchor's {usd(aug21["anchor"]["pnl_usd"])} ({pc(aug21["gate12_2d"]["cycle_return"])} against {pc(aug21["anchor"]["cycle_return"])}); the 21 May cycle is unchanged
    ({usd(may21["gate12_2d"]["pnl_usd"])} against {usd(may21["anchor"]["pnl_usd"])}) because the incumbent already sells there.
 3. **And it is worse than the incumbent anyway.** `gate12_2d`: CAGR {cg("gate12_2d")} against {cg("anchor")}, cycle
@@ -240,8 +242,10 @@ quantified here beyond those two days.
 - The fill predicate is asserted on trade objects, on `planned_mid_price` against the decision
   bar's `open` column at 1e-9 relative, with the async flags read from the pair, the feed delay
   read from the trade, and the fee identity `executed_price = mid x (1 - fee)` checked (cell
-  34). The rank-churn example was selected by rule (first rank exit with a hold under four
-  days, calendar order) and carries no label.
+  34). The in-pool-sell example was selected by rule (the earliest closure of a position held
+  under four days whose vault was still in the in-trade pool at that decision) and carries no
+  label; `gate12_2d`'s 19 Aug sell passes the same fail-closed checks before the stop rule
+  reads it (cell 36).
 - The collapse positions were selected by rule (the anchor's momentum-gate sells on the two
   pre-stated dates), one each (cell 30). The 19 Aug gate value and the 19 Aug daily close are
   printed with their row timestamps and are different quantities that coincide.
@@ -261,6 +265,8 @@ quantified here beyond those two days.
   (cells 37, 39). The one-day ledger reads the one-day pool log through a cache keyed by pool.
 - The fill predicate fails closed on a non-zero feed delay (a forward-filled candle open would
   match at 1e-9 and prove nothing); both collapse sells have a zero delay.
+- The first-strike table's cohort is the union of the two-day pool log's candidates, scored on
+  every UTC day whether or not the vault was a candidate that day; it is descriptive.
 - The one-day run is compared with the anchor on the anchor's own timestamps
   (`cycle_sharpe_on_2d_grid`, {GRID["anchor_1d"]["cycles"]:.0f} cycles, no missing timestamps) as well as on its own clock;
   the churn P&L uses the same exit classification as NB41.
