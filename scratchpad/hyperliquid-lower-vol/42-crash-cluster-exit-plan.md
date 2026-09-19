@@ -1,6 +1,10 @@
 # Crash exit plan: does the incumbent's exit fill before the gap?
 
-- **Status**: DRAFT 5, FINAL FOR BUILD, 2026-09-19, after four Grok reviews
+- **Status**: DRAFT 5, EXECUTED 2026-09-19 as [42-backtest-crash-exit.ipynb](42-backtest-crash-exit.ipynb)
+  (three Codex review rounds applied). H0a and H0b held as predicted; `gate12_2d` sold on 19
+  Aug and is NOT CONFIRMED at -0.17, worse than the incumbent; `anchor_1d` fails H1 and gate 7;
+  the one-day gates and the cluster diagnostic were not run by the stop rules. See §Outcome.
+  Drafted after four Grok reviews
   ([Draft 1](42-crash-cluster-exit-plan-grok-review.md): "not worth running as written";
   [Draft 2](42-crash-cluster-exit-plan-grok-review-2.md), [Draft 3](42-crash-cluster-exit-plan-grok-review-3.md)
   and [Draft 4](42-crash-cluster-exit-plan-grok-review-4.md): "worth running with the changes";
@@ -345,3 +349,32 @@ close-to-open leg, the constraint is the fill and the heading says so first.
   (0 as an off state): explicit flags. Material 14 (clocks, churn, fees): two-day-grid sampling
   for one-day runs, churn floor, A6 block. Minor findings applied (gate vs daily return
   conflation; epoch wording; 4-hour hold days moot).
+
+## Outcome, 2026-09-19
+
+- **H0a held, both PARTIAL CATCH.** Non-async HyperCore pairs; both collapse sells valued at
+  `planned_mid_price` = the decision day's candle open (6.5916, 11.2669), executed at the
+  decision, feed delay zero, `executed_price` = mid x (1 - 10 bps).
+- **H0b held: open-to-close on both days.** The candle open equalled the previous close (the
+  first mark of each collapse day had not moved); the crash was -29.6% and -32.2% from open
+  to close. The incumbent never took either collapse bar.
+- **H2a held on the sell and failed on the book.** `gate12_2d` sold the August position on 19
+  Aug at the 19 Aug open (every fail-closed check), earning +$5.0k on the 21 Aug cycle against
+  the incumbent, and is NOT CONFIRMED at -0.17 cycle Sharpe, passing every standing gate
+  (mask 0.85, plateau against -16% and -10%) and worse on CAGR (35.5% against 37.9%),
+  Sharpe and drawdown. Its in-pool sells net $-5.6k against the anchor's $-0.9k; the
+  pre-decision fire count shows the (-16%, -12%] band catching one collapse and four decisions
+  on winners on the way up. The predicted gate-6 question was moot: no spike.
+- **H1 failed.** `anchor_1d` on the two-day grid 1.53 against 2.16; in-pool sells
+  $-13.3k on 105 positions against $-0.9k on 85; late-period CAGR negative, REJECT
+  on gate 7. The one-day gates and the cluster diagnostic were not run (stop rules).
+- **The breaker** fires twice on the pre-decision book: on 21 May, the decision the incumbent's
+  gate already sells on, and once on a name that then rose. **The first-strike table** is
+  descriptive with intervals spanning zero. **4-hour coverage**: 5.1% empty buckets on the
+  dense period on average (worst held vault 99%), 83% before April.
+- **Answer to the operator.** The crashes are intraday; the backtest's own fills sit at the open
+  before them; the incumbent's 14-day gate at 48 hours sold at the last unmoved mark on both
+  collapse days. The two pre-registered variants (a four-point tighter gate; a one-day clock)
+  are both worse on this window. What the backtest cannot say: a live redemption decided at
+  00:00 fills at the vault's next NAV, and the open fill is optimistic by the first intraday
+  move - zero on these two days, not zero in general.
