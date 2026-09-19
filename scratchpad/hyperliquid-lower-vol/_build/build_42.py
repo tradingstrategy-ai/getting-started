@@ -156,6 +156,11 @@ for thresh in (-0.10, -0.15):
                            "losers": int((trig["pnl_usd"] < 0).sum()), "losers_pnl": float(trig[trig["pnl_usd"] < 0]["pnl_usd"].sum())}
     print(f"\\nsingle-day stop at {thresh:.0%}: {STOP_TABLES[thresh]}")
     display(trig.round(3))
+# The ad-hoc read of 2026-09-18 (10 triggers at -10%, 8 winners) forward-filled days without marks; this
+# cell does not. The positions on which the two constructions disagree:
+STOP_DIFF = stop_table_reconciliation(anchor_ledger, -0.10)
+print("positions where a forward-filled daily series breaches -10% and the no-fill series does not (or vice versa):")
+display(STOP_DIFF)
 
 # 3. 4-hour coverage per held vault by regime.
 cov = []
@@ -166,9 +171,14 @@ for addr in anchor_ledger["address"].unique():
 coverage = pd.DataFrame(cov)
 COVERAGE_SUMMARY = coverage.groupby("regime")[["empty_share", "marks_per_bucket"]].agg(["mean", "median", "max"])
 display(COVERAGE_SUMMARY.round(3))
+COLLAPSE_COVERAGE, FIRST_BUCKET = {}, {}
 for key, c in COLLAPSE.items():
     d = COLLAPSE_DATES[key]
-    print(f"{key} collapse window 4h coverage:", bucket_coverage(c["address"], d - pd.Timedelta(days=2), d + pd.Timedelta(days=1), "4h"))
+    # The interval's last grid point is the 00:00 bucket of the day AFTER the collapse; it is empty by construction of the interval.
+    COLLAPSE_COVERAGE[key] = bucket_coverage(c["address"], d - pd.Timedelta(days=2), d + pd.Timedelta(days=1), "4h")
+    FIRST_BUCKET[key] = first_bucket_move(c["address"], d)
+    print(f"{key} collapse window 4h coverage (includes the empty endpoint bucket at +1 day 00:00):", COLLAPSE_COVERAGE[key])
+    print(f"{key} first 4-hour bucket of the collapse day:", FIRST_BUCKET[key])
 '''))
 cells.append(code('''# 4. Fire counts on the anchor's PRE-decision held book (positions opened before the decision and
 # not closed before it): the tighter gate (2b) and the breaker (2c).
@@ -246,6 +256,7 @@ display(pd.Series(CHURN_EXAMPLE, name="value").to_frame())
 for key in COLLAPSE:
     assert FILLS[key]["hold_days"] > 4, (key, FILLS[key]["hold_days"])
 print("both collapse holds exceed the 1-day (leader) and 4-day (HLP) live lock-ups:", {k: FILLS[k]["hold_days"] for k in FILLS})
+print("for a SELL the execution model's _is_async_vault(pair, is_buy=False) is has_delayed_vault_redemption() with no override; printed above as False.")
 
 H0A = {k: LABELS[k]["label"] for k in LABELS}
 H0B = {k: LEGS[k]["crash_leg"] for k in LEGS}
@@ -381,6 +392,22 @@ if RUN_CLUSTER:
     print(f"cluster exits: {len(cuts)}: {cuts}")
 '''))
 
+cells.append(md("""## H3. Forced-exit fills and the lock-up census
+
+Every pool-removal sell of every run with the Part 0b fill fields (no catch label), and the
+count of sells - all sells, and forced ones - on positions younger than the live 1-day (leader)
+and 4-day (HLP) lock-ups: fills the backtest made that live trading could not.
+"""))
+cells.append(code('''FORCED = {"anchor": forced_exit_fills("anchor", "pool_2d"), "gate12_2d": forced_exit_fills("gate12_2d", "pool_2d", -0.12),
+          "gate10_2d": forced_exit_fills("gate10_2d", "pool_2d", -0.10), "anchor_1d": forced_exit_fills("anchor_1d", "pool_1d")}
+for label, frame in FORCED.items():
+    print(f"\\n{label}: {len(frame)} forced exits")
+    display(frame.round(4))
+LOCKUP = pd.DataFrame([lockup_census("anchor", "pool_2d"), lockup_census("gate12_2d", "pool_2d", -0.12), lockup_census("gate10_2d", "pool_2d", -0.10),
+                       lockup_census("anchor_1d", "pool_1d")]).set_index("label")
+display(LOCKUP)
+'''))
+
 cells.append(md("""## Window A
 
 The incumbent's own window (2026-01-01 to 2026-07-10), which contains May and NOT August, for
@@ -427,6 +454,10 @@ for label, wl in WINDOW_LABELS.items():
     row["cycles"] = int(len(e["cycle_returns"]))
     rows[label] = row
 window_a = pd.DataFrame(rows).T[["cumulative_return", "cagr", "cycle_sharpe", "cycle_vol", "ulcer", "max_dd", "mean_invested", "luck_ratio", "top5_gross_share", "cycles"]]
+# The one-day run on window A's two-day timestamps, so the clocks are not mixed.
+window_a.loc["anchor_1d", "cycle_sharpe_on_2d_grid"] = sharpe_on_2d_grid(WINDOW_LABELS["anchor_1d"], reference=WINDOW_LABELS["anchor"])["cycle_sharpe_on_2d_grid"]
+window_a.loc["anchor", "cycle_sharpe_on_2d_grid"] = window_a.loc["anchor", "cycle_sharpe"]
+window_a.loc["gate12_2d", "cycle_sharpe_on_2d_grid"] = window_a.loc["gate12_2d", "cycle_sharpe"]
 display(window_a.astype(float).round(4))
 '''))
 
@@ -454,7 +485,9 @@ manifest = {
     "collapse": jsonable(COLLAPSE), "collapse_dates": {k: str(v.date()) for k, v in COLLAPSE_DATES.items()}, "warning_dates": {k: str(v.date()) for k, v in WARNING_DATES.items()},
     "gate_19aug": jsonable(GATE_19AUG),
     "stop_tables": {str(k): v for k, v in STOP_TABLES.items()},
-    "coverage": jsonable(COVERAGE_SUMMARY.to_dict()),
+    "coverage": jsonable(COVERAGE_SUMMARY.to_dict()), "collapse_coverage": jsonable(COLLAPSE_COVERAGE), "first_bucket": jsonable(FIRST_BUCKET),
+    "stop_diff": jsonable(STOP_DIFF.to_dict(orient="records")),
+    "forced_exits": {k: jsonable(v.to_dict(orient="records")) for k, v in FORCED.items()}, "lockup": jsonable(LOCKUP.to_dict(orient="index")),
     "fires": {k: jsonable(v.to_dict(orient="records")) for k, v in FIRES.items()},
     "first_strike_summary": jsonable(FIRST_SUMMARY.to_dict(orient="records")), "every_day_summary": jsonable(EVERY_SUMMARY.to_dict(orient="records")),
     "first_strike_collapse_rows": {k: jsonable(first[first["address"] == c["address"]].to_dict(orient="records")) for k, c in COLLAPSE.items()},

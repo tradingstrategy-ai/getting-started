@@ -18,6 +18,7 @@ AS = m["august_sell"]
 H1 = m["H1"]
 GRID = m["grid"]
 W = m["window_a"]
+FB = m["first_bucket"]; LK = m["lockup"]; CC = m["collapse_coverage"]; SD = m["stop_diff"]
 WC = m["window_cycles"]
 W5 = m["worst5"]
 CH = m["churn_2d"]
@@ -80,6 +81,10 @@ brk_may = next(r for r in breaker if r["decision"] == "2026-05-21"); brk_other =
 fs = {(r["class"], r["horizon"]): r for r in FS}
 es = {(r["class"], r["horizon"]): r for r in ES}
 assert fs[("first_extreme", "fwd_1d")]["ci_hi"] > 0
+assert FB["august"]["log_move_inside_first_bucket"] < -0.1 and FB["may"]["log_move_inside_first_bucket"] < 0
+assert LK["anchor"]["forced_all_zero_delay"] and LK["anchor"]["forced_all_non_async"] and LK["anchor_1d"]["forced_all_zero_delay"]
+assert all(CC[k]["empty_share"] < 0.1 for k in CC)
+assert len(SD) == 0
 cov_dense = COV["('empty_share', 'mean')"]["dense (2026-04-01 on)"]
 cov_sparse = COV["('empty_share', 'mean')"]["sparse (to 2026-03-31)"]
 assert cov_sparse > 0.7 and cov_dense < 0.1
@@ -137,7 +142,9 @@ notebook's most useful negative.
    mark of the day had not moved. The whole crash sits in the open-to-close leg
    ({pc(LEG["august"]["open_to_close"])} on 21 Aug, {pc(LEG["may"]["open_to_close"])} on 21 May). The book took the days BEFORE the
    collapses - the 19 Aug -14.5% close and the 20 May -23.9% close - and sold at the open of
-   the day the floor gave way. That is why the anchor's five worst cycles are the same with and
+   the day the floor gave way. The first archived mark was unmoved; the first FOUR-HOUR bucket
+   was not: {pc(FB["august"]["log_move_inside_first_bucket"])} inside 00:00-04:00 on 21 Aug and {pc(FB["may"]["log_move_inside_first_bucket"])} on 21 May (cell 31), so a
+   live fill later than the first mark faces a different price - unmeasured here. That is why the anchor's five worst cycles are the same with and
    without the two collapse cycles ({pc(W5["anchor"]["worst5_with"])} either way, cell 37): the collapse days are not
    among its worst cycles at all.
 2. **The premise held, and the tighter gate did what it was built to do.** At the 19 Aug
@@ -152,8 +159,9 @@ notebook's most useful negative.
    gate (mask {f2(G["gate12_2d"]["mask_retention"])}, plateau against -16% and -10%) and is NOT CONFIRMED at {G["gate12_2d"]["sharpe_gap_to_anchor"]:+.2f} - inside
    the band and on the wrong side of it. Why: the 14-day gate in (-16%, -12%] fires on
    {n_fires12} held-vault decisions of the anchor's book (cell 32), and only ONE of them is a
-   collapse (19 Aug, 30-day forward {pc(crashed[0]["fwd_30d"])}); {len(recovered)} of them are decisions on the incumbent's winners
-   on the way up ({", ".join(f"{r['vault']} on {r['decision']}, +{r['fwd_30d'] * 100:.0f}% over the next 30 days" for r in recovered)}). The
+   collapse (19 Aug, 30-day forward {pc(crashed[0]["fwd_30d"])}); {len(recovered)} rows have a 30-day vault forward above +20%
+   ({", ".join(f"{r['vault']} on {r['decision']}, +{r['fwd_30d'] * 100:.0f}%" for r in recovered)} - two of them one holding on sparse marks); the
+   other {n_fires12 - 1 - len(recovered)} include names that went on to lose (a sell there would have helped). The
    incumbent held the August vault at a 14-day return of -13.9% on 22 Jun, two days after
    buying it; `gate12_2d` does not, and its August position dates from {reentry} - a
    {AS["gate12_2d"]["hold_days"]}-day hold against the incumbent's {C["august"]["hold_days"]}. Its positions sold while their vault was still in the
@@ -184,12 +192,18 @@ notebook's most useful negative.
    {pc(fs[("first_extreme", "fwd_1d")]["mean"])} the next day with a block interval [{pc(fs[("first_extreme", "fwd_1d")]["ci_lo"])}, {pc(fs[("first_extreme", "fwd_1d")]["ci_hi"])}] that spans zero, and the
    every-day appendix's {pc(es[("first_extreme", "fwd_1d")]["mean"])} is aftermath.
 6. **The 4-hour question, answered without a backtest.** From April 2026 the held vaults have
-   {pc(cov_dense)} empty 4-hour buckets on average (median {pc(COV["('empty_share', 'median')"]["dense (2026-04-01 on)"])}, worst {pc(COV["('empty_share', 'max')"]["dense (2026-04-01 on)"])}); before it,
-   {pc(cov_sparse)} (cell 31). The two collapse vaults are fully covered at 4 hours through their
-   collapses (no empty bucket, cell 30), and 20 May is six consecutive down buckets there; a
-   4-hour clock for the whole book is not shown to be possible (the worst held vault is mostly
-   empty even in the dense period), and whether it would be worth its decision count, given
-   what one day did (finding 4), is not a question this track's indicator stack can answer.
+   {pc(cov_dense)} empty 4-hour buckets on average (median {pc(COV["('empty_share', 'median')"]["dense (2026-04-01 on)"])}; the maximum, {pc(COV["('empty_share', 'max')"]["dense (2026-04-01 on)"])}, is a name
+   scored over the whole regime including before it listed); before April, {pc(cov_sparse)} (cell 31).
+   The two collapse paths have a mark in every printed 4-hour bucket (cell 30; the coverage
+   function's {pc(CC["august"]["empty_share"])} on the collapse windows is the empty endpoint bucket at +1 day 00:00),
+   and 20 May is six consecutive down buckets there. Whether a 4-hour clock would be worth its
+   decision count, given what one day did (finding 4), is not a question this track's indicator
+   stack can answer.
+7. **What live trading could not have done (H3, cell 41).** Every forced exit of every run fills
+   at the decision with zero feed delay on a non-async pair. Of the anchor's {LK["anchor"]["sells"]} sells,
+   {LK["anchor"]["sells_under_4_days"]} are on positions younger than the 4-day HLP lock-up and {LK["anchor"]["sells_under_1_day"]} younger than the 1-day
+   leader lock-up; on the one-day clock, {LK["anchor_1d"]["sells_under_4_days"]} of {LK["anchor_1d"]["sells"]} and {LK["anchor_1d"]["sells_under_1_day"]}. The one-day churn figure
+   is an engine fact: those sells would not all have been possible live.
 
 ## Summary of results
 
@@ -217,11 +231,17 @@ not closed before it; weight at the previous statistics timestamp), 14-day retur
 |---|---|---|---|---|---|---|
 {lines_fires}
 
-Window A (2026-01-01 to 2026-07-10; contains May, not August; cell 41): `anchor` Sharpe {f2(W["anchor"]["cycle_sharpe"])},
-`gate12_2d` {f2(W["gate12_2d"]["cycle_sharpe"])}, `anchor_1d` {f2(W["anchor_1d"]["cycle_sharpe"])}; the tighter gate and the one-day clock are worse there too.
+Window A (2026-01-01 to 2026-07-10; contains May, not August; cell 43, through the run
+ledger): `anchor` Sharpe {f2(W["anchor"]["cycle_sharpe"])}, `gate12_2d` {f2(W["gate12_2d"]["cycle_sharpe"])} on the same two-day clock, `anchor_1d`
+{f2(W["anchor_1d"]["cycle_sharpe_on_2d_grid"])} on that window's two-day grid ({f2(W["anchor_1d"]["cycle_sharpe"])} on its own clock); the tighter gate loses
+without August, and the one-day clock is worse there too.
 
 The single-day stop table, reproduced (cell 31): at -10%, {ST["-0.1"]["triggered"]} positions trigger, {ST["-0.1"]["winners"]} of them
-winners ({usd(ST["-0.1"]["winners_pnl"])}); at -15%, {ST["-0.15"]["triggered"]} trigger, all winners.
+winners ({usd(ST["-0.1"]["winners_pnl"])}); at -15%, {ST["-0.15"]["triggered"]} trigger, all winners. The ad-hoc read of 2026-09-18 had one more
+trigger at -10% (10, 8 winners). Forward-filling days without marks is not the reason: the two
+daily constructions agree on every position inside the window ({len(SD)} differ, cell 31). The
+ad-hoc script extended still-open positions to the archive's last mark, ten days past the
+window's end, which is where its extra trigger came from; the conclusion is the same.
 
 **What this means for the track.** The operator's question - how fast do the crashes happen,
 can we react in a day - has a precise answer on this engine: the crashes are intraday, the
@@ -231,9 +251,9 @@ catches the one -14.5% day and is worse on the whole book; the one-day clock fai
 loses {usd(H1["churn_pnl_1d"] - H1["churn_pnl_anchor"])} on its in-pool sells. Both are one-window, in-sample results on the two
 variants the plan named; they say nothing about exit mechanisms not run (the cluster
 diagnostic was not reached). The remaining lever is not in the backtest: a live redemption
-decided at 00:00 fills at the vault's next NAV, and the backtest's open fill is optimistic by
-whatever the first intraday move is - zero on these two days, not zero in general, and not
-quantified here beyond those two days.
+decided at 00:00 fills at the vault's NEXT NAV. The first archived mark of each collapse day
+was unchanged, the first four-hour bucket was not ({pc(FB["august"]["log_move_inside_first_bucket"])} and {pc(FB["may"]["log_move_inside_first_bucket"])}), and which of
+those a HyperCore redemption would have got is not measured here.
 
 ## Robustness of results
 
@@ -263,13 +283,15 @@ quantified here beyond those two days.
   universe screen), not from NB41's rank reconstruction, which does not mirror deposit-window
   skips or hold protection; the reconstruction is displayed beside it for comparison only
   (cells 37, 39). The one-day ledger reads the one-day pool log through a cache keyed by pool.
+- For a sell, the execution model's `_is_async_vault(pair, is_buy=False)` is the pair's
+  `has_delayed_vault_redemption()` with no override; both are printed False (cell 34).
 - The fill predicate fails closed on a non-zero feed delay (a forward-filled candle open would
   match at 1e-9 and prove nothing); both collapse sells have a zero delay.
 - The first-strike table's cohort is the union of the two-day pool log's candidates, scored on
   every UTC day whether or not the vault was a candidate that day; it is descriptive.
 - The one-day run is compared with the anchor on the anchor's own timestamps
-  (`cycle_sharpe_on_2d_grid`, {GRID["anchor_1d"]["cycles"]:.0f} cycles, no missing timestamps) as well as on its own clock;
-  the churn P&L uses the same exit classification as NB41.
+  (`cycle_sharpe_on_2d_grid`, {GRID["anchor_1d"]["cycles"]:.0f} cycles, no missing timestamps) as well as on its own clock,
+  on the track window and on window A.
 - Same limits as the whole track: one window, 126 decisions, in sample; the archive is
   weekly-filled before April 2026 and the 4-hour coverage there is {pc(cov_sparse)} empty buckets.
 """

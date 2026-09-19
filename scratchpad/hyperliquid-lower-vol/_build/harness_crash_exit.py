@@ -517,3 +517,89 @@ def in_pool_at_close(label: str, pool_label: str, address: str, closed) -> bool:
         return False
     rec = log[stamps[i]] if stamps[i] in log else log[stamps[i].to_pydatetime()]
     return str(address).lower() in rec["candidate_addresses"]
+
+
+# --------------------------------------------------------------------------------------------
+# After the Grok review of the executed notebook.
+# --------------------------------------------------------------------------------------------
+
+def forced_exit_fills(label: str, pool_label: str, gate_threshold: float | None = None) -> pd.DataFrame:
+    """Every pool-removal sell of a run (the vault had left the in-trade pool at the closing
+    decision - the momentum gate or the universe screen; for a tighter-gate run also a vault at
+    or below its own threshold at T-1), with the fill fields of Part 0b and the hold length in
+    calendar days. No CATCH / PARTIAL / MISS label."""
+    state_ = run_by_label[label]["state"]
+    log = run_by_label[pool_label]["crash_log"]
+    stamps = pd.DatetimeIndex(sorted(log))
+    rows = []
+    for p in _vault_positions(state_):
+        if p.closed_at is None:
+            continue
+        t = pd.Timestamp(p.closed_at)
+        i = stamps.searchsorted(t, side="right") - 1
+        if i < 0:
+            continue
+        rec = log[stamps[i]] if stamps[i] in log else log[stamps[i].to_pydatetime()]
+        addr = str(p.pair.pool_address).lower()
+        in_pool = addr in rec["candidate_addresses"]
+        if in_pool and gate_threshold is not None:
+            g = value_at_prior(indicator_series("return_gate", p.pair), stamps[i])
+            in_pool = bool(np.isfinite(g) and g > gate_threshold)
+        if in_pool:
+            continue
+        f = fill_record(label, addr, t)
+        if f is None:
+            continue
+        rows.append({"vault": f["vault"], "decision": f["decision"], "executed_at": f["executed_at"], "hold_days": f["hold_days"],
+                     "planned_mid_price": f["planned_mid_price"], "executed_price": f["executed_price"], "decision_bar_open": f["decision_bar_open"],
+                     "decision_bar_close": f["decision_bar_close"], "market_feed_delay": f["market_feed_delay"], "is_async_vault": f["is_async_vault"],
+                     "has_delayed_vault_redemption": f["has_delayed_vault_redemption"], "pnl_usd": float(p.get_total_profit_usd() or 0.0)})
+    return pd.DataFrame(rows, columns=["vault", "decision", "executed_at", "hold_days", "planned_mid_price", "executed_price", "decision_bar_open",
+                                       "decision_bar_close", "market_feed_delay", "is_async_vault", "has_delayed_vault_redemption", "pnl_usd"])
+
+
+def lockup_census(label: str, pool_label: str, gate_threshold: float | None = None) -> dict:
+    """Sells the backtest filled that a live lock-up would not: ALL sells (in-pool and pool
+    removal) of positions younger than 1 day (HyperCore leader lock-up) and 4 days (HLP)."""
+    state_ = run_by_label[label]["state"]
+    holds = []
+    for p in _vault_positions(state_):
+        if p.closed_at is None:
+            continue
+        holds.append((int((pd.Timestamp(p.closed_at) - pd.Timestamp(p.opened_at)).days), float(p.get_total_profit_usd() or 0.0)))
+    forced = forced_exit_fills(label, pool_label, gate_threshold)
+    return {"label": label, "sells": len(holds), "sells_under_1_day": sum(1 for d, _ in holds if d < 1), "sells_under_4_days": sum(1 for d, _ in holds if d < 4),
+            "pnl_of_sells_under_4_days": float(sum(v for d, v in holds if d < 4)),
+            "forced_exits": int(len(forced)), "forced_under_1_day": int((forced["hold_days"] < 1).sum()) if len(forced) else 0,
+            "forced_under_4_days": int((forced["hold_days"] < 4).sum()) if len(forced) else 0,
+            "forced_all_zero_delay": bool((forced["market_feed_delay"] == "0:00:00").all()) if len(forced) else True,
+            "forced_all_non_async": bool((~forced["is_async_vault"] & ~forced["has_delayed_vault_redemption"]).all()) if len(forced) else True}
+
+
+def first_bucket_move(address: str, date) -> dict:
+    """The first 4-hour bucket of the collapse day from the raw archive: first and last mark and
+    the log move inside it - what a fill later than the first mark would have faced."""
+    b = archive_4h(address, pd.Timestamp(date), pd.Timestamp(date) + pd.Timedelta(hours=4))
+    row = b.iloc[0]
+    return {"first_mark": float(row["first"]), "last_mark_in_bucket": float(row["last"]), "marks": int(row["marks"]),
+            "log_move_inside_first_bucket": float(np.log(row["last"] / row["first"]))}
+
+
+def stop_table_reconciliation(ledger: pd.DataFrame, thresh: float) -> pd.DataFrame:
+    """The ad-hoc read of 2026-09-18 forward-filled days without marks before taking daily
+    returns; `archive_daily` does not (a day without marks has no return). Both constructions,
+    side by side, so the difference in the trigger count is named."""
+    g = _archive()
+    rows = []
+    for _, r in ledger.iterrows():
+        start, end = pd.Timestamp(r["opened"]), (pd.Timestamp(r["closed"]) if r["closed"] else WINDOW_END)
+        h = g[(g["address"] == r["address"]) & (g["timestamp"] >= start) & (g["timestamp"] <= end)]
+        if h.empty:
+            continue
+        daily_ffill = h.set_index("timestamp")["share_price"].resample("1D").last().ffill()
+        r_ffill = np.log(daily_ffill).diff().dropna()
+        d = archive_daily(r["address"], start, end)["log_return"].dropna()
+        rows.append({"vault": r["vault"], "opened": r["opened"], "closed": r["closed"], "pnl_usd": r["pnl_usd"],
+                     "breach_ffill": bool((r_ffill <= thresh).any()), "breach_no_ffill": bool((d <= thresh).any())})
+    frame = pd.DataFrame(rows)
+    return frame[frame["breach_ffill"] != frame["breach_no_ffill"]]

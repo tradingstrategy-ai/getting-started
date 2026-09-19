@@ -371,10 +371,18 @@ close-to-open leg, the constraint is the fill and the heading says so first.
 - **The breaker** fires twice on the pre-decision book: on 21 May, the decision the incumbent's
   gate already sells on, and once on a name that then rose. **The first-strike table** is
   descriptive with intervals spanning zero. **4-hour coverage**: 5.1% empty buckets on the
-  dense period on average (worst held vault 99%), 83% before April.
+  dense period on average (worst held vault 99%, a name scored before it listed), 83% before April.
+- **H3.** Every forced exit of every run fills at the decision, zero feed delay, non-async.
+  Of the anchor's 90 sells 25 are on positions under 4 days old (none under 1 day); on the
+  one-day clock 49 of 111. The one-day churn figure is an engine fact.
 - **Answer to the operator.** The crashes are intraday; the backtest's own fills sit at the open
   before them; the incumbent's 14-day gate at 48 hours sold at the last unmoved mark on both
   collapse days. The two pre-registered variants (a four-point tighter gate; a one-day clock)
   are both worse on this window. What the backtest cannot say: a live redemption decided at
-  00:00 fills at the vault's next NAV, and the open fill is optimistic by the first intraday
-  move - zero on these two days, not zero in general.
+  00:00 fills at the vault's NEXT NAV; the first archived mark was unchanged on both days but
+  the first four-hour bucket moved -19.7% (21 Aug) and -4.3% (21 May), and which
+  price a HyperCore redemption would have got is not measured here.
+- **Reviews of the executed notebook:** Codex x3 (no material error remaining in the fill,
+  stop-rule, churn, clock or headline logic) and Grok x1 (no blocking; three material wording
+  and diagnostic findings, applied: the first-bucket caveat above, window A's one-day Sharpe
+  on the window's two-day grid, and the H3 forced-exit fill table and lock-up census).
