@@ -170,7 +170,8 @@ for key, c in COLLAPSE.items():
     d = COLLAPSE_DATES[key]
     print(f"{key} collapse window 4h coverage:", bucket_coverage(c["address"], d - pd.Timedelta(days=2), d + pd.Timedelta(days=1), "4h"))
 '''))
-cells.append(code('''# 4. Fire counts on the anchor's held book: the tighter gate (2b) and the breaker (2c).
+cells.append(code('''# 4. Fire counts on the anchor's PRE-decision held book (positions opened before the decision and
+# not closed before it): the tighter gate (2b) and the breaker (2c).
 FIRES = {}
 for lo, hi, name in ((-0.16, -0.12, "gate (-16%, -12%]"), (-0.16, -0.10, "gate (-16%, -10%]")):
     f = gate_fire_count("anchor", lo, hi)
@@ -309,8 +310,21 @@ display(gates_2d[["gate_1_positive", "gate_7_subperiod", "gate_3_held_vol", "gat
                   "diag_4_luck_within_tolerance", "diag_8_distinct_within_tolerance", "sharpe_gap_to_anchor", "failed_standing_gates", "standing_gates_not_run", "verdict"]].round(4))
 for l in LOVO_2D:
     print(f"  {l}: masked {gates_2d.loc[l, 'masked']}, retention {gates_2d.loc[l, 'mask_retention']:.3f}")
-CHURN_2D = pd.DataFrame([churn_pnl(l) for l in ("anchor", "gate12_2d", "gate10_2d")]).set_index("label")
+# Churn, exactly: a position sold at a decision on which its vault was STILL in the in-trade
+# candidate pool (the pool logger, which runs the anchor's -16% gate) was sold by ranking or
+# sizing; one whose vault had left the pool was removed by the momentum gate or the universe
+# screen. For the tighter-gate runs a candidate at or below their own threshold at T-1 is a
+# pool removal. No rank reconstruction.
+CHURN_EXACT = {"anchor": churn_pnl_exact("anchor", "pool_2d"), "gate12_2d": churn_pnl_exact("gate12_2d", "pool_2d", gate_threshold=-0.12),
+               "gate10_2d": churn_pnl_exact("gate10_2d", "pool_2d", gate_threshold=-0.10)}
+CHURN_2D = pd.DataFrame({l: {"churn_positions": v["churn"]["positions"], "churn_pnl_usd": v["churn"]["pnl_usd"], "churn_median_days": v["churn"]["median_days"],
+                             "pool_removal_positions": v["pool_removal"]["positions"], "pool_removal_pnl_usd": v["pool_removal"]["pnl_usd"],
+                             "open_positions": v["open"]["positions"], "open_pnl_usd": v["open"]["pnl_usd"], "unclassified": v["unclassified"]["positions"]}
+                         for l, v in CHURN_EXACT.items()}).T
 display(CHURN_2D.round(2))
+# The ranking-based reconstruction of NB41, for comparison only.
+CHURN_RECON_2D = pd.DataFrame([churn_pnl(l) for l in ("anchor", "gate12_2d", "gate10_2d")]).set_index("label")
+display(CHURN_RECON_2D.round(2))
 FEES_2D = pd.DataFrame([fee_differential(l) for l in ("gate12_2d", "gate10_2d")])
 display(FEES_2D.round(4))
 '''))
@@ -325,15 +339,21 @@ cells.append(code('''run_and_record("anchor_1d", "cadence", cycle_duration=Cycle
 pool_1d = run_and_record("pool_1d", "pool_logger", cycle_duration=CycleDuration.cycle_1d, **POOL_OVERRIDES)
 aligned = pd.concat([pool_1d["cycle_returns"].rename("a"), run_by_label["anchor_1d"]["cycle_returns"].rename("b")], axis=1).dropna()
 assert len(aligned) == len(run_by_label["anchor_1d"]["cycle_returns"]) and np.allclose(aligned["a"], aligned["b"], atol=1e-12)
-POOL_SOURCE = "pool_1d"
 GRID = pd.DataFrame([sharpe_on_2d_grid("anchor"), sharpe_on_2d_grid("anchor_1d")]).set_index("label")
 display(GRID.round(4))
-churn_1d = churn_pnl("anchor_1d")
+churn_1d_exact = churn_pnl_exact("anchor_1d", "pool_1d")
+POOL_SOURCE = "pool_1d"
+churn_1d_recon = churn_pnl("anchor_1d")
 POOL_SOURCE = "pool_2d"
+display(pd.DataFrame({"exact (in-trade pool)": {"churn_positions": churn_1d_exact["churn"]["positions"], "churn_pnl_usd": churn_1d_exact["churn"]["pnl_usd"],
+                                                "pool_removal_positions": churn_1d_exact["pool_removal"]["positions"], "pool_removal_pnl_usd": churn_1d_exact["pool_removal"]["pnl_usd"],
+                                                "open_pnl_usd": churn_1d_exact["open"]["pnl_usd"]},
+                      "reconstructed (ranking)": {"churn_positions": churn_1d_recon["churn_positions"], "churn_pnl_usd": churn_1d_recon["churn_pnl_usd"]}}).round(2))
 H1 = {"sharpe_on_2d_grid_gap": float(GRID.loc["anchor_1d", "cycle_sharpe_on_2d_grid"] - GRID.loc["anchor", "cycle_sharpe_on_2d_grid"]),
       "max_dd_gap_pp": float((run_by_label["anchor_1d"]["panel"]["max_dd"] - run_by_label["anchor"]["panel"]["max_dd"]) * 100),
-      "churn_pnl_1d": churn_1d["churn_pnl_usd"], "churn_pnl_anchor": float(CHURN_2D.loc["anchor", "churn_pnl_usd"]),
-      "churn_positions_1d": churn_1d["churn_positions"], "churn_positions_anchor": int(CHURN_2D.loc["anchor", "churn_positions"])}
+      "churn_pnl_1d": churn_1d_exact["churn"]["pnl_usd"], "churn_pnl_anchor": float(CHURN_2D.loc["anchor", "churn_pnl_usd"]),
+      "churn_positions_1d": churn_1d_exact["churn"]["positions"], "churn_positions_anchor": int(CHURN_2D.loc["anchor", "churn_positions"]),
+      "pool_removal_pnl_1d": churn_1d_exact["pool_removal"]["pnl_usd"], "pool_removal_pnl_anchor": float(CHURN_2D.loc["anchor", "pool_removal_pnl_usd"])}
 H1["passes"] = bool(abs(H1["sharpe_on_2d_grid_gap"]) <= INDIFFERENCE_BAND and H1["max_dd_gap_pp"] >= -1.0 and H1["churn_pnl_1d"] >= H1["churn_pnl_anchor"] - 1000.0)
 display(pd.Series(H1, name="value").to_frame())
 display(summary_table(["anchor", "anchor_1d"]).round(4))
@@ -441,7 +461,9 @@ manifest = {
     "window_cycles": jsonable(WINDOW_CYCLES.to_dict(orient="records")), "worst5": jsonable(WORST5.to_dict(orient="index")),
     "summary": jsonable(summary_table(["anchor"] + ALL).round(10).to_dict(orient="index")),
     "gates_2d": jsonable(gates_2d.round(10).to_dict(orient="index")), "lovo_2d": LOVO_2D,
-    "churn_2d": jsonable(CHURN_2D.to_dict(orient="index")), "fees_2d": jsonable(FEES_2D.to_dict(orient="records")), "fees_1d": jsonable(FEES_1D),
+    "churn_2d": jsonable(CHURN_2D.to_dict(orient="index")), "churn_recon_2d": jsonable(CHURN_RECON_2D.to_dict(orient="index")),
+    "churn_1d_exact": jsonable(churn_1d_exact), "churn_1d_recon": jsonable(churn_1d_recon),
+    "fees_2d": jsonable(FEES_2D.to_dict(orient="records")), "fees_1d": jsonable(FEES_1D),
     "grid": jsonable(GRID.to_dict(orient="index")), "H1": jsonable(H1), "anchor_1d_cheap_gates": jsonable({k: cheap_1d[k] for k in ("gate_1_positive", "gate_7_subperiod", "gate_3_held_vol", "held_vol_post", "anchor_held_vol_post")}),
     "run_1d_gates": RUN_1D_GATES, "run_cluster": RUN_CLUSTER,
     "gates_1d": jsonable(gates_1d.round(10).to_dict(orient="index")) if gates_1d is not None else None,

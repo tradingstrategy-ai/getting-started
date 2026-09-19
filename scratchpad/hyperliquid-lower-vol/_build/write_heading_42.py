@@ -73,7 +73,9 @@ crashed = [r for r in fires12 if r["fwd_30d"] < -0.5]
 assert len(crashed) == 1 and crashed[0]["decision"] == "2026-08-19"
 assert len(recovered) >= 3
 breaker = FIRES["breaker -20%"]
-assert len(breaker) == 1 and breaker[0]["decision"] != "2026-08-21" and breaker[0]["decision"] != "2026-05-21"
+assert len(breaker) == 2 and {r["decision"] for r in breaker} == {"2026-05-21", "2026-09-08"}
+assert not any(r["decision"] == "2026-08-21" for r in breaker)
+brk_may = next(r for r in breaker if r["decision"] == "2026-05-21"); brk_other = next(r for r in breaker if r["decision"] != "2026-05-21")
 fs = {(r["class"], r["horizon"]): r for r in FS}
 es = {(r["class"], r["horizon"]): r for r in ES}
 assert fs[("first_extreme", "fwd_1d")]["ci_hi"] > 0
@@ -85,7 +87,10 @@ import pandas as pd
 reentry = (pd.Timestamp("2026-08-19") - pd.Timedelta(days=int(AS["gate12_2d"]["hold_days"]))).date()
 assert AS["gate12_2d"]["hold_days"] < C["august"]["hold_days"]
 assert any(r["decision"] == "2026-06-22" and r["vault"] == C["august"]["vault"] for r in fires12)
-lines_fires = "\n".join(f"| {r['decision']} | {r['vault']} | {r['weight']:.2f} | {r['return_14d'] * 100:.1f}% | {r['fwd_5d'] * 100:+.1f}% | {r['fwd_30d'] * 100:+.1f}% |" for r in fires12)
+assert all(str(r["opened"]) < r["decision"] for r in fires12), "a fire row is not a pre-decision holding"
+lines_fires = "\n".join(f"| {r['decision']} | {r['vault']} | {r['opened']} | {r['weight_before']:.2f} | {r['return_14d'] * 100:.1f}% | {r['fwd_5d'] * 100:+.1f}% | {r['fwd_30d'] * 100:+.1f}% |" for r in fires12)
+CE = m["churn_1d_exact"]; CR = m["churn_recon_2d"]
+assert CH["gate12_2d"]["unclassified"] == 0 and CH["anchor"]["unclassified"] == 0 and CE["unclassified"]["positions"] == 0
 
 HEADING = f"""# NB42 - crash exit: does the incumbent's exit fill before the gap?
 
@@ -149,37 +154,46 @@ notebook's most useful negative.
    on the way up ({", ".join(f"{r['vault']} on {r['decision']}, +{r['fwd_30d'] * 100:.0f}% over the next 30 days" for r in recovered)}). The
    incumbent held the August vault at a 14-day return of -13.9% on 22 Jun, two days after
    buying it; `gate12_2d` does not, and its August position dates from {reentry} - a
-   {AS["gate12_2d"]["hold_days"]}-day hold against the incumbent's {C["august"]["hold_days"]}; its rank-churn P&L is {usd(CH["gate12_2d"]["churn_pnl_usd"])} against the anchor's {usd(CH["anchor"]["churn_pnl_usd"])}
-   (cell 37), and its dense-period CAGR is {pc(S["gate12_2d"]["dense_cagr"])} against {pc(A["dense_cagr"])}. The -16% threshold is not
-   "four points too loose": it is the width that lets the incumbent's winners survive their
-   own noise.
-4. **The one-day clock is unusable.** `anchor_1d` on the two-day grid: Sharpe {f2(GRID["anchor_1d"]["cycle_sharpe_on_2d_grid"])} against
-   {f2(GRID["anchor"]["cycle_sharpe_on_2d_grid"])} ({H1["sharpe_on_2d_grid_gap"]:+.2f}); rank-churn P&L {usd(H1["churn_pnl_1d"])} on {H1["churn_positions_1d"]} positions against {usd(H1["churn_pnl_anchor"])} on
-   {H1["churn_positions_anchor"]}; late-period CAGR {pc(S["anchor_1d"]["late_cagr"])} - REJECT on gate 7 (cell 39). Doubling the decisions
-   doubles the rank churn that NB41 found nets to zero at 48 hours and turns it into a
-   {usd(H1["churn_pnl_1d"] - H1["churn_pnl_anchor"])} loss. H1 fails, so the one-day gates and the cluster diagnostic were not run: the
-   plan's stop rules stopped it. "Can we react in a day" has the answer the plan predicted -
-   we did not need to - and a second one it did not: the strategy cannot afford to look every
-   day.
+   {AS["gate12_2d"]["hold_days"]}-day hold against the incumbent's {C["august"]["hold_days"]}. Its positions sold while their vault was still in the
+   candidate pool (sold by ranking or sizing, read from the in-trade pool log, not a
+   reconstruction) net {usd(CH["gate12_2d"]["churn_pnl_usd"])} against the anchor's {usd(CH["anchor"]["churn_pnl_usd"])} (cell 37), and its dense-period
+   CAGR is {pc(S["gate12_2d"]["dense_cagr"])} against {pc(A["dense_cagr"])}. The fire table is the anchor's book, not the tighter
+   run's, so it says which of the anchor's holdings a -12% gate would have sold - it does not
+   attribute the tighter run's whole-book result to those rows, which also changes what it
+   held afterwards. What the two agree on: the pre-registered -12% variant produced no lead on
+   this window, and -16% is not established as "too loose".
+4. **The one-day clock fails H1 and gate 7.** `anchor_1d` on the two-day grid: Sharpe {f2(GRID["anchor_1d"]["cycle_sharpe_on_2d_grid"])} against
+   {f2(GRID["anchor"]["cycle_sharpe_on_2d_grid"])} ({H1["sharpe_on_2d_grid_gap"]:+.2f}); late-period CAGR {pc(S["anchor_1d"]["late_cagr"])} - REJECT on gate 7 (cell 39). Its
+   positions sold while their vault was still in the pool net {usd(H1["churn_pnl_1d"])} on {H1["churn_positions_1d"]} positions against
+   the anchor's {usd(H1["churn_pnl_anchor"])} on {H1["churn_positions_anchor"]} (in-trade pool log, cell 39); the pool-removal sells net
+   {usd(H1["pool_removal_pnl_1d"])} against {usd(H1["pool_removal_pnl_anchor"])}. Where the money went is therefore the in-pool sells, on one
+   window; why a daily rebalance makes them lose is not attributed here. H1 fails, so the
+   one-day gates and the cluster diagnostic were not run: the plan's stop rules stopped it.
+   "Can we react in a day" has the answer the plan predicted - the incumbent did not need to -
+   and a second one it did not predict: on this window, looking every day cost {usd(H1["churn_pnl_1d"] - H1["churn_pnl_anchor"])} on
+   the in-pool sells.
 5. **The breaker and the cluster are moot on this engine's clock.** A -20% last-day breaker
-   fires once on the anchor's held book in the whole window (cell 32: `{breaker[0]["vault"]}` on
-   {breaker[0]["decision"]}, which then rose {pc(breaker[0]["fwd_5d"])} in five days) and never on a collapse, because the first decision
-   that sees a -20% day is the one on which the incumbent's own gate already sells. The
+   fires twice on the anchor's pre-decision held book in the whole window (cell 32): on
+   {brk_may["decision"]} for the May vault - the very decision on which the incumbent's own gate already
+   sells it, so the breaker adds nothing there - and on {brk_other["decision"]} for `{brk_other["vault"]}`, which then
+   rose {pc(brk_other["fwd_5d"])} in five days. It never fires before a collapse: the first decision that sees a
+   -20% day is the one the gate acts on. The
    first-strike table (cell 32) is descriptive: `first_extreme` first-entry rows average
    {pc(fs[("first_extreme", "fwd_1d")]["mean"])} the next day with a block interval [{pc(fs[("first_extreme", "fwd_1d")]["ci_lo"])}, {pc(fs[("first_extreme", "fwd_1d")]["ci_hi"])}] that spans zero, and the
    every-day appendix's {pc(es[("first_extreme", "fwd_1d")]["mean"])} is aftermath.
 6. **The 4-hour question, answered without a backtest.** From April 2026 the held vaults have
-   {pc(cov_dense)} empty 4-hour buckets on average (median {pc(COV["('empty_share', 'median')"]["dense (2026-04-01 on)"])}); before it, {pc(cov_sparse)} (cell 31). A
-   4-hour clock is physically possible on the dense period and would have seen 20 May as six
-   consecutive down buckets; whether it would be worth its twelve-fold decision count, given
-   what one-day did to churn (finding 4), is not a question this track's indicator stack can
-   answer, and the plan says so.
+   {pc(cov_dense)} empty 4-hour buckets on average (median {pc(COV["('empty_share', 'median')"]["dense (2026-04-01 on)"])}, worst {pc(COV["('empty_share', 'max')"]["dense (2026-04-01 on)"])}); before it,
+   {pc(cov_sparse)} (cell 31). The two collapse vaults are fully covered at 4 hours through their
+   collapses (no empty bucket, cell 30), and 20 May is six consecutive down buckets there; a
+   4-hour clock for the whole book is not shown to be possible (the worst held vault is mostly
+   empty even in the dense period), and whether it would be worth its decision count, given
+   what one day did (finding 4), is not a question this track's indicator stack can answer.
 
 ## Summary of results
 
 The runs (cells 36, 39):
 
-| run | what | CAGR | Sharpe | Sharpe on 2d grid | max DD | churn P&L | verdict |
+| run | what | CAGR | Sharpe | Sharpe on 2d grid | max DD | in-pool sells' P&L | verdict |
 |---|---|---|---|---|---|---|---|
 | `anchor` | incumbent, gate -16%, 2d | {cg("anchor")} | {sh("anchor")} | {f2(GRID["anchor"]["cycle_sharpe_on_2d_grid"])} | {dd("anchor")} | {usd(CH["anchor"]["churn_pnl_usd"])} | - |
 | `gate12_2d` | gate -12%, 2d | {cg("gate12_2d")} | {sh("gate12_2d")} | {sh("gate12_2d")} | {dd("gate12_2d")} | {usd(CH["gate12_2d"]["churn_pnl_usd"])} | NOT CONFIRMED ({G["gate12_2d"]["sharpe_gap_to_anchor"]:+.2f}; passes 1, 2 ({f2(G["gate12_2d"]["mask_retention"])}), 3, 6, 7) |
@@ -193,10 +207,12 @@ The fills (cell 34):
 | August | {F["august"]["decision"][:10]} | {F["august"]["planned_mid_price"]:.4f} | {LEG["august"]["previous_close"]:.4f} | {LEG["august"]["close"]:.4f} | {L["august"]["label"]} | open-to-close {pc(LEG["august"]["open_to_close"])} |
 | May | {F["may"]["decision"][:10]} | {F["may"]["planned_mid_price"]:.4f} | {LEG["may"]["previous_close"]:.4f} | {LEG["may"]["close"]:.4f} | {L["may"]["label"]} | open-to-close {pc(LEG["may"]["open_to_close"])} |
 
-The tighter gate's fires on the anchor's held book, 14-day return in (-16%, -12%] (cell 32):
+The tighter gate's fires on the anchor's PRE-decision held book (opened before the decision,
+not closed before it; weight at the previous statistics timestamp), 14-day return in
+(-16%, -12%] (cell 32):
 
-| decision | vault | weight | 14-day return | next 5 days | next 30 days |
-|---|---|---|---|---|---|
+| decision | vault | position opened | weight before | 14-day return | next 5 days | next 30 days |
+|---|---|---|---|---|---|---|
 {lines_fires}
 
 Window A (2026-01-01 to 2026-07-10; contains May, not August; cell 41): `anchor` Sharpe {f2(W["anchor"]["cycle_sharpe"])},
@@ -208,12 +224,14 @@ winners ({usd(ST["-0.1"]["winners_pnl"])}); at -15%, {ST["-0.15"]["triggered"]} 
 **What this means for the track.** The operator's question - how fast do the crashes happen,
 can we react in a day - has a precise answer on this engine: the crashes are intraday, the
 backtest's own fills sit at the open before them, and the incumbent's 14-day gate at 48 hours
-already sold at the last unmoved mark on both collapse days. Tightening the gate catches one
--14.5% day and pays for it three times over on the winners' noise; looking every day costs
-{usd(H1["churn_pnl_1d"] - H1["churn_pnl_anchor"])} in churn. The remaining lever is not in the backtest: a live redemption decided at
-00:00 fills at the vault's next NAV, and the backtest's open fill is optimistic by whatever the
-first intraday move is - zero on these two days, not zero in general. The exit side of the
-incumbent is closed as a lead; the one-day clock is closed as a deployment.
+already sold at the last unmoved mark on both collapse days. The pre-registered -12% gate
+catches the one -14.5% day and is worse on the whole book; the one-day clock fails gate 7 and
+loses {usd(H1["churn_pnl_1d"] - H1["churn_pnl_anchor"])} on its in-pool sells. Both are one-window, in-sample results on the two
+variants the plan named; they say nothing about exit mechanisms not run (the cluster
+diagnostic was not reached). The remaining lever is not in the backtest: a live redemption
+decided at 00:00 fills at the vault's next NAV, and the backtest's open fill is optimistic by
+whatever the first intraday move is - zero on these two days, not zero in general, and not
+quantified here beyond those two days.
 
 ## Robustness of results
 
@@ -230,9 +248,19 @@ incumbent is closed as a lead; the one-day clock is closed as a deployment.
 - The collapse-day open equalling the previous close is a property of these two vaults' marks
   (the first mark of the day was unchanged), not of the engine; on a day whose first mark has
   already moved, the open fill takes that move, and the plan's H0b was written to catch it.
-- The tighter gate's fire count is on the anchor's realised book, so it says what -12% would
-  have sold that -16% held; the backtest (`gate12_2d`) says what that did to the whole book.
-  The two agree: one collapse caught, {len(recovered)} decisions on winners sold early.
+- The tighter gate's fire count is on the anchor's PRE-decision book (a position opened at
+  the decision is not counted; the weight is the one going into the decision), so it says
+  which of the anchor's holdings -12% would have sold that -16% held; the backtest
+  (`gate12_2d`) says what the tighter gate did to its own, different, book. The two are
+  consistent - one collapse caught, {len(recovered)} decisions on winners sold early - and the second is
+  not attributed to the first.
+- Churn is classified from the in-trade pool log (a position sold on a decision at which its
+  vault was still a candidate was sold by ranking or sizing; otherwise by the gate or the
+  universe screen), not from NB41's rank reconstruction, which does not mirror deposit-window
+  skips or hold protection; the reconstruction is displayed beside it for comparison only
+  (cells 37, 39). The one-day ledger reads the one-day pool log through a cache keyed by pool.
+- The fill predicate fails closed on a non-zero feed delay (a forward-filled candle open would
+  match at 1e-9 and prove nothing); both collapse sells have a zero delay.
 - The one-day run is compared with the anchor on the anchor's own timestamps
   (`cycle_sharpe_on_2d_grid`, {GRID["anchor_1d"]["cycles"]:.0f} cycles, no missing timestamps) as well as on its own clock;
   the churn P&L uses the same exit classification as NB41.

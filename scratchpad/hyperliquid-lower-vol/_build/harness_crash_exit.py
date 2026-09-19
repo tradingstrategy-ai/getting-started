@@ -336,3 +336,141 @@ def date_window_cycles(labels: list, cycle_end_dates: list) -> pd.DataFrame:
 
 print(f"harness_crash_exit.py: collapse dates {[str(v.date()) for v in COLLAPSE_DATES.values()]}, warning dates "
       f"{[str(v.date()) for v in WARNING_DATES.values()]}, predicate tolerance {REL_TOL}, archive {ARCHIVE.name}.")
+
+
+# --------------------------------------------------------------------------------------------
+# After the first Codex review of NB42.
+# --------------------------------------------------------------------------------------------
+
+_RANK_CACHE_BY_POOL: dict = {}
+
+
+def ranking_at(t) -> pd.DataFrame:
+    """Overrides harness_trades.ranking_at: the cache is keyed by (pool source, timestamp), so a
+    ledger reconstructed against the one-day pool log never reads a two-day pool entry."""
+    t = pd.Timestamp(t)
+    key = (POOL_SOURCE, t)
+    if key in _RANK_CACHE_BY_POOL:
+        return _RANK_CACHE_BY_POOL[key]
+    rows = []
+    for addr, vol in pool_at(t).items():
+        pair = PAIR_BY_ADDRESS.get(addr)
+        if pair is None:
+            continue
+        score = value_at_prior(indicator_series("cagr_sortino_weight", pair), t)
+        rows.append({
+            "address": addr, "vault": vault_name(addr),
+            "score": score if np.isfinite(score) else 0.0, "score_finite": bool(np.isfinite(score)),
+            "cagr_360d": value_at_prior(indicator_series("cagr_score", pair), t),
+            "sortino_45d": value_at_prior(indicator_series("sortino_score", pair), t) * SHARPE_SCORE_CAP,
+            "return_14d": value_at_prior(indicator_series("return_gate", pair), t),
+            "vol": vol, "quality_180d": value_at_prior(indicator_series("quality_sharpe", pair), t),
+        })
+    frame = pd.DataFrame(rows)
+    if not frame.empty:
+        frame["pair_id"] = [PAIR_BY_ADDRESS[a].internal_id for a in frame["address"]]
+        frame = frame.sort_values(["score", "pair_id"], ascending=[False, True]).reset_index(drop=True)
+        frame["rank"] = np.arange(1, len(frame) + 1)
+    _RANK_CACHE_BY_POOL[key] = frame
+    return frame
+
+
+def churn_pnl_exact(label: str, pool_label: str, gate_threshold: float | None = None) -> dict:
+    """Churn without the ranking reconstruction: a position is a CHURN exit if, at the decision
+    that closed it, its vault was still in the in-trade candidate pool (the pool logger's
+    `candidate_addresses`, written after the momentum gate and the universe screen) - it was
+    sold by ranking or sizing, not removed from the pool. A pool-removal exit is the momentum
+    gate or the universe screen. Open positions are neither. The pool logger runs the ANCHOR's
+    gate; for a run with a tighter `gate_threshold`, a candidate whose T-1 `return_gate` is at
+    or below that threshold is not in that run's pool and is classified as a pool removal."""
+    state_ = run_by_label[label]["state"]
+    log = run_by_label[pool_label]["crash_log"]
+    stamps = pd.DatetimeIndex(sorted(log))
+    churn, removal, open_, unknown = [], [], [], []
+    for p in _vault_positions(state_):
+        pnl = float(p.get_total_profit_usd() or 0.0)
+        days = int(((pd.Timestamp(p.closed_at) if p.closed_at else WINDOW_END) - pd.Timestamp(p.opened_at)).days)
+        if p.closed_at is None:
+            open_.append((pnl, days))
+            continue
+        t = pd.Timestamp(p.closed_at)
+        i = stamps.searchsorted(t, side="right") - 1
+        if i < 0:
+            unknown.append((pnl, days))
+            continue
+        rec = log[stamps[i]] if stamps[i] in log else log[stamps[i].to_pydatetime()]
+        in_pool = str(p.pair.pool_address).lower() in rec["candidate_addresses"]
+        if in_pool and gate_threshold is not None:
+            g = value_at_prior(indicator_series("return_gate", p.pair), stamps[i])
+            in_pool = bool(np.isfinite(g) and g > gate_threshold)
+        (churn if in_pool else removal).append((pnl, days))
+    def agg(rows):
+        return {"positions": len(rows), "pnl_usd": float(sum(r[0] for r in rows)), "median_days": float(np.median([r[1] for r in rows])) if rows else float("nan")}
+    return {"label": label, "churn": agg(churn), "pool_removal": agg(removal), "open": agg(open_), "unclassified": agg(unknown)}
+
+
+def gate_fire_count(label: str, lo: float, hi: float) -> pd.DataFrame:
+    """Overrides the first version: the held set at decision t is the PRE-decision book -
+    positions opened strictly before t and not closed before t (a position closed AT t was held
+    going into t) - and the weight is the position's value share at the last statistics
+    timestamp strictly before t."""
+    state_ = run_by_label[label]["state"]
+    equity_at = {pd.Timestamp(s.calculated_at): float(s.total_equity) for s in state_.stats.portfolio if s.total_equity}
+    stamps = pd.DatetimeIndex(sorted(equity_at))
+    rows = []
+    positions = _vault_positions(state_)
+    for t in sorted(_position_weights(state_)):
+        j = stamps.searchsorted(t, side="left") - 1
+        prev = stamps[j] if j >= 0 else None
+        for p in positions:
+            opened, closed = pd.Timestamp(p.opened_at), (pd.Timestamp(p.closed_at) if p.closed_at else None)
+            if not (opened < t and (closed is None or closed >= t)):
+                continue
+            g = value_at_prior(indicator_series("return_gate", p.pair), t)
+            if not (np.isfinite(g) and lo < g <= hi):
+                continue
+            weight = float("nan")
+            if prev is not None:
+                for s in state_.stats.positions.get(p.position_id, []):
+                    if pd.Timestamp(s.calculated_at) == prev and s.value and equity_at.get(prev):
+                        weight = float(s.value) / equity_at[prev]
+            rows.append({"decision": t.date(), "vault": vault_name(str(p.pair.pool_address)), "opened": opened.date(), "weight_before": weight,
+                         "return_14d": g, "fwd_5d": _forward_log_return(p.pair, t, 5), "fwd_30d": _forward_log_return(p.pair, t, 30)})
+    return pd.DataFrame(rows, columns=["decision", "vault", "opened", "weight_before", "return_14d", "fwd_5d", "fwd_30d"])
+
+
+def breaker_fire_count(label: str, threshold: float) -> pd.DataFrame:
+    state_ = run_by_label[label]["state"]
+    rows = []
+    positions = _vault_positions(state_)
+    for t in sorted(_position_weights(state_)):
+        for p in positions:
+            opened, closed = pd.Timestamp(p.opened_at), (pd.Timestamp(p.closed_at) if p.closed_at else None)
+            if not (opened < t and (closed is None or closed >= t)):
+                continue
+            close = close_series(p.pair)
+            i = close.index.searchsorted(t, side="left") - 1
+            if i < 1:
+                continue
+            r = float(np.log(close.iloc[i] / close.iloc[i - 1]))
+            if r <= threshold:
+                rows.append({"decision": t.date(), "vault": vault_name(str(p.pair.pool_address)), "last_daily_log_return": r,
+                             "fwd_5d": _forward_log_return(p.pair, t, 5)})
+    return pd.DataFrame(rows, columns=["decision", "vault", "last_daily_log_return", "fwd_5d"])
+
+
+_classify_fill_v1 = classify_fill
+
+
+def classify_fill(record: dict, pair, collapse_date) -> dict:
+    """A non-zero or missing feed delay means the candle open the trade was priced from is a
+    forward-filled row; the 1e-9 match to that row's open is then no evidence, so the label is
+    UNCLASSIFIED."""
+    out = _classify_fill_v1(record, pair, collapse_date)
+    if record.get("market_feed_delay") != "0:00:00":
+        out["label"] = "UNCLASSIFIED"
+        out["price_kind"] = out.get("price_kind", "") + f" (feed delay {record.get('market_feed_delay')})"
+    return out
+
+
+print("harness_crash_exit.py: review-1 overrides loaded - pool-keyed ranking cache, exact churn from the in-trade pool, pre-decision fire counts, feed-delay fail-closed.")
