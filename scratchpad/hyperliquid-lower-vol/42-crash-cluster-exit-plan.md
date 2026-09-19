@@ -1,14 +1,17 @@
 # Crash exit plan: does the incumbent's exit fill before the gap?
 
-- **Status**: DRAFT 2, 2026-09-18, after Grok review of Draft 1
-  ([42-crash-cluster-exit-plan-grok-review.md](42-crash-cluster-exit-plan-grok-review.md),
-  `grok-4.6` xhigh: "not worth running as written; worth running with the cuts"). Five blocking
-  and nine material findings applied; see §Review log. Nothing has been run.
+- **Status**: DRAFT 3, 2026-09-19, after two Grok reviews
+  ([Draft 1 review](42-crash-cluster-exit-plan-grok-review.md): "not worth running as written";
+  [Draft 2 review](42-crash-cluster-exit-plan-grok-review-2.md): "worth running with the
+  changes"). Draft 3 applies the second review's two blocking and five material findings; see
+  §Review log. Nothing has been run.
 - **Rules**: [RESEARCH-RULES.md](RESEARCH-RULES.md) as amended by the idiot-gate audit of
-  2026-09-16. Standing gates 1, 2, 3 (volatility leg), 6, 7; gates 4, 8, 9 and A6 as diagnostics.
-  Gate 5 (a selection score must predict forward stability) does not apply to a position-level
-  exit; its substitute here is the universe-wide forward contrast of Part 0 step 4, and a rule
-  whose contrast is not positive is not backtested.
+  2026-09-16, with NO local additions to the verdict vocabulary. Standing gates 1, 2, 3
+  (volatility leg), 6, 7; gates 4, 8, 9 and A6 as diagnostics. Gate 5 (a selection score must
+  predict forward stability) does not apply to a position-level exit; Part 0 step 4 reports the
+  forward return after a first strike as a diagnostic table and gates nothing, because a bound
+  on 1-5 day forward returns over overlapping candidate-days is the return clause the audit
+  retired.
 - **Track**: `hyperliquid-lower-vol`, NB42.
 - **Anchor**: [02-better-format.ipynb](02-better-format.ipynb) = `~/code/strategies/strategy/hyper-ai.py`
   (v6): six names, two-day cycle, `cagr_sortino_weight` ranker, inverse-variance sizing under a
@@ -23,8 +26,10 @@ to five events, could not fire before the gap on a T-1 clock at its own centre, 
 UNEVALUATED on the plateau by construction. Draft 2 asks the cheaper question first and stops
 when it is answered: **does a tighter momentum gate, at the incumbent's own cadence and then at
 one day, exit before the collapse, and does the redemption actually fill before the gap?** A
-cluster rule is run only if a universe-wide screen says the shape carries information, and then
-as one pre-stated specification.
+cluster rule is run, if at all, as one pre-stated diagnostic of the T-1 point that it cannot
+fire before the gap. **A catch is defined on the fill PRICE**, not on the decision or the
+executed-at timestamp: a redemption that fills at the open of a bar strictly before the
+collapse bar caught the gap; one that fills at or after the collapse bar's close did not.
 
 ## What the previous research established, and what this plan does with it
 
@@ -39,75 +44,86 @@ as one pre-stated specification.
 
 ## The runs, in order; stop when a cheaper one answers
 
-Every run is on the daily candle bucket. Metrics are on each run's own decision clock, and a
-one-day run is ALSO reported on the two-day grid (equity sampled every second day) so its
-Sharpe is comparable with the anchor's; the indifference band is applied only between books on
-the same clock.
+Every run is on the daily candle bucket. Two Sharpe series are named and never mixed:
+`cycle_sharpe` on the run's own decision clock, used for plateaus WITHIN a cadence; and
+`cycle_sharpe_on_2d_grid`, the equity reindexed onto the two-day anchor's decision timestamps
+(fail closed on a missing timestamp; spacing 2, periods per year 182.5), used for every
+comparison with `anchor` and for the indifference band.
 
 | # | run | what it answers | stop rule |
 |---|---|---|---|
-| 0 | Part 0 (research, no backtest) | the path, the classes, the fill, the 4-hour coverage | if the fill lag is at or above the gap (step 2), runs 2-5 are DIAGNOSTIC and are not run as candidates |
-| 1 | `anchor` (2d), `anchor_1d` | parity; H1 | if H1 fails, `anchor_1d` is the finding and runs 3a and 4-5 at 1d are not run |
-| 2 | `gate12_2d` = gate -12% at 2d | H2a: the August class at the incumbent's cadence | - |
-| 3a | `gate12_1d`, `gate10_1d` | H2b, with `anchor_1d` (-16%) as the third plateau point | - |
-| 3b | `gate20_2d`, `gate10_2d` | the plateau neighbours of -12% at 2d, and -16%'s other neighbour | - |
-| 4 | `breaker20_1d`: exit a held name on the next decision after a daily log return at or below -20% | H4: the May class | run only if Part 0 step 4's contrast is positive for the "extreme day" class |
-| 5 | `cluster_1d`: exit a held name whose trailing 3 rows hold 2 or more daily log returns at or below -10% (held names only; no admission branch; no strike-one sizing) | H5 | run ONLY if Part 0 step 4's contrast is positive for the cluster class AND runs 2-3 did not already cut the August class |
+| 0 | Part 0 (research, no backtest) | the path; gate vs daily return with timestamps; the FILL-PRICE assertion; the -12% fire count; 4-hour coverage; the first-strike forward table | if the incumbent's own sells fill at or after the collapse bar's close (step 2), every later run is DIAGNOSTIC |
+| 1 | `anchor` (2d) | parity against `BASELINE` with the new flags off, to 1e-9 | - |
+| 2 | `gate12_2d`, `gate10_2d` | H2a: the August class at the incumbent's cadence, with -16% (`anchor`) and -10% as the plateau neighbours of -12% | if `gate12_2d` catches August on fill price, runs 3-5 are not candidates: the answer is "the 48-hour gate, four points tighter" |
+| 3 | `anchor_1d` | H1: is the one-day clock usable at all | diagnostic; 1d gates (`gate12_1d`, `gate10_1d`) run only if H1 passes AND run 2 did not catch August |
+| 4 | `cluster_1d` (exit a held name whose trailing 3 rows hold 2 or more daily log returns at or below -10%; held names only) | H5, a labelled DIAGNOSTIC of the T-1 point | only if run 2 did not catch August; gate 6 UNEVALUATED by construction |
 
-Gate 2 (a full re-simulation) for `anchor_1d` and every run that passes gates 1, 3 and 7.
-Windows A and B for `anchor_1d`, `gate12_2d` and the best run. Nothing is added after these
-runs are seen. There is no Part E.
+No breaker run: on a T-1 daily clock a -20% breaker first sees 20 May at the 21 May decision,
+which is the decision the incumbent's own gate already sells on (`exit_return_14d` -20.3%), and
+first sees August's -29.6% on 22 Aug, after the gap. It cannot beat the incumbent on either
+class; Part 0 prints its would-be fire count as a diagnostic and nothing more.
+
+Gate 2 (a full re-simulation) for every run that passes gates 1, 3 and 7. Windows A and B for
+`anchor`, `anchor_1d` and `gate12_2d` - named now, not "the best run". Nothing is added after
+these runs are seen.
 
 Thresholds are round numbers fixed here, before Part 0 looks at any histogram: -12% and -10%
-for the gate (with -16% and -20% as neighbours), -20% for the breaker, -10% x 2-in-3 for the
-cluster. The in-sample percentile each one lands on is PRINTED in Part 0 as a diagnostic and
-does not set anything.
+for the gate; -10% x 2-in-3 for the cluster diagnostic; -20% for the breaker fire count. The
+in-sample percentile each lands on is printed in Part 0 as a diagnostic and sets nothing.
 
 ## The mechanism, minimal
 
 1. **Gate threshold** is the incumbent's own `gate_threshold` parameter; no new code.
 2. **Cadence** is `cycle_duration = cycle_1d`; no new code. Row-based lookbacks are unchanged
    because the row is still a day.
-3. **Breaker** (run 4): new indicator `last_daily_log_return`; in `decide_trades`, after the
-   momentum gate and before ranking, a HELD vault whose value at T-1 is at or below
-   `breaker_threshold` is removed from the pool. Explicit `breaker_on` flag; off is off.
-4. **Cluster** (run 5): new indicator `down_day_count` over `cluster_window` rows at
-   `strike_threshold`; a HELD vault with count at least 2 is removed from the pool. Explicit
-   `cluster_on` flag. No admission branch, no re-weighting.
+3. **Cluster** (run 4, diagnostic): new indicator `down_day_count` over `cluster_window` rows
+   at `strike_threshold`; a HELD vault with count at least 2 is removed from the pool. Explicit
+   `cluster_on` flag. No admission branch, no re-weighting, no breaker component.
 
-Each new component off is asserted inert on `anchor_1d` (the parity assertion for this
-notebook: `anchor_1d` with the splice present equals `anchor_1d` without it, to 1e-9 on the
-cycle returns).
+Parity: the two-day `anchor` with `cluster_on = False` reproduces `BASELINE` to 1e-5 (standing
+method rule 4) and, with the splice present and absent, is identical to 1e-9 on cycle returns;
+the same identity is asserted on `anchor_1d`.
 
 ## Hypotheses, pre-registered
 
-- **H1 (cadence).** `anchor_1d`, sampled on the two-day grid, is within 0.25 cycle Sharpe of
-  `anchor`, no worse on max drawdown by more than 1 percentage point, and its rank-churn P&L
-  (positions exited by ranking) is no worse than the anchor's minus $1,000. Turnover and the A6
-  fee differential are reported; a fee gap over $1,000 blocks any SHORTLIST on the one-day clock.
-  Prediction: passes on Sharpe, fails or nearly fails on churn.
-- **H2a (the cheap test).** `gate12_2d` FILLS its exit from the August-class position before
-  the collapse day (fill timestamp, not decision timestamp), passes gates 1, 3 and 7, and cuts
-  the worst five cycles' sum by a third against `anchor` with the two collapse windows INCLUDED
-  and does not cut it by a third with them EXCLUDED. Prediction: the first two hold and the
-  worst-five cut is inside the collapse windows only - a one-event rescue, not a general one.
-  If H2a passes every standing gate it is a candidate for a one-event NOT CONFIRMED, and the
-  plan says now that it may fail gate 2 precisely because the largest contributor's collapse is
-  what it avoids; that is a REJECT, not a footnote.
-- **H2b.** The same at one day; the plateau on -12% needs -16% (`anchor_1d`) and -10%.
-  Prediction: no better than 2d.
-- **H3 (fill).** For every forced exit in every run, the realised decision-to-fill lag from the
-  trade records. Prediction: the engine fills HyperCore redemptions at the decision (no async
-  flag), in which case the backtest is optimistic against a live one-day lock-up on names held
-  under a day, and the churn positions (median hold 4 days) are where that bites. The plan
-  reports how many forced exits fall inside a live lock-up window under both the 1-day and
-  4-day assumption.
-- **H4 (breaker).** Fires fewer than 10 times on the track window. Prediction: it fires on the
-  May-class day and on two or three single-day shocks that recovered, and nets to inside noise.
-- **H5 (cluster).** Only if run: passes gates 1, 3, 7; gate 6 is UNEVALUATED (one specification,
-  no pre-stated neighbours) and the verdict is capped at DIAGNOSTIC / NOT CONFIRMED. Prediction:
-  on a T-1 clock it does not fire before 21 Aug at -10% (the second strike is the collapse day
-  itself) and is therefore a diagnostic of the review's point, not a candidate.
+- **H0 (the fill, Part 0).** In this universe a HyperCore pair is NOT async
+  (`vault_features` = {hypercore_native}, outside `ASYNC_VAULT_FEATURES`), so the engine fills a
+  redemption at the decision, at the candle OPEN of the decision day (`candle_timepoint_kind =
+  "open"`; a vault day-candle's open is its first mark of the day, about the previous day's last
+  mark). Prediction: the incumbent's own 21 Aug and 21 May sells filled at the 21 Aug and 21 May
+  opens - i.e. the incumbent ALREADY skipped the -29.6% and -32.2% bars, and what it took was
+  the days before them. If instead a fill is at or after the collapse bar's close, no daily-clock
+  rule can do better and every later run is a diagnostic.
+- **H2a (the cheap test).** At the 19 Aug two-day decision the reconstructed T-1 gate value
+  is -14.5% (the 14-day simple return through 18 Aug, not the 19 Aug daily return, which
+  happens to be the same number); -12% and -10% sell on that decision and -16% does not.
+  `gate12_2d` therefore FILLS its August-class exit at the 19 Aug open, skipping the -14.5% and
+  -29.6% bars. Prediction on the standing gates: passes 1, 3, 7; **REJECT on gate 6 as a spike
+  against -16%** (a ~10-point portfolio day separates -12% from -16% and nothing separates
+  -12% from -10%), and possibly REJECT on gate 2 because the largest contributor's collapse is
+  what it avoids. Both are REJECT and the plan says so before the run. Worst-five cycles with
+  and without the 19-21 Aug and 20-21 May date windows are reported to show WHY, not to soften
+  the verdict. NOT CONFIRMED applies only if every standing gate passes and the two-day Sharpe
+  gap is inside 0.25; "do not carry a one-event rule" is an operator prior, not a verdict.
+- **H2a-collateral.** Part 0 counts, on every two-day decision and every then-held vault, T-1
+  `return_gate` in (-16%, -12%] and in (-16%, -10%], with the vault's 5- and 30-day forward
+  return. Prediction: 19 Aug is not the only held fire; the others are the tighter gate's
+  collateral and their P&L under `gate12_2d` (rank-churn P&L, recovered names sold) is reported.
+- **H1 (cadence, diagnostic).** `anchor_1d` on the two-day grid is within 0.25 Sharpe of
+  `anchor`, max drawdown no worse by more than 1 percentage point, and
+  `churn_pnl_1d >= churn_pnl_anchor - 1000` (USD; rank-exit positions only). Turnover and the
+  A6 fee differential reported; a fee gap over $1,000 blocks any SHORTLIST on the one-day
+  clock. Prediction: passes on Sharpe, fails or nearly fails on churn.
+- **H2b (1d gates, only if reached).** `gate12_1d` with `anchor_1d` and `gate10_1d` as
+  neighbours on the own-clock Sharpe. Prediction: no better than 2d, and not reached.
+- **H3 (lock-up, diagnostic).** For every forced exit in every run: decision timestamp,
+  `executed_at`, `executed_price`, the decision bar's open and close. Count the forced exits on
+  positions younger than 1 day and 4 days (the live leader and HLP lock-ups) - the backtest
+  fills them, live would not. Assert on the two collapse sells that the hold (62 and 136 days)
+  is past both lock-ups, so the lock-up table is not mistaken for the crash constraint.
+- **H5 (cluster diagnostic, only if reached).** On a T-1 clock, -10% x 2-in-3 first fires for
+  the August vault at the 22 Aug decision, after the gap. Prediction: it fires there and on a
+  handful of recovered names; gate 6 UNEVALUATED; DIAGNOSTIC.
 
 ## Part 0 - research, before any backtest
 
@@ -115,29 +131,39 @@ cycle returns).
    every vault the anchor held, over the hold; the two collapse paths at daily and 4-hour
    resolution; the three recoveries; the single-day-stop table at -10% and -15%. Print the 19
    Aug reconstructed gate value and the 19 Aug daily return separately, with timestamps.
-2. **Fill kill-switch.** From the code and one asserted anchor position: is a HyperCore pair
-   async in this backtest (`is_async_vault`, feature flags, overrides); what the settlement
-   delay resolves to; the executed-at timestamp of the sell trade against the decision
-   timestamp. If the fill lag is at or above the gap between the warning day and the collapse
-   day (two days for August, one for May), runs 2-5 cannot avoid the collapse and are run as
-   diagnostics only.
+2. **Fill-price assertion (the kill-switch).** On the actual pairs in this universe, printed
+   and asserted, for the incumbent's 21 Aug sell of the August vault, its 21 May sell of the May
+   vault, and one rank-churn sell of a name held under four days: `get_vault_features()`,
+   `is_async_vault()`, `has_delayed_vault_redemption()`, `_is_async_vault(pair, is_buy=False)`,
+   any settlement override; the decision timestamp, `executed_at`, `executed_price`; the
+   collapse bar's open and close and the warning bar's open. A catch = `executed_price` equals
+   the open of a bar strictly before the collapse bar (to the price tolerance of the candle
+   feed). A fill at the collapse bar's open is a PARTIAL catch (skipped the gap, took the days
+   before), still a candidate, labelled. A fill at or after the collapse bar's close is a miss,
+   and then every later run is DIAGNOSTIC. `DEFAULT_VAULT_SETTLEMENT_DELAY` is not the lag; the
+   trade record is. This step also prints whether the incumbent's 21 May fill already skipped
+   the -32.2% bar, which answers the May class before any new rule is proposed.
+2b. **The -12% fire count.** On every two-day decision, for every then-held vault, T-1
+   `return_gate` in (-16%, -12%] and (-16%, -10%]: the dates, the vault, the 5- and 30-day
+   forward return. This says whether `gate12_2d` is a one-date intervention or a broad one.
 3. Mark coverage per 4-hour bucket for every held vault by regime, and the two collapse paths at
    4 hours. This answers the operator's 4-hour question; it does not lead to a 4-hour backtest.
-4. **Universe-wide forward contrast (the gate-5 substitute).** On every candidate-day of the
-   track window, at T (reading T-1), classify the vault as: cluster (2 or more days at or below
-   -10% in the trailing 3), extreme (last day at or below -20%), single strike (exactly one day
-   at or below -10% in the trailing 3 and not extreme), or neither. Report the forward 1-, 2-
-   and 5-day log return of the vault per class with a 30-day date-block bootstrap interval. A
-   class whose forward return is not below "neither" at the interval's upper edge carries no
-   exit information and its run (4 or 5) is not made.
+4. **First-strike forward table (diagnostic, gates nothing).** On every candidate-day of the
+   track window, at T reading T-1, disjoint classes in this order: `first_extreme` (the last
+   day at or below -20%), `first_single` (exactly one day at or below -10% in the trailing 3,
+   that day the last one, and not extreme), `neither`. No "cluster" class: two strikes means the
+   second is already in T-1, and its forward return is the aftermath, not the gap. Report the
+   forward 1- and 2-day log return per class, point estimate and a 30-day date-block interval,
+   as a table. Nothing is gated on it; the audit retired bounds of this kind.
 5. The in-sample percentile of each fixed threshold among candidate-day daily returns, as a
    diagnostic.
 
 ## What is deliberately NOT tested
 
 - A 4-hour backtest. The indicator stack is daily; Part 0 answers the coverage question.
-- Strike-one re-weighting, a -7% strike, a 5-row window, quantile-set breakers, combinations
-  of the best members. All were in Draft 1; all were fitted or unevaluable; see the review.
+- Strike-one re-weighting, a -7% strike, a 5-row window, quantile-set breakers, a breaker
+  run, combinations of the best members. All were in Draft 1 or 2; all were fitted,
+  unevaluable, or unable to beat the incumbent's own gate on a T-1 clock; see the reviews.
 - Anything on the admission side.
 - Sub-daily reaction in the engine.
 
@@ -157,30 +183,50 @@ cycle returns).
 
 ## Verdict vocabulary
 
-As in RESEARCH-RULES.md. "One-event NOT CONFIRMED" is added for a run whose only measurable
-gain is inside the two collapse windows (worst-five cut vanishes when they are excluded): it is
-recorded, it is not carried without a prospective window.
+Exactly as in RESEARCH-RULES.md; nothing is added.
 
 ## What I expect
 
-Part 0 step 2 decides the notebook. If HyperCore redemptions fill at the decision, `gate12_2d`
-exits the August position on 19 Aug and the result is a one-event NOT CONFIRMED that probably
-fails gate 2. If they fill two days later, nothing on a daily or two-day clock avoids either
-collapse, and the answer to the operator's question is "no, not on this engine's fill model;
-the live lock-up is the real constraint and the next lever is the redemption clock, which is
-outside this backtest".
+Part 0 step 2 decides the notebook. The expected finding is that the incumbent's own gate
+already fills at the open of the collapse day on both events - it never held through the
+-29.6% or the -32.2% bar; it took the days before. Then `gate12_2d` moves the August exit two
+days earlier (skipping -14.5%), is a spike on the gate axis, and is REJECT on gate 6 - the
+honest answer to "can we react in a day" being: **we did not need a faster clock; the 14-day
+gate at 48 hours was two days early and four points too loose, and tightening it is a
+one-event fix that the plateau test rejects.** If instead the fill is at the collapse bar's
+close, nothing on a daily clock avoids either collapse and the constraint is the fill, which
+this backtest models optimistically against a live lock-up.
 
 ## Definition of done
 
-- Part 0 reproduces the ad-hoc numbers or explains every difference; the fill kill-switch is
-  asserted, not described.
-- Runs 1-3b executed; 4 and 5 executed or explicitly not made with the Part 0 reason.
-- Every heading number cites a cell and comes from the manifest; standing-gate verdicts for
-  every run; worst-five with and without the collapse windows; fill-lag table.
+- Part 0 reproduces the ad-hoc numbers or explains every difference; the fill-price
+  assertion is asserted on three named trades, not described; the -12% fire count is printed.
+- Runs 1-2 executed; 3 executed as a diagnostic; the 1d gates and the cluster diagnostic
+  executed or explicitly not made with the run-2 reason.
+- Every heading number cites a cell and comes from the manifest; the two Sharpe series are
+  never mixed; standing-gate verdicts for every run; worst-five with and without the two date
+  windows; the fill table (decision, executed_at, executed_price, bar open/close) for every
+  forced exit; the heading states whether the 19 Aug fill was the 19 Aug open.
 - Review applied and logged.
 
 ## Review log
 
+- **Draft 2 → Draft 3 (Grok, 2026-09-19).** Blocking 1 (the kill-switch scored timestamps, so
+  a close fill and an open fill were indistinguishable and a 2-day default delay would have
+  aborted the only useful run): a catch is defined on `executed_price` against the collapse
+  bar's open and close, asserted on three named trades, with `DEFAULT_VAULT_SETTLEMENT_DELAY`
+  explicitly not the lag; H0 states the expected open-fill path. Blocking 2 (the forward
+  contrast classified the aftermath, overlapped its classes, and used the retired return-clause
+  bound as a kill-switch): replaced by a first-strike forward table with disjoint ordered
+  classes that gates nothing. Material 3 ("one-event NOT CONFIRMED" was a local verdict; a
+  working save is a gate-6 spike): vocabulary removed; H2a predicts REJECT on gate 6. Material 4
+  (the breaker cannot beat the incumbent's 21 May sell on a T-1 clock): breaker run removed,
+  fire count printed. Material 5 (stop-when-answered was not applied; `gate20_2d` was not
+  -12%'s neighbour): run order rewritten with real stop rules; `gate20_2d` dropped; windows on
+  named labels. Material 6 (no fire count): Part 0 step 2b. Material 7 (two Sharpe series):
+  `cycle_sharpe` and `cycle_sharpe_on_2d_grid` named and never mixed; parity against BASELINE.
+  Minors applied (churn floor as an inequality; H5 wording; lock-up assertion on the two long
+  holds; May incumbent fill printed).
 - **Draft 1 → Draft 2 (Grok, 2026-09-18).** Blocking 1 (the -10% x 2-in-3 centre cannot fire
   before the gap on a T-1 clock; the -7% cell was post-hoc): cluster reduced to one pre-stated
   specification, run last and only on a positive universe-wide contrast, verdict capped.
