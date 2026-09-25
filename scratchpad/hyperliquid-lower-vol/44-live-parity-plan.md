@@ -96,9 +96,11 @@ decision.** `individual_rebalance_min_threshold_usd = 75`, `sell_rebalance_min_t
 750`, `sync_cash_headroom_usd = 75` are derived from `initial_cash = 150_000` at class creation
 (hyper-ai-v6.py:334-356) and do not follow live equity ($30k on 12 Aug, $55k on 27 Aug, $50k
 now). L4: 37 "Individual trade size too small" lines since 12 Aug, 32 of them for sells between
-$75 and $750 (sum $13.9k, one to three per decision, every decision) - the $750 sell softband,
-which at $50k is 1.5% of equity, not the documented 0.5%. The research anchor runs at $100k
-(`cell6_enhanced`), so its thresholds are $50 / $500 - a third configuration.
+$75 and $750 (sum $13.9k, one to three per decision, every decision) - the $750 sell softband.
+The research anchor runs at the SAME `initial_cash = 150_000` and therefore the same $75 / $750 /
+$75 constants (`_build/cell6_enhanced.py:146-159`), so the constants are not the mismatch: the
+EQUITY they are applied to is. At $150k the sell band is the documented 0.5% of equity; at live's
+$30-55k the same $750 is 1.4-2.5%, so live suppresses trims the backtest executes.
 
 F5. **The sixth slot is what flips, and on the round-trip days it is a vault outside the
 backtest universe that takes it.** Log, 27 Aug 16:26: live intended six Sequoia, Octavious,
@@ -181,7 +183,7 @@ trip, are a separate follow-up after a fresh data load and are NOT part of this 
    is reported. Names the backtest universe lacks are seeded only if the pit universe has them;
    otherwise the decision is classed `universe_snapshot` before it is scored.
 2. Decide: the incumbent's `decide_trades`, unchanged, at d 00:00, reading T-1, with the pit
-   universe (D1), pinned thresholds (D4), pool logger and `size_risk_discarded_value` logger on.
+   universe (D1), pinned thresholds (D4: the same $75 / $750 / $75 the backtest already uses), pool logger and `size_risk_discarded_value` logger on.
 3. Score: the selected six vs the live intended six (L6); weights vs live weights; discarded
    allocation vs live; trades generated vs live trades decided; the reasons for each name on one
    side only (rank, gate, universe, closed window, size cap, min-hold).
@@ -189,7 +191,7 @@ This is 12 short backtests. Seeding is the engine's own buy at the decision - no
 code; if the seed cannot be placed (e.g. the pair is not in the universe) the notebook says so.
 
 **Sensitivity arms on the same one-step design**: `R_scaled` (thresholds 0.05% / 0.5% of live
-equity, D4 sensitivity); `R_asis` (the as-is 339 universe: isolates D1); `R_100k` (equity $100k
+equity, D4 sensitivity); `R_asis` (the as-is 339 universe: isolates D1); `R_150k` (equity $150k
 with the live book scaled up: isolates capital in D6).
 
 **Closed-loop arm** (`C`): only if `R` passes: `cycle_1d` masked to the live dates, seeded once
@@ -220,7 +222,7 @@ the heading lists each decision's class (`universe_snapshot`, `stale_row`, `capa
 
 Only if Stage A passes. Six full-window runs plus replays, not twelve.
 
-Full-window evaluation is on the TRACK configuration ($100k, 2-day grid from 1 Jan, pit
+Full-window evaluation is on the TRACK configuration ($150k, 2-day grid from 1 Jan, pit
 universe) under the standing gates (1 positive return, 2 single-vault mask, 3 held-book
 volatility, 6 plateau against the pre-registered neighbours, 7 sub-period sign; gate 5 not
 applicable; gate 8 reported as a diagnostic; 0.25 indifference band). The replay evaluation is
@@ -233,7 +235,7 @@ persistence, discarded allocation, the 27 Aug - 5 Sep P&L share.
 | `B3 capacity-aware` | walk the ranking; skip a candidate whose executable size at the 33% pool cap is below 0.5 × its target; stop at six names (`max_assets_in_portfolio` unchanged) | centre + neighbours 0.25 and 0.75 | discarded allocation and the concentration it causes (F6, F8); expect fewer discarded dollars and a lower top-2 weight, still six names |
 | `B1+B3` | both | one run | the 27 Aug event is sixth-slot AND a $14.6k discard |
 | `B2 min-hold` | incumbent keeps its slot H days after entry unless the gate fires; H = 4, 6, 8 | replay only (NB40: inert on the full window) | churn by time |
-| `B4 thresholds from equity` | buy / sell / headroom = max($5, equity × 0.05% / 0.5% / 0.05%) read at the decision | replay only (already scaled at $100k) | F4 |
+| `B4 thresholds from equity` | buy / sell / headroom = max($5, equity × 0.05% / 0.5% / 0.05%) read at the decision | replay only (at $150k the fixed constants already equal these fractions, so the full window cannot see it) | F4 |
 
 Predictions: `B1` and `B3` land inside the band on the full window (NO EFFECT / NOT CONFIRMED)
 and the decision on carrying them is the operator's on priors plus the replay; `B1` cuts the
@@ -337,6 +339,10 @@ history; the T-1 row the strategy read is complete only if this is on the decisi
 
 - Draft 1: written 2026-09-19 from NB43, the log and the strategy file. Log checks L1 (one
   decision) and L5 done before sending. Sent to Grok (grok-4.6, reasoning xhigh, no sandbox).
+- Draft 2a, 2026-09-25: F4 corrected - the research anchor runs at `initial_cash = 150_000` with
+  the same $75 / $750 / $75 constants as live, so the mismatch is the EQUITY those fixed constants
+  are applied to, not the constants themselves; `R_100k` becomes `R_150k`, and Stage B's `B4` is
+  replay-only for that reason.
 - Draft 1 review ([44-live-parity-plan-grok-review.md](44-live-parity-plan-grok-review.md)):
   "worth running with changes". Applied in Draft 2:
   - Blocking 1 (the acceptance test could pass with the sixth slot wrong, or fail on two-leg
