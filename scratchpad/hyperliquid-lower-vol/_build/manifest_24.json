@@ -1,0 +1,1579 @@
+{
+ "notebook": "24-backtest-closeout.ipynb",
+ "plan": "20-stability-leads-plan.md",
+ "role": "close-out: every executed run of NB21-NB23 re-run in one kernel, every gate recomputed",
+ "verdict": "NOTHING ADOPTED",
+ "adopted": [],
+ "source_notebooks": {
+  "NB20": "20-research-mark-quality.ipynb - DIAGNOSTIC, no variant runs, no manifest",
+  "NB21": "21-backtest-vol-matched-family.ipynb",
+  "NB22": "22-backtest-joint-downside.ipynb",
+  "NB23": "23-backtest-sortino-leg-swap.ipynb"
+ },
+ "recorded_source_verdicts": {
+  "NB21": "REJECT",
+  "NB22": "REJECT",
+  "NB23": "REJECT"
+ },
+ "anchor_parity": {
+  "baseline": {
+   "cycle_sharpe": 2.159792,
+   "cycle_sortino": 4.447779,
+   "cycle_vol": 0.154278,
+   "cagr": 0.378971,
+   "ulcer": 0.017964,
+   "max_dd": -0.044504,
+   "abs_invested_beta": 0.045797,
+   "mean_invested": 0.971969,
+   "late_cagr": 0.272027,
+   "late_ulcer": 0.025268
+  },
+  "actual": {
+   "cycle_sharpe": 2.1597920746960435,
+   "cycle_sortino": 4.4477788475298965,
+   "cycle_vol": 0.1542780798652122,
+   "cagr": 0.37897081230942264,
+   "ulcer": 0.017964105097182066,
+   "max_dd": -0.04450420243016073,
+   "abs_invested_beta": 0.04579692297567623,
+   "mean_invested": 0.9719692059418593,
+   "late_cagr": 0.27202739903036655,
+   "late_ulcer": 0.02526773274668741
+  },
+  "tolerance": 1e-05,
+  "worst_abs_diff": 3.9903036652688684e-07
+ },
+ "cross_check": {
+  "tolerance": 1e-09,
+  "manifests_agree_with_each_other": true,
+  "run_inventory_ok": true,
+  "all_reproduced": true,
+  "cross_check_ok": true,
+  "worst_sharpe_abs_diff": 0.0,
+  "worst_cagr_abs_diff": 0.0,
+  "mismatches": []
+ },
+ "plateau_agreement_with_source_manifests": true,
+ "lead_verdicts": {
+  "1 - volatility-matched family (NB21)": {
+   "centre": "smallest qualifying N",
+   "eligible_centres": "none",
+   "plateau_ok": false,
+   "leave_one_vault_out_ok": false,
+   "adopt": false,
+   "shadow_candidate": null
+  },
+  "2 - complementary downside selection (NB22)": {
+   "centre": "complementary_18",
+   "eligible_centres": "complementary_18",
+   "plateau_ok": false,
+   "leave_one_vault_out_ok": false,
+   "adopt": false,
+   "shadow_candidate": null
+  },
+  "3 - Sortino leg swap (NB23)": {
+   "centre": "swap__centre",
+   "eligible_centres": "swap__centre",
+   "plateau_ok": false,
+   "leave_one_vault_out_ok": false,
+   "adopt": false,
+   "shadow_candidate": null
+  }
+ },
+ "family_wise_joint": {
+  "membership": [
+   "drop_5",
+   "drop_10",
+   "drop_15",
+   "drop_20",
+   "drop_25",
+   "drop_30",
+   "drop_35",
+   "drop_40",
+   "drop_45",
+   "drop_50",
+   "drop_55",
+   "drop_60",
+   "complementary_10",
+   "complementary_12",
+   "complementary_14",
+   "complementary_16",
+   "complementary_18",
+   "complementary_20",
+   "complementary_24",
+   "complementary_18__window_90",
+   "complementary_18__window_270",
+   "complementary_18__min_events_5",
+   "complementary_18__min_events_20",
+   "swap__centre",
+   "swap__cagr_weight_0.5",
+   "swap__cagr_weight_0.7",
+   "swap__t_cap_2",
+   "swap__t_cap_4",
+   "swap__prior_30",
+   "swap__prior_90",
+   "swap__min_events_10",
+   "swap__min_events_30",
+   "swap__max_events_60",
+   "swap__max_events_120",
+   "swap__require_scored"
+  ],
+  "family_size": 35,
+  "block": 10,
+  "draws": 999,
+  "seed": 0,
+  "best_observed_sharpe_improvement": 0.5875992681245021,
+  "p_value": 0.813,
+  "caveat": "corrects for the 35 configurations executed in this plan; cannot correct for the adaptive research history that chose which mechanisms to try, nor for lead 1 having been promoted from control to candidate after its control result was seen"
+ },
+ "limitations": {
+  "comparator_is_misnamed": {
+   "statement": "the vol-matched family is a data-availability filter with a volatility tail, not volatility avoidance; it is retained as constraint 7's comparator because it is the best simple mechanism available, but the description was wrong",
+   "share_of_removals_with_no_volatility_estimate_at_n30": 0.7087301587301588,
+   "pooled_share_over_the_whole_family": 0.5975783475783476
+  },
+  "constraint_7_not_discriminating": {
+   "statement": "the comparator is the isolated drop_30 spike, so the bar is about 2.85 and the ANCHOR ITSELF fails it, as does every family member. Pre-registered and left unchanged (rule 2 forbids retuning after seeing results); a replacement is recommended for a future plan",
+   "comparator_label": "drop_30",
+   "comparator_cycle_sharpe": 2.7473913428205456,
+   "bar": 2.8473913428205457,
+   "anchor_cycle_sharpe": 2.1597920746960435,
+   "anchor_clears_constraint_7": false,
+   "family_members_clearing_it": []
+  },
+  "nb20_ulcer_reading_ceiling": {
+   "statement": "NB20's stale-cycle sensitivity moves the ANCHOR's ulcer +4.4% to +11.2%, between a quarter and three-quarters of the adoption rule's 15% ulcer margin, and the five runs that clear the ulcer constraint clear it by less than that, so their ulcer improvement cannot be read as clean evidence of a risk reduction. NB20 re-measured the anchor only and did not measure the candidate-minus-anchor difference in reporting bias, so this is a limit on the reading, NOT a demonstration that the improvement IS a reporting artefact",
+   "staleness_band_pct": [
+    4.4255177020708025,
+    11.172344689378754
+   ],
+   "required_improvement_pct": 15.0,
+   "runs_clearing_the_bar": [
+    "drop_30",
+    "drop_35",
+    "drop_45",
+    "drop_60",
+    "drop_50"
+   ],
+   "runs_with_margin_no_larger_than_the_top_of_the_band": [
+    "drop_30",
+    "drop_35",
+    "drop_45",
+    "drop_60",
+    "drop_50"
+   ],
+   "affects": "lead 1's ulcer improvements",
+   "does_not_affect": "leads 2 and 3, whose ulcers are worse than the anchor's by a multiple, and every CAGR, Sharpe and beta failure in the plan"
+  }
+ },
+ "shadow_specification": {
+  "purpose": "Admission to a prospective shadow run. ADOPT never means capital is deployed; it means the candidate is simulated forward on data that did not exist when it was chosen.",
+  "start_date": "the first strategy decision cycle on or after 2026-09-15",
+  "why_that_date": "The archive this plan ran on ends 2026-09-08 and the plan closes 2026-09-13. A start on 2026-09-15 leaves no overlap with any cycle any notebook in this track has seen.",
+  "comparator": "the UNCHANGED anchor configuration of 02-better-format.ipynb, run on the SAME decision dates as the candidate, in the same kernel, from the same universe snapshot. Not a re-run of the historical anchor, and not a fixed number copied from BASELINE - a same-clock comparator is the only thing a shadow comparison can be made against.",
+  "monitoring_horizon": {
+   "minimum_before_any_comparison_is_drawn": "45 decision cycles (90 days)",
+   "decision_point": "90 decision cycles (180 days)",
+   "why": "The strategy runs a 2-day clock. 90 cycles is the same order as the 126 cycles the whole backtest window carries, so a shadow read at 90 cycles has roughly the in-sample window's power and no more. Reading it earlier than 45 cycles is reading noise, and this specification forbids it."
+  },
+  "recorded_every_cycle_not_only_equity": [
+   "realised deposit availability (can_deposit() at each attempted entry)",
+   "pool-cap fills (whether USDTVLSizeRiskModel bound)",
+   "turnover and redemption fees actually paid",
+   "mean invested fraction and the count of dates the basket was short of six names",
+   "for any candidate with a screen: the screen's own log, per decision date",
+   "mark staleness of the held book, per NB20's definition, so an ulcer read can be discounted by the same measurement the close-out used"
+  ],
+  "stopping_conditions_any_one_ends_the_shadow_early": [
+   "shadow CAGR < 0 over any trailing 45-cycle window after cycle 45",
+   "shadow ulcer index > the shadow anchor's ulcer over the same cycles, after cycle 45",
+   "mean invested fraction < 0.90 over any trailing 45-cycle window",
+   "the data provenance hashes change in a way that alters universe membership, in which case the shadow restarts rather than continues",
+   "a code change to decide_trades, the indicator chain or the parameter defaults - the frozen override dictionary and the commit that produced it are the shadow, and editing either starts a new one"
+  ],
+  "constraint_7_comparator_in_shadow": "constraint 7 needs an observed control family, not only an anchor, so the shadow runs drop_5 through drop_60 at 5-step spacing alongside the candidate and the anchor, on the same decision dates in the same kernel, from the frozen code commit. The reference is placebo_ref_observed() unchanged: the highest cycle Sharpe among shadow family members whose shadow cycle volatility is at or below the candidate's, plus 0.10. Constraint 7 applies to any candidate that is NOT itself a member of that family; for a family member it is a self-comparison and constraints 1-6 are the operative set, exactly as in this plan. The bar is computed on the shadow window's own family, never carried over from this notebook's 2.847.",
+  "universe_and_provenance_restart_rule": "the four PROVENANCE_PATHS files are hashed at freeze time and at every shadow read. vault-prices.parquet and binance-price.duckdb are expected to change, because they append new candles; that alone never restarts the shadow. vault-metadata.json decides universe membership through deposit-closed status and peak TVL, so a change to it is checked by re-deriving the admitted address set: an identical set continues the shadow and any difference restarts it from the next decision cycle. The frozen metadata file is kept beside the freeze record so this is a diff, not a judgement.",
+  "decision_rule_at_90_cycles": [
+   "apply adoption rule v3 to the SHADOW window's own panel, with the shadow anchor as the comparator for constraints 2, 3, 4 and 5, the fixed floors for constraints 1 and 6, and the shadow family for constraint 7 as defined above",
+   "require the paired block-bootstrap lower bound of the candidate-minus-anchor cycle Sharpe difference to clear -0.10 at block lengths 5, 10 and 20 (common block indices, seed 0, 1000 draws)",
+   "require the ulcer improvement to exceed 15% BY MORE THAN the staleness band measured on the shadow window itself (NB20's method), not merely to exceed 15%",
+   "the staleness band on the shadow window is measured exactly as cell 48 measures it here: NB20's four variants recomputed on the shadow anchor, the band running from the pre-registered >50% stale (5+ d) variant to the largest of the four",
+   "a pass is monitoring evidence that the mechanism behaves as backtested. It is not a deployment decision and this plan does not make one."
+  ],
+  "what_a_stopping_condition_means": "any stopping condition firing ends the shadow as a REJECT. There is no decision at 90 cycles for a shadow that stopped, and a stopped shadow is not restarted with the same candidate on a later window.",
+  "if_more_than_one_candidate_qualifies": "they run side by side against the same anchor. The plan does not rank them and this notebook does not choose between them."
+ },
+ "shadow_freeze_format": {
+  "label": "<the run label from this plan, e.g. drop_30>",
+  "lead": "<1, 2 or 3>",
+  "overrides": {
+   "<Parameters attribute>": "<value>"
+  },
+  "masked": [],
+  "code_commit": "<git rev-parse HEAD of _build/ at freeze time>",
+  "data_snapshot_sha256": {
+   "<provenance path>": "<sha256>"
+  },
+  "frozen_at": "<YYYY-MM-DD, before the start date above>",
+  "shadow_start": "<first decision cycle on or after 2026-09-15>",
+  "comparator_overrides": {}
+ },
+ "lead_summary": [
+  {
+   "lead": "0 - mark quality (NB20, DIAGNOSTIC)",
+   "settled": "Stale reporting is pervasive but its effect on this track's headline risk numbers is a low-double-digit percentage rather than a factor: 34.9% of tradable vault-days sit inside a five-day-plus gap, yet dropping every anchor cycle whose invested book was mostly stale moves the ulcer index only +4.4% and cycle volatility +4.3%.",
+   "could_not": "It cannot recover the unobserved path behind an unmoved mark, and the archive cannot separate 'not polled' from 'polled and unchanged', so the +4.4% is an upper bound on that test rather than an estimate of true risk, and no adoption decision may cite it as one."
+  },
+  {
+   "lead": "1 - volatility-matched family (NB21, REJECT)",
+   "settled": "That the previous plan's control is not a stable mechanism: drop_30 is the best single number in two plans - 48.99% CAGR at cycle Sharpe 2.747 with an empty failure set - and one 5-step move in either direction breaks it, so plateau_ok is False at all ten eligible centres and no leave-one-vault-out run was ever triggered. It also settled what the mechanism actually does: 70.9% of its removals at N = 30 have no volatility estimate at all.",
+   "could_not": "It cannot say whether drop_30 is a real effect or the best of thirteen draws, because the family was promoted from control to candidate after its control result had been seen. It also cannot separate 'holds less volatile vaults' from 'holds vaults that report often enough to be measured', which is the same confound the ulcer ceiling describes."
+  },
+  {
+   "lead": "2 - complementary downside selection (NB22, REJECT)",
+   "settled": "That the proxy works and the strategy still fails: within-basket pairwise co-loss falls from 0.2143 to 0.1876, paired difference -0.0267 with a 95% interval of [-0.0501, -0.0019], and four-of-six co-loss cycles fall from 24.0% to 20.0% - while CAGR goes to -17.74%. The mechanism of failure is measured, not guessed: trailing joint-loss frequency correlates +0.013 with the next cycle's return over heavily overlapping trailing-window reads, so the screen spends the composite ranking (mean rank 7.73 of 0-17) on a statistic with no measurable forward association in this sample - which is a descriptive result on overlapping observations, not a test that establishes the absence of predictive information. Handing decide_trades exactly six candidates removes backfill and drops deployment to 92.79%.",
+   "could_not": "It cannot test the basket-level version of the idea. joint_loss_frequency scores each candidate against the cohort median, never against the other five names chosen, so two vaults that are each complementary to the cohort but identical to each other are invisible to it. A pairwise-greedy basket search needs a co-movement matrix inside decide_trades and remains untested."
+  },
+  {
+   "lead": "3 - Sortino leg swap (NB23, REJECT)",
+   "settled": "That the minimal change nobody had run is not a near-anchor replication: it re-ranks the traded book on 113 of 126 dates (89.68%, mean weight L1 distance 0.720) and lands at 7.91% CAGR and cycle Sharpe 0.584 with an ulcer of 0.035943, twice the anchor's. It also settled two measurement questions: the pre-registered forward-fill defect does not occur on this pool (0 of 18,651 reads, against a 2% trigger), and the '90 mark event' window is not one horizon - it spans a median 113 calendar days with a 48-520 day 5th-95th range and a 57.3x dispersion across the cross-section.",
+   "could_not": "It cannot attribute the failure to any one property of the replacement leg. Swapping the component changes horizon, shrinkage, scaling, saturation and NaN behaviour at once, so nothing here may be read as 'shrinkage hurts' or 'event time hurts'. Because the 360-day CAGR leg is untouched, it also says nothing about the young cohort that NB13 found the composite cannot reach."
+  }
+ ],
+ "runs": {
+  "anchor": {
+   "source": "anchor",
+   "family": "anchor",
+   "overrides": {},
+   "cycle_sharpe": 2.1597920746960435,
+   "cycle_sortino": 4.4477788475298965,
+   "cycle_vol": 0.1542780798652122,
+   "cagr": 0.37897081230942264,
+   "ulcer": 0.017964105097182066,
+   "max_dd": -0.04450420243016073,
+   "abs_invested_beta": 0.04579692297567623,
+   "mean_invested": 0.9719692059418593,
+   "late_cagr": 0.27202739903036655,
+   "late_ulcer": 0.02526773274668741,
+   "passes_v3": false,
+   "failed_v3": "ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.1597920746960435,
+    "expected_cagr": 0.37897081230942264,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_5": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 5
+   },
+   "cycle_sharpe": 2.1597920746960435,
+   "cycle_sortino": 4.4477788475298965,
+   "cycle_vol": 0.1542780798652122,
+   "cagr": 0.37897081230942264,
+   "ulcer": 0.017964105097182066,
+   "max_dd": -0.04450420243016073,
+   "abs_invested_beta": 0.04579692297567623,
+   "mean_invested": 0.9719692059418593,
+   "late_cagr": 0.27202739903036655,
+   "late_ulcer": 0.02526773274668741,
+   "passes_v3": false,
+   "failed_v3": "ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.1597920746960435,
+    "expected_cagr": 0.37897081230942264,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_10": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 10
+   },
+   "cycle_sharpe": 2.1601870212029253,
+   "cycle_sortino": 4.448747938577204,
+   "cycle_vol": 0.1542755282836652,
+   "cagr": 0.37904763763112626,
+   "ulcer": 0.017963632255857814,
+   "max_dd": -0.04450420243016073,
+   "abs_invested_beta": 0.04580426488728605,
+   "mean_invested": 0.9717045606889708,
+   "late_cagr": 0.2722879599357293,
+   "late_ulcer": 0.025266522533383046,
+   "passes_v3": false,
+   "failed_v3": "ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.1601870212029253,
+    "expected_cagr": 0.37904763763112626,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_15": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 15
+   },
+   "cycle_sharpe": 2.188219148843036,
+   "cycle_sortino": 4.5093092743289995,
+   "cycle_vol": 0.15349370536747195,
+   "cagr": 0.3828144850486752,
+   "ulcer": 0.017904556187714863,
+   "max_dd": -0.04450420243016073,
+   "abs_invested_beta": 0.04949405481297622,
+   "mean_invested": 0.9743208550449088,
+   "late_cagr": 0.2851113337065878,
+   "late_ulcer": 0.025115113684178073,
+   "passes_v3": false,
+   "failed_v3": "ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.188219148843036,
+    "expected_cagr": 0.3828144850486752,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_20": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 20
+   },
+   "cycle_sharpe": 2.081859982258486,
+   "cycle_sortino": 4.236528270691083,
+   "cycle_vol": 0.15302920736877948,
+   "cagr": 0.35924072151529596,
+   "ulcer": 0.01801092014567949,
+   "max_dd": -0.04450420243016073,
+   "abs_invested_beta": 0.048591146784089614,
+   "mean_invested": 0.9735386142906951,
+   "late_cagr": 0.20638672979991846,
+   "late_ulcer": 0.025387424826933628,
+   "passes_v3": false,
+   "failed_v3": "ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.081859982258486,
+    "expected_cagr": 0.35924072151529596,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_25": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 25
+   },
+   "cycle_sharpe": 2.1051454178875946,
+   "cycle_sortino": 4.319381633969008,
+   "cycle_vol": 0.15021037134074405,
+   "cagr": 0.3565848988830107,
+   "ulcer": 0.018202286374910927,
+   "max_dd": -0.050758250867036336,
+   "abs_invested_beta": 0.04438602565521037,
+   "mean_invested": 0.9734558494809284,
+   "late_cagr": 0.18501826716945335,
+   "late_ulcer": 0.02733332282822809,
+   "passes_v3": false,
+   "failed_v3": "ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material)",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.1051454178875946,
+    "expected_cagr": 0.3565848988830107,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_30": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 30
+   },
+   "cycle_sharpe": 2.7473913428205456,
+   "cycle_sortino": 6.597055517385662,
+   "cycle_vol": 0.14922933582513487,
+   "cagr": 0.48994209167975544,
+   "ulcer": 0.013843126806057825,
+   "max_dd": -0.029430197469353048,
+   "abs_invested_beta": 0.001054585118529119,
+   "mean_invested": 0.9719137427493809,
+   "late_cagr": 0.6612762032106512,
+   "late_ulcer": 0.017172748068809352,
+   "passes_v3": false,
+   "failed_v3": "observed control",
+   "passes_1_to_6": true,
+   "failed_1_to_6": "",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.7473913428205456,
+    "expected_cagr": 0.48994209167975544,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_35": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 35
+   },
+   "cycle_sharpe": 2.301103705990803,
+   "cycle_sortino": 4.874317761072302,
+   "cycle_vol": 0.14454392796642987,
+   "cagr": 0.380117393817051,
+   "ulcer": 0.013860225590068857,
+   "max_dd": -0.029504328635154398,
+   "abs_invested_beta": 0.031071294243319565,
+   "mean_invested": 0.9698816459450714,
+   "late_cagr": 0.35949742252527583,
+   "late_ulcer": 0.01544001352127784,
+   "passes_v3": false,
+   "failed_v3": "observed control",
+   "passes_1_to_6": true,
+   "failed_1_to_6": "",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.301103705990803,
+    "expected_cagr": 0.380117393817051,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_40": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 40
+   },
+   "cycle_sharpe": 1.2254275221032649,
+   "cycle_sortino": 1.9474358246553867,
+   "cycle_vol": 0.11073110954590791,
+   "cagr": 0.13835002096272575,
+   "ulcer": 0.019278975849440366,
+   "max_dd": -0.04534813655700998,
+   "abs_invested_beta": 0.008579440979766787,
+   "mean_invested": 0.9692525222179988,
+   "late_cagr": 0.17125374082992528,
+   "late_ulcer": 0.014462467845172815,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 1.2254275221032649,
+    "expected_cagr": 0.13835002096272575,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_45": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 45
+   },
+   "cycle_sharpe": 1.648411747346029,
+   "cycle_sortino": 2.746661992544765,
+   "cycle_vol": 0.10422251333673023,
+   "cagr": 0.18099381901380474,
+   "ulcer": 0.013918760820976114,
+   "max_dd": -0.030411664302868235,
+   "abs_invested_beta": 0.0007162861590225978,
+   "mean_invested": 0.9716030610029356,
+   "late_cagr": 0.09359851244357076,
+   "late_ulcer": 0.01189565143143331,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 1.648411747346029,
+    "expected_cagr": 0.18099381901380474,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_50": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 50
+   },
+   "cycle_sharpe": 2.0148571150581773,
+   "cycle_sortino": 3.452823169282817,
+   "cycle_vol": 0.09530362935450445,
+   "cagr": 0.20614893011991042,
+   "ulcer": 0.014491981616851031,
+   "max_dd": -0.032406515676138836,
+   "abs_invested_beta": 0.0019064389958094845,
+   "mean_invested": 0.9748118427981746,
+   "late_cagr": 0.13036652415278738,
+   "late_ulcer": 0.01560737810219908,
+   "passes_v3": false,
+   "failed_v3": "Sharpe non-inferiority, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "Sharpe non-inferiority",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 2.0148571150581773,
+    "expected_cagr": 0.20614893011991042,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_55": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 55
+   },
+   "cycle_sharpe": 0.9846604836492078,
+   "cycle_sortino": 1.4871544238846275,
+   "cycle_vol": 0.08173890520955526,
+   "cagr": 0.08020556528198486,
+   "ulcer": 0.015772536728156056,
+   "max_dd": -0.03425198746107827,
+   "abs_invested_beta": 0.01476600215855076,
+   "mean_invested": 0.9767317374361714,
+   "late_cagr": -0.020682745553853077,
+   "late_ulcer": 0.01342018161814956,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.9846604836492078,
+    "expected_cagr": 0.08020556528198486,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "drop_60": {
+   "source": "NB21 family (lead 1) / constraint-7 comparator",
+   "family": "control",
+   "overrides": {
+    "vol_matched_drop_count": 60
+   },
+   "cycle_sharpe": 1.4724209925366964,
+   "cycle_sortino": 2.190112985693008,
+   "cycle_vol": 0.07690815868243879,
+   "cagr": 0.11657597290766253,
+   "ulcer": 0.013938145453754365,
+   "max_dd": -0.031126080740476736,
+   "abs_invested_beta": 0.00807523423266643,
+   "mean_invested": 0.9762006653313757,
+   "late_cagr": 0.07527406934998226,
+   "late_ulcer": 0.010151538174667865,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB21",
+     "NB22",
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 1.4724209925366964,
+    "expected_cagr": 0.11657597290766253,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_10": {
+   "source": "NB22 complementary (lead 2)",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 10
+   },
+   "cycle_sharpe": -1.3350798487543598,
+   "cycle_sortino": -1.651141574607135,
+   "cycle_vol": 0.18312993987736864,
+   "cagr": -0.23007795430758193,
+   "ulcer": 0.07615341741017133,
+   "max_dd": -0.17915454398456654,
+   "abs_invested_beta": 0.08285112671757995,
+   "mean_invested": 0.9558430328073974,
+   "late_cagr": -0.3699962372947848,
+   "late_ulcer": 0.039817896817574104,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -1.3350798487543598,
+    "expected_cagr": -0.23007795430758193,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_12": {
+   "source": "NB22 complementary (lead 2)",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 12
+   },
+   "cycle_sharpe": -1.4755058917834174,
+   "cycle_sortino": -1.8708430926663746,
+   "cycle_vol": 0.17527285104606147,
+   "cagr": -0.23976736649222152,
+   "ulcer": 0.07207785146502453,
+   "max_dd": -0.17712433819270812,
+   "abs_invested_beta": 0.0862628345196807,
+   "mean_invested": 0.9533283254508815,
+   "late_cagr": -0.3714466451374535,
+   "late_ulcer": 0.04918908465128006,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -1.4755058917834174,
+    "expected_cagr": -0.23976736649222152,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_14": {
+   "source": "NB22 complementary (lead 2)",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 14
+   },
+   "cycle_sharpe": -2.027916189491768,
+   "cycle_sortino": -2.410495611275149,
+   "cycle_vol": 0.16400299476370636,
+   "cagr": -0.2927558329209855,
+   "ulcer": 0.09557682400310424,
+   "max_dd": -0.21979130699845562,
+   "abs_invested_beta": 0.0586208628727154,
+   "mean_invested": 0.9390432572208569,
+   "late_cagr": -0.4621610352124471,
+   "late_ulcer": 0.05238683398287083,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -2.027916189491768,
+    "expected_cagr": -0.2927558329209855,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_16": {
+   "source": "NB22 complementary (lead 2)",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 16
+   },
+   "cycle_sharpe": -1.0652518210667188,
+   "cycle_sortino": -1.3331374500892388,
+   "cycle_vol": 0.15785606987077974,
+   "cagr": -0.16531678184319176,
+   "ulcer": 0.0643054117056684,
+   "max_dd": -0.13716125023770864,
+   "abs_invested_beta": 0.07591318674536654,
+   "mean_invested": 0.9358376551623909,
+   "late_cagr": -0.3083661457826429,
+   "late_ulcer": 0.04362432416667453,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -1.0652518210667188,
+    "expected_cagr": -0.16531678184319176,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_18": {
+   "source": "NB22 complementary (lead 2)",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 18
+   },
+   "cycle_sharpe": -1.1765887962157133,
+   "cycle_sortino": -1.4650299225911283,
+   "cycle_vol": 0.1555908929962478,
+   "cagr": -0.17739077734870312,
+   "ulcer": 0.07620793294591445,
+   "max_dd": -0.15092411146015539,
+   "abs_invested_beta": 0.0733255650440047,
+   "mean_invested": 0.927891699942292,
+   "late_cagr": -0.3187235271073866,
+   "late_ulcer": 0.04244212610493162,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -1.1765887962157133,
+    "expected_cagr": -0.17739077734870312,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_20": {
+   "source": "NB22 complementary (lead 2)",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 20
+   },
+   "cycle_sharpe": -1.488329488527678,
+   "cycle_sortino": -1.7360537337904958,
+   "cycle_vol": 0.16231646706063907,
+   "cagr": -0.22513246710341495,
+   "ulcer": 0.09037433169091671,
+   "max_dd": -0.18251582200968375,
+   "abs_invested_beta": 0.05196257073747279,
+   "mean_invested": 0.9243273952271697,
+   "late_cagr": -0.295765010840187,
+   "late_ulcer": 0.045008865340767736,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -1.488329488527678,
+    "expected_cagr": -0.22513246710341495,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_24": {
+   "source": "NB22 complementary (lead 2)",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 24
+   },
+   "cycle_sharpe": -1.3056847139723018,
+   "cycle_sortino": -1.561685093398813,
+   "cycle_vol": 0.16216435981112748,
+   "cagr": -0.20159517054653442,
+   "ulcer": 0.08377749446338577,
+   "max_dd": -0.16418016366550015,
+   "abs_invested_beta": 0.06430259972413713,
+   "mean_invested": 0.924492265644853,
+   "late_cagr": -0.21038477211687412,
+   "late_ulcer": 0.03911694827283526,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -1.3056847139723018,
+    "expected_cagr": -0.20159517054653442,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_18__window_90": {
+   "source": "NB22 window sensitivity",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 18,
+    "joint_loss_window_days": 90
+   },
+   "cycle_sharpe": -2.1058299284204716,
+   "cycle_sortino": -2.5499329250762237,
+   "cycle_vol": 0.1712339971828078,
+   "cagr": -0.3131247297702283,
+   "ulcer": 0.11257211768042,
+   "max_dd": -0.24318184180649827,
+   "abs_invested_beta": 0.12712625576751316,
+   "mean_invested": 0.9232794512629228,
+   "late_cagr": -0.5274941077432744,
+   "late_ulcer": 0.06567835168743245,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -2.1058299284204716,
+    "expected_cagr": -0.3131247297702283,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_18__window_270": {
+   "source": "NB22 window sensitivity",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 18,
+    "joint_loss_window_days": 270
+   },
+   "cycle_sharpe": -1.0693344483723322,
+   "cycle_sortino": -1.3603295738744923,
+   "cycle_vol": 0.16335700883433862,
+   "cagr": -0.1714581167367275,
+   "ulcer": 0.07336143321549497,
+   "max_dd": -0.18531116395838187,
+   "abs_invested_beta": 0.05522153591786978,
+   "mean_invested": 0.9380786707557033,
+   "late_cagr": -0.3830711269536503,
+   "late_ulcer": 0.04632226276280725,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -1.0693344483723322,
+    "expected_cagr": -0.1714581167367275,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_18__min_events_5": {
+   "source": "NB22 window sensitivity",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 18,
+    "joint_loss_min_events": 5
+   },
+   "cycle_sharpe": -0.7173270396325928,
+   "cycle_sortino": -0.950095393727993,
+   "cycle_vol": 0.1659461232457322,
+   "cagr": -0.12435045585086724,
+   "ulcer": 0.07029283351505243,
+   "max_dd": -0.1406785855430508,
+   "abs_invested_beta": 0.08811826527371903,
+   "mean_invested": 0.9228325619245642,
+   "late_cagr": -0.3179950613158212,
+   "late_ulcer": 0.04284598367304989,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -0.7173270396325928,
+    "expected_cagr": -0.12435045585086724,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "complementary_18__min_events_20": {
+   "source": "NB22 window sensitivity",
+   "family": "candidate",
+   "overrides": {
+    "complementary_pool_size": 18,
+    "joint_loss_min_events": 20
+   },
+   "cycle_sharpe": -0.7533801069357943,
+   "cycle_sortino": -0.9705241022242103,
+   "cycle_vol": 0.15635908155083053,
+   "cagr": -0.12195208884950948,
+   "ulcer": 0.052310427809558045,
+   "max_dd": -0.12716455269372207,
+   "abs_invested_beta": 0.055292380419748814,
+   "mean_invested": 0.9073033498184303,
+   "late_cagr": -0.31521052696112817,
+   "late_ulcer": 0.046100446886364874,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB22"
+    ],
+    "expected_cycle_sharpe": -0.7533801069357943,
+    "expected_cagr": -0.12195208884950948,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__centre": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "require_scored_candidates": false
+   },
+   "cycle_sharpe": 0.5835585952865023,
+   "cycle_sortino": 0.8637520163092907,
+   "cycle_vol": 0.14954557457431097,
+   "cagr": 0.07914510041268463,
+   "ulcer": 0.03594293086992805,
+   "max_dd": -0.06330905421226396,
+   "abs_invested_beta": 0.06916226886239901,
+   "mean_invested": 0.9691085896862861,
+   "late_cagr": -0.02005961455717642,
+   "late_ulcer": 0.01888907220310064,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.5835585952865023,
+    "expected_cagr": 0.07914510041268463,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__cagr_weight_0.5": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "cagr_weight": 0.5
+   },
+   "cycle_sharpe": 0.7924756742842239,
+   "cycle_sortino": 1.126654532638035,
+   "cycle_vol": 0.1186123981432947,
+   "cagr": 0.09087451829242532,
+   "ulcer": 0.025756640471363765,
+   "max_dd": -0.04581351534033562,
+   "abs_invested_beta": 0.023146611089542773,
+   "mean_invested": 0.9760661920652256,
+   "late_cagr": 0.2900593636229516,
+   "late_ulcer": 0.008962840380670413,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.7924756742842239,
+    "expected_cagr": 0.09087451829242532,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__cagr_weight_0.7": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "cagr_weight": 0.7
+   },
+   "cycle_sharpe": 0.7183006060489553,
+   "cycle_sortino": 1.0944481318088446,
+   "cycle_vol": 0.14760016331968154,
+   "cagr": 0.09989688349394465,
+   "ulcer": 0.0265519927367492,
+   "max_dd": -0.0644134743706486,
+   "abs_invested_beta": 0.03331764213514854,
+   "mean_invested": 0.9481082117330177,
+   "late_cagr": -0.09991114630655318,
+   "late_ulcer": 0.022070398667740364,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.7183006060489553,
+    "expected_cagr": 0.09989688349394465,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__t_cap_2": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "evidence_t_cap": 2.0
+   },
+   "cycle_sharpe": 0.4616676870123087,
+   "cycle_sortino": 0.6538294599954163,
+   "cycle_vol": 0.15150152520726218,
+   "cagr": 0.06025198411168553,
+   "ulcer": 0.03756246617859901,
+   "max_dd": -0.08912973571040328,
+   "abs_invested_beta": 0.03770104468970306,
+   "mean_invested": 0.9682975510922346,
+   "late_cagr": -0.04166346970646173,
+   "late_ulcer": 0.022616601794900253,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.4616676870123087,
+    "expected_cagr": 0.06025198411168553,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__t_cap_4": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "evidence_t_cap": 4.0
+   },
+   "cycle_sharpe": 0.8654559681014822,
+   "cycle_sortino": 1.3595392711681118,
+   "cycle_vol": 0.1330929979255269,
+   "cagr": 0.11226861925401854,
+   "ulcer": 0.026672305806195028,
+   "max_dd": -0.07020533848731347,
+   "abs_invested_beta": 0.04531058367398244,
+   "mean_invested": 0.9668967640998761,
+   "late_cagr": -0.003536834694583102,
+   "late_ulcer": 0.015179333582168046,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.8654559681014822,
+    "expected_cagr": 0.11226861925401854,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__prior_30": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "evidence_prior_strength": 30
+   },
+   "cycle_sharpe": 0.5421421917877259,
+   "cycle_sortino": 0.7696658754509601,
+   "cycle_vol": 0.1500613284782483,
+   "cagr": 0.07264582357657146,
+   "ulcer": 0.039016028775931785,
+   "max_dd": -0.08912973571040328,
+   "abs_invested_beta": 0.03799272657043907,
+   "mean_invested": 0.9690340310802057,
+   "late_cagr": 0.04693873154367867,
+   "late_ulcer": 0.015223965416091207,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.5421421917877259,
+    "expected_cagr": 0.07264582357657146,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__prior_90": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "evidence_prior_strength": 90
+   },
+   "cycle_sharpe": 0.37785820642462914,
+   "cycle_sortino": 0.5487472511904519,
+   "cycle_vol": 0.12766101264626423,
+   "cagr": 0.04096892611489156,
+   "ulcer": 0.035656852080229694,
+   "max_dd": -0.0748955581303894,
+   "abs_invested_beta": 0.03263953539610618,
+   "mean_invested": 0.9701196368807118,
+   "late_cagr": -0.0032294599930724477,
+   "late_ulcer": 0.014368080655487399,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.37785820642462914,
+    "expected_cagr": 0.04096892611489156,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__min_events_10": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "evidence_min_events": 10
+   },
+   "cycle_sharpe": 0.5312072226635083,
+   "cycle_sortino": 0.7809496059897585,
+   "cycle_vol": 0.15006674383439011,
+   "cagr": 0.07094400314332416,
+   "ulcer": 0.039180293071091415,
+   "max_dd": -0.06817150746022815,
+   "abs_invested_beta": 0.07429599053991104,
+   "mean_invested": 0.969131796885096,
+   "late_cagr": -0.0188657509529242,
+   "late_ulcer": 0.01872698884704614,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.5312072226635083,
+    "expected_cagr": 0.07094400314332416,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__min_events_30": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "evidence_min_events": 30
+   },
+   "cycle_sharpe": 0.6826793078679052,
+   "cycle_sortino": 1.0261270299495076,
+   "cycle_vol": 0.14755689955078632,
+   "cagr": 0.09409273844511801,
+   "ulcer": 0.03292080510251623,
+   "max_dd": -0.06484825682646533,
+   "abs_invested_beta": 0.06206882635430252,
+   "mean_invested": 0.9665162291186435,
+   "late_cagr": 0.0725327411409622,
+   "late_ulcer": 0.013512431082413732,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), beta",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.6826793078679052,
+    "expected_cagr": 0.09409273844511801,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__max_events_60": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "evidence_max_events": 60
+   },
+   "cycle_sharpe": 1.2039381413354302,
+   "cycle_sortino": 1.9488269135369451,
+   "cycle_vol": 0.15945008630191604,
+   "cagr": 0.19642359408591914,
+   "ulcer": 0.023417921157292975,
+   "max_dd": -0.057743733954748744,
+   "abs_invested_beta": 0.047897923378168686,
+   "mean_invested": 0.956230305714045,
+   "late_cagr": 0.12050683606093227,
+   "late_ulcer": 0.019424609571749046,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), beta",
+   "late_ok": true,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 1.2039381413354302,
+    "expected_cagr": 0.19642359408591914,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__max_events_120": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "candidate",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "evidence_max_events": 120
+   },
+   "cycle_sharpe": 0.35074758138483453,
+   "cycle_sortino": 0.48867749109173186,
+   "cycle_vol": 0.17512804993556974,
+   "cagr": 0.04725681313973107,
+   "ulcer": 0.03604419569808088,
+   "max_dd": -0.08972210213135812,
+   "abs_invested_beta": 0.02024313123178448,
+   "mean_invested": 0.962516613165049,
+   "late_cagr": -0.11035287278835393,
+   "late_ulcer": 0.028248456898102382,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material), observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, volatility, ulcer (not material)",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.35074758138483453,
+    "expected_cagr": 0.04725681313973107,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  },
+  "swap__require_scored": {
+   "source": "NB23 Sortino leg swap (lead 3)",
+   "family": "policy",
+   "overrides": {
+    "selection_score_indicator": "cagr_sortino_shrunk_weight",
+    "require_scored_candidates": true
+   },
+   "cycle_sharpe": 0.5835585952865023,
+   "cycle_sortino": 0.8637520163092907,
+   "cycle_vol": 0.14954557457431097,
+   "cagr": 0.07914510041268463,
+   "ulcer": 0.03594293086992805,
+   "max_dd": -0.06330905421226396,
+   "abs_invested_beta": 0.06916226886239901,
+   "mean_invested": 0.9691085896862861,
+   "late_cagr": -0.02005961455717642,
+   "late_ulcer": 0.01888907220310064,
+   "passes_v3": false,
+   "failed_v3": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), beta, observed control",
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material), beta",
+   "late_ok": false,
+   "cross_check": {
+    "sources": [
+     "NB23"
+    ],
+    "expected_cycle_sharpe": 0.5835585952865023,
+    "expected_cagr": 0.07914510041268463,
+    "sharpe_abs_diff": 0.0,
+    "cagr_abs_diff": 0.0,
+    "reproduced": true
+   }
+  }
+ },
+ "vol_drop_composition": {
+  "5": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 5.0,
+   "mean_no_volatility_estimate": 4.825396825396825,
+   "mean_measured_removals": 0.1746031746031746,
+   "share_of_removals_with_no_estimate": 0.9650793650793651,
+   "no_drop_branch_share": 0.0
+  },
+  "10": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 10.0,
+   "mean_no_volatility_estimate": 9.206349206349206,
+   "mean_measured_removals": 0.7936507936507936,
+   "share_of_removals_with_no_estimate": 0.9206349206349206,
+   "no_drop_branch_share": 0.0
+  },
+  "15": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 15.0,
+   "mean_no_volatility_estimate": 12.984126984126984,
+   "mean_measured_removals": 2.015873015873016,
+   "share_of_removals_with_no_estimate": 0.8656084656084656,
+   "no_drop_branch_share": 0.0
+  },
+  "20": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 20.0,
+   "mean_no_volatility_estimate": 16.293650793650794,
+   "mean_measured_removals": 3.7063492063492065,
+   "share_of_removals_with_no_estimate": 0.8146825396825397,
+   "no_drop_branch_share": 0.0
+  },
+  "25": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 25.0,
+   "mean_no_volatility_estimate": 19.11904761904762,
+   "mean_measured_removals": 5.880952380952381,
+   "share_of_removals_with_no_estimate": 0.7647619047619048,
+   "no_drop_branch_share": 0.0
+  },
+  "30": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 30.0,
+   "mean_no_volatility_estimate": 21.261904761904763,
+   "mean_measured_removals": 8.738095238095237,
+   "share_of_removals_with_no_estimate": 0.7087301587301588,
+   "no_drop_branch_share": 0.0
+  },
+  "35": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 35.0,
+   "mean_no_volatility_estimate": 22.976190476190474,
+   "mean_measured_removals": 12.023809523809524,
+   "share_of_removals_with_no_estimate": 0.6564625850340136,
+   "no_drop_branch_share": 0.0
+  },
+  "40": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 40.0,
+   "mean_no_volatility_estimate": 24.253968253968253,
+   "mean_measured_removals": 15.746031746031745,
+   "share_of_removals_with_no_estimate": 0.6063492063492063,
+   "no_drop_branch_share": 0.0
+  },
+  "45": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 45.0,
+   "mean_no_volatility_estimate": 25.206349206349206,
+   "mean_measured_removals": 19.793650793650794,
+   "share_of_removals_with_no_estimate": 0.5601410934744268,
+   "no_drop_branch_share": 0.0
+  },
+  "50": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 50.0,
+   "mean_no_volatility_estimate": 25.61111111111111,
+   "mean_measured_removals": 24.38888888888889,
+   "share_of_removals_with_no_estimate": 0.5122222222222222,
+   "no_drop_branch_share": 0.0
+  },
+  "55": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 55.0,
+   "mean_no_volatility_estimate": 25.658730158730158,
+   "mean_measured_removals": 29.341269841269842,
+   "share_of_removals_with_no_estimate": 0.4665223665223665,
+   "no_drop_branch_share": 0.0
+  },
+  "60": {
+   "decision_dates": 126.0,
+   "mean_pool_size": 148.02380952380952,
+   "mean_dropped": 60.0,
+   "mean_no_volatility_estimate": 25.658730158730158,
+   "mean_measured_removals": 34.34126984126984,
+   "share_of_removals_with_no_estimate": 0.42764550264550266,
+   "no_drop_branch_share": 0.0
+  }
+ },
+ "provenance": [
+  {
+   "file": "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-prices.parquet",
+   "bytes": 254300668.0,
+   "sha256": "a7dfce0d900297fe",
+   "modified": "2026-09-13 08:42:01.654323101"
+  },
+  {
+   "file": "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-metadata.json",
+   "bytes": 75307363.0,
+   "sha256": "ce5c997755c10f12",
+   "modified": "2026-09-13 08:41:47.067020416"
+  },
+  {
+   "file": "/Users/moo/.tradingstrategy/binance-price.duckdb",
+   "bytes": 798720.0,
+   "sha256": "67af6483e76a66f1",
+   "modified": "2026-09-09 09:42:55.805246353"
+  },
+  {
+   "file": "/tmp/hyperliquid-lower-vol-btc-daily-returns.parquet",
+   "bytes": 61833.0,
+   "sha256": "d9864e2c4661af63",
+   "modified": "2026-09-09 10:53:53.537816048"
+  },
+  {
+   "file": "git HEAD",
+   "bytes": NaN,
+   "sha256": "5f8c013",
+   "modified": ""
+  }
+ ]
+}

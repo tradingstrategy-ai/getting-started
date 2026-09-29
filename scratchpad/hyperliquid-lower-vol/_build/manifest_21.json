@@ -1,0 +1,372 @@
+{
+ "notebook": "21-backtest-vol-matched-family.ipynb",
+ "plan": "20-stability-leads-plan.md",
+ "lead": "1 - the volatility-matched drop family, promoted from control to candidate",
+ "verdict": "REJECT",
+ "shadow_candidate": null,
+ "constraint_7": "INAPPLICABLE - the candidate set IS the observed-control family, so the comparison is a self-comparison requiring S >= S + 0.10",
+ "adoption_columns_reported": [
+  "passes_1_to_6",
+  "late_ok",
+  "simple_rule_eligible"
+ ],
+ "family_drops": [
+  5,
+  10,
+  15,
+  20,
+  25,
+  30,
+  35,
+  40,
+  45,
+  50,
+  55,
+  60
+ ],
+ "family_centres": [
+  10,
+  15,
+  20,
+  25,
+  30,
+  35,
+  40,
+  45,
+  50,
+  55
+ ],
+ "boundary_members": [
+  5,
+  60
+ ],
+ "eligible_centres": [],
+ "qualifying_centres": [],
+ "plateau": {
+  "10": {
+   "centre_ok": false,
+   "lower_ok": false,
+   "upper_ok": false,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "centre fails: ulcer (not material), beta; lower neighbour drop_5 fails; upper neighbour drop_15 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "15": {
+   "centre_ok": false,
+   "lower_ok": false,
+   "upper_ok": false,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "centre fails: ulcer (not material), beta; lower neighbour drop_10 fails; upper neighbour drop_20 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "20": {
+   "centre_ok": false,
+   "lower_ok": false,
+   "upper_ok": false,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "centre fails: ulcer (not material), beta; late period; lower neighbour drop_15 fails; upper neighbour drop_25 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "25": {
+   "centre_ok": false,
+   "lower_ok": false,
+   "upper_ok": true,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "centre fails: ulcer (not material); late period; lower neighbour drop_20 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "30": {
+   "centre_ok": true,
+   "lower_ok": false,
+   "upper_ok": true,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "lower neighbour drop_25 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "35": {
+   "centre_ok": true,
+   "lower_ok": true,
+   "upper_ok": false,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "upper neighbour drop_40 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "40": {
+   "centre_ok": false,
+   "lower_ok": true,
+   "upper_ok": false,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "centre fails: CAGR < 20%, Sharpe non-inferiority, ulcer (not material); upper neighbour drop_45 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "45": {
+   "centre_ok": false,
+   "lower_ok": false,
+   "upper_ok": false,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "centre fails: CAGR < 20%, Sharpe non-inferiority; lower neighbour drop_40 fails; upper neighbour drop_50 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "50": {
+   "centre_ok": false,
+   "lower_ok": false,
+   "upper_ok": false,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "centre fails: Sharpe non-inferiority; lower neighbour drop_45 fails; upper neighbour drop_55 fails; leave-one-vault-out absent (plateau never reached)"
+  },
+  "55": {
+   "centre_ok": false,
+   "lower_ok": false,
+   "upper_ok": false,
+   "plateau_ok": false,
+   "simple_rule_eligible": false,
+   "masked_centre_ok": false,
+   "binding_constraints": "centre fails: CAGR < 20%, Sharpe non-inferiority, ulcer (not material); late period; lower neighbour drop_50 fails; upper neighbour drop_60 fails; leave-one-vault-out absent (plateau never reached)"
+  }
+ },
+ "masked_runs": [],
+ "runs": {
+  "anchor": {
+   "family": "anchor",
+   "overrides": {},
+   "cycle_sharpe": 2.1597920746960435,
+   "cagr": 0.37897081230942264,
+   "cycle_vol": 0.1542780798652122,
+   "ulcer": 0.017964105097182066,
+   "abs_invested_beta": 0.04579692297567623,
+   "mean_invested": 0.9719692059418593,
+   "late_cagr": 0.27202739903036655,
+   "late_ulcer": 0.02526773274668741,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": false
+  },
+  "drop_5": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 5
+   },
+   "cycle_sharpe": 2.1597920746960435,
+   "cagr": 0.37897081230942264,
+   "cycle_vol": 0.1542780798652122,
+   "ulcer": 0.017964105097182066,
+   "abs_invested_beta": 0.04579692297567623,
+   "mean_invested": 0.9719692059418593,
+   "late_cagr": 0.27202739903036655,
+   "late_ulcer": 0.02526773274668741,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": false
+  },
+  "drop_10": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 10
+   },
+   "cycle_sharpe": 2.1601870212029253,
+   "cagr": 0.37904763763112626,
+   "cycle_vol": 0.1542755282836652,
+   "ulcer": 0.017963632255857814,
+   "abs_invested_beta": 0.04580426488728605,
+   "mean_invested": 0.9717045606889708,
+   "late_cagr": 0.2722879599357293,
+   "late_ulcer": 0.025266522533383046,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": true
+  },
+  "drop_15": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 15
+   },
+   "cycle_sharpe": 2.188219148843036,
+   "cagr": 0.3828144850486752,
+   "cycle_vol": 0.15349370536747195,
+   "ulcer": 0.017904556187714863,
+   "abs_invested_beta": 0.04949405481297622,
+   "mean_invested": 0.9743208550449088,
+   "late_cagr": 0.2851113337065878,
+   "late_ulcer": 0.025115113684178073,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": true
+  },
+  "drop_20": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 20
+   },
+   "cycle_sharpe": 2.081859982258486,
+   "cagr": 0.35924072151529596,
+   "cycle_vol": 0.15302920736877948,
+   "ulcer": 0.01801092014567949,
+   "abs_invested_beta": 0.048591146784089614,
+   "mean_invested": 0.9735386142906951,
+   "late_cagr": 0.20638672979991846,
+   "late_ulcer": 0.025387424826933628,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material), beta",
+   "late_ok": false
+  },
+  "drop_25": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 25
+   },
+   "cycle_sharpe": 2.1051454178875946,
+   "cagr": 0.3565848988830107,
+   "cycle_vol": 0.15021037134074405,
+   "ulcer": 0.018202286374910927,
+   "abs_invested_beta": 0.04438602565521037,
+   "mean_invested": 0.9734558494809284,
+   "late_cagr": 0.18501826716945335,
+   "late_ulcer": 0.02733332282822809,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "ulcer (not material)",
+   "late_ok": false
+  },
+  "drop_30": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 30
+   },
+   "cycle_sharpe": 2.7473913428205456,
+   "cagr": 0.48994209167975544,
+   "cycle_vol": 0.14922933582513487,
+   "ulcer": 0.013843126806057825,
+   "abs_invested_beta": 0.001054585118529119,
+   "mean_invested": 0.9719137427493809,
+   "late_cagr": 0.6612762032106512,
+   "late_ulcer": 0.017172748068809352,
+   "passes_1_to_6": true,
+   "failed_1_to_6": "",
+   "late_ok": true
+  },
+  "drop_35": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 35
+   },
+   "cycle_sharpe": 2.301103705990803,
+   "cagr": 0.380117393817051,
+   "cycle_vol": 0.14454392796642987,
+   "ulcer": 0.013860225590068857,
+   "abs_invested_beta": 0.031071294243319565,
+   "mean_invested": 0.9698816459450714,
+   "late_cagr": 0.35949742252527583,
+   "late_ulcer": 0.01544001352127784,
+   "passes_1_to_6": true,
+   "failed_1_to_6": "",
+   "late_ok": true
+  },
+  "drop_40": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 40
+   },
+   "cycle_sharpe": 1.2254275221032649,
+   "cagr": 0.13835002096272575,
+   "cycle_vol": 0.11073110954590791,
+   "ulcer": 0.019278975849440366,
+   "abs_invested_beta": 0.008579440979766787,
+   "mean_invested": 0.9692525222179988,
+   "late_cagr": 0.17125374082992528,
+   "late_ulcer": 0.014462467845172815,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": true
+  },
+  "drop_45": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 45
+   },
+   "cycle_sharpe": 1.648411747346029,
+   "cagr": 0.18099381901380474,
+   "cycle_vol": 0.10422251333673023,
+   "ulcer": 0.013918760820976114,
+   "abs_invested_beta": 0.0007162861590225978,
+   "mean_invested": 0.9716030610029356,
+   "late_cagr": 0.09359851244357076,
+   "late_ulcer": 0.01189565143143331,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority",
+   "late_ok": true
+  },
+  "drop_50": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 50
+   },
+   "cycle_sharpe": 2.0148571150581773,
+   "cagr": 0.20614893011991042,
+   "cycle_vol": 0.09530362935450445,
+   "ulcer": 0.014491981616851031,
+   "abs_invested_beta": 0.0019064389958094845,
+   "mean_invested": 0.9748118427981746,
+   "late_cagr": 0.13036652415278738,
+   "late_ulcer": 0.01560737810219908,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "Sharpe non-inferiority",
+   "late_ok": true
+  },
+  "drop_55": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 55
+   },
+   "cycle_sharpe": 0.9846604836492078,
+   "cagr": 0.08020556528198486,
+   "cycle_vol": 0.08173890520955526,
+   "ulcer": 0.015772536728156056,
+   "abs_invested_beta": 0.01476600215855076,
+   "mean_invested": 0.9767317374361714,
+   "late_cagr": -0.020682745553853077,
+   "late_ulcer": 0.01342018161814956,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority, ulcer (not material)",
+   "late_ok": false
+  },
+  "drop_60": {
+   "family": "candidate",
+   "overrides": {
+    "vol_matched_drop_count": 60
+   },
+   "cycle_sharpe": 1.4724209925366964,
+   "cagr": 0.11657597290766253,
+   "cycle_vol": 0.07690815868243879,
+   "ulcer": 0.013938145453754365,
+   "abs_invested_beta": 0.00807523423266643,
+   "mean_invested": 0.9762006653313757,
+   "late_cagr": 0.07527406934998226,
+   "late_ulcer": 0.010151538174667865,
+   "passes_1_to_6": false,
+   "failed_1_to_6": "CAGR < 20%, Sharpe non-inferiority",
+   "late_ok": true
+  }
+ },
+ "baseline_parity": {
+  "cycle_sharpe": 2.1597920746960435,
+  "cycle_sortino": 4.4477788475298965,
+  "cycle_vol": 0.1542780798652122,
+  "cagr": 0.37897081230942264,
+  "ulcer": 0.017964105097182066,
+  "max_dd": -0.04450420243016073,
+  "abs_invested_beta": 0.04579692297567623,
+  "mean_invested": 0.9719692059418593,
+  "late_cagr": 0.27202739903036655,
+  "late_ulcer": 0.02526773274668741
+ },
+ "previous_plan_reference_reproduced": true
+}

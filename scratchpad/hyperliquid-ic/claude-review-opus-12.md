@@ -1,0 +1,50 @@
+## Final read-only review — Hyperliquid vault IC research (Opus 5, `claude-opus-5`)
+
+**Re-derived from `_artifacts/`, not from the narrative.** 602 vaults × 647 two-day panel dates; 64 eligible dates 2026-05-10 → 2026-09-13; 16,425 eligible rows (227–271 per date); observed history on eligible rows 30–157 d. 82 catalogue predictors + 6 `ema_seed_weight_*` + 91 `__missing` flags; 86 screened (82 + 4 controls) × 49 outcomes; 7,028 IC rows (3,514 per panel) over 8,428 grid cells, 1,400 unavailable cells recorded (98 each for the ten 180/360-day columns and `time_since_last_nav`); two purged folds (`train_end_used` 06-09 / 07-07, 14 + 5 matured test dates), 57 Ridge rows; both NB04 arms 64 rows, flat $150,000, `active=False`, 0 positions, 0 trades, `cagr_360` null on 16,425/16,425 eligible rows. `py_compile` passes; zero `error` outputs in all four notebooks (NB02 stderr is benign `FutureWarning`/`RuntimeWarning`); 40-vault full-generator prefix check passed (NB02 cell 5); all nine `files_sha256`, `research_source_sha256` and `hyper_ai_sha256` match current files; `cleaning_version` recorded; artefact mtimes confirm NB01→NB04 ran sequentially after the last `ic_research.py` edit. `raw-observations.parquet` retains `share_price`, `raw_share_price`, `hypercore_repair_status`, `hypercore_source`, `is_fresh`; 1,008,123 `_carried` rows present with `is_fresh=False`; carried rows equal the preceding poll on all but 27 rows and the daily NAV never differs from the last fresh poll (0 of 112,709 vault-days). BTC reference present, hash matches, no calendar gaps, ends 2026-09-12; 30-day BTC family on 16,424/16,425 eligible rows with none below 30 d history; 90-day family on 7,918 rows, none below 90 d; `fresh_nav_coverage_90` present on 8,471 rows below 90 d (exemption honoured); every fixed-window column checked is absent below its lookback. `forward_log_growth_{7,30,90}` equals `log(P[T+H]/P[T])` on the visible, 7-day-carried NAV with 0 mismatches; spot `forward_variance_30`/`forward_downside_semivariance_30` recompute exactly. No follower/leader/social/deposit-flow column in `features`, `labels`, `raw-observations`, `feature-manifest` or `ic-results`; `vault-metadata.csv` carries only the operational `deposits_open`/`redemption_open` (all null). A 16-July vault (`0x0ff219…`, $300k TVL) becomes eligible on 08-16 at 31 d history with 30-day features and 30-day BTC beta — the young-vault route works as intended.
+
+### 1. Verdict
+
+**Prospective collection: proceed.** Phase 1's data-gap branch is complete and internally consistent: `historical_point_in_time_reconstructable: false`; first visible fresh cell 2026-04-09 and eligibility starts 30 d later; in-window daily-cell publication lag p50 2.5 h / p95 22.9 h, so the 48 h cutoff is a conservative, documented cache approximation (3,240 of 72,227 in-window fresh vault-days masked, not used). The spec's label-entry rule (first executable NAV at/after the recorded boundary, `prospective-collection-spec.md:24`) is correctly distinguished from the diagnostic `NAV_T` entry (README:9). One spec precision is warranted before the first snapshot (item 1 below); it does not change the verdict.
+
+**Research gate: Phase 4 shortlist gate stays open; nothing may be frozen and no `hyper-ai.py` change is justified.** OOF Ridge rank IC: variance 0.67 / 0.77, downside 0.54 / 0.74, growth **0.07 / −0.18** (fold 1 = five dates). The top univariate cells (`vol_10`, `ewm_return_vol_10` → `forward_variance_7` ≈ 0.85) are volatility persistence. `shortlist.csv` is full-sample descriptive; `shortlist.json` horizon 30 is the default, not a selection.
+
+### 2. Notebook table
+
+| Notebook | Correctness | Plan coverage | Result sanity | Severity |
+|---|---|---|---|---|
+| NB01 data/baseline | Per-day NAV = last poll, fresh count/`available_ts` from fresh rows only (`ic_research.py:176-199`); provenance columns and carried count retained; hashes, revision, dirty flag, cleaning version all verified. | Thin vs plan.md:59-67: no raw→TVL→eligible→labelled funnel, no April-break table, no Stratwise row (that vault is not in `vault-metadata.csv`; age falls back to first NAV); `deposits_open`/`redemption_open` null. Acceptable for the data-gap branch. | 1,293 d × 602; cohorts plausible; 1,008,123 carried rows. | Low |
+| NB02 feature panel | Labels exact; prefix check passes; 30-day history gate, elapsed masking, per-window OLS, coverage exemption, null-`available_ts` counting (43,276) confirmed. | 82 + 6 + 49 as declared. Known definition drift persists (F13 fraction, F16 Herfindahl, F25 std of log-diffs, F29 days, F14/F15 `ffill` at `:418-419`). | 64 dates; 1,260 eligible rows dead-flat over 30 d (`sharpe_30` 0 / `sortino_30` NaN). | Low |
+| NB03 IC screen | Purge (`:717`), fold-local selection on training IC only, equal date weighting, `min_periods=10`, grid audit correct; min cross-section 148; 47 eligible rows with `return_14` NaN are gate-excluded (0.3 %, immaterial). | Exhaustive table present. Bootstrap/null, incremental control vs `vol_30`/availability-only, horizon rule, terciles/upper bucket, cohort splits, missing-outcome stress scenarios — deferred Phase 4 work. | 90-day-feature × 60/90-day-label cells rest on 4 dates; `time_since_last_nav` is 0 on every eligible row because eligibility requires a fresh NAV on T (`:578`). | Medium, deferred |
+| NB04 replay | Abstention matches `_production_score`; cash is the coverage outcome. | A and C only; B/D correctly deferred. | Flat $150,000, no trades. | Low |
+
+### 3. Defects and limitations
+
+**Blocking:** none.
+
+**Important — one spec precision before the first snapshot (not a collection blocker)**
+
+1. **In-place provider revisions are not explicitly captured by "polls since the previous snapshot".** The cache has zero duplicate `(address, timestamp)` rows, yet 268 `_lag_repaired`, 60 `deferred_pnl_nav_outlier` (median lag 2,891 h) and 6,019 plain in-window rows were written > 48 h after their timestamp: the provider rewrites earlier rows in place. `prospective-collection-spec.md:10` selects rows by poll `timestamp`; a collector implementing it literally would miss revisions of already-seen timestamps and the diagnostic clock's 7,414-row masking could not be reproduced prospectively. Add one sentence: select rows by `written_at` watermark (or full re-dump per snapshot), keep every version keyed by `(timestamp, written_at)`, and have the loader resolve the as-of value by `written_at <= decision_ts`.
+
+**Pre-shadow freeze actions (documentation/provenance)**
+
+2. `claude-review-opus-12.md` is 0 bytes while README:7 and plan.md:390 already cite it; the scratchpad is untracked (`?? scratchpad/hyperliquid-ic/`) and `config.json` records `d40e06d` with `git_worktree_dirty: true`, so the recorded revision cannot reproduce the code. Commit, then rerun NB01 once so the revision is clean.
+
+**Acceptable, documented limitations**
+
+- Per-date visibility (`available_ts(d) <= d+2`, `:374`) is stricter than the plan's as-of rule (`available_ts <= decision_ts`): bulk-ingested 2023–March 2026 history is never admitted even for decisions after 2026-03-25. This is the conservative choice behind "no `cagr_360`, both arms in cash"; it is causal, not a defect, and the user has designated it the documented cache limitation.
+- Diagnostic `NAV_T` label entry against the `T+2` information clock includes day T+1's return the decision could not capture (README:9); the spec rule supersedes it. Training-label maturity is likewise ~2 d optimistic at the fold boundary (`:717`) — trivial for a diagnostic.
+- `share_price > 0` filter (`:177`) drops 35 terminal rows of one wiped-out vault (2026-03-07 → 04-10, pre-window): terminal losses become unavailable labels rather than known losses. Plan's two fixed stress scenarios (plan.md:134) remain deferred; no eligible row affected.
+- 2,679 in-window fresh rows on 9 vaults have `raw_share_price <= 0` with a provider-approximated `share_price`; only 5 eligible rows depend on them. Provenance is now retained, so the mark-quality sensitivity can be run later.
+- BTC reference ends 09-12 → 09-13 BTC return forward-filled to zero (`:475`), final decision date only, no label affected.
+- `_rolling_slope`/`_rolling_r2` return NaN on any NaN in the window (`:278`, `:295`), i.e. they effectively require 100 % coverage rather than 80 % — conservative and rank-neutral.
+- `ema_seed_weight_*` counts fresh NAVs, not calendar steps (`:517`) — diagnostic only. `sharpe_L` floors zero std while `sortino_L` returns NaN — rank-neutral on the 1,260 flat rows. Two underpowered folds; max observed history 157 d, so 180/360-day columns, the ≥360 cohort and 90×90 cells are structurally unavailable and recorded.
+
+### 4. Three minimal next actions before shadow decisions
+
+1. **Start the collector now**, after adding the one-sentence `written_at`-watermark/version-retention rule to `prospective-collection-spec.md:10`. In the same step commit the scratchpad, save this review into `claude-review-opus-12.md`, and rerun NB01 once so `config.json` records a clean revision.
+2. **Add the provenance sensitivities to the diagnostic panel on the next rerun** (no result change expected): the raw→TVL→eligible→labelled funnel and April-break table in NB01, and a `raw_share_price <= 0` / repair-status mark-quality flag beside the eligible rows.
+3. **Run the deferred Phase 4 set, preferably on the first prospective snapshots:** date-block bootstrap and intact-bundle null over the 86 × 21 grid, incremental Ridge versus `vol_30` and the availability-only control, zero-variance-label reporting, missing-outcome stress scenarios and the predeclared horizon rule — and only then freeze horizon/model/allocator and open arms B/D.
+
+## Post-review resolution
+
+The remaining specification precision was applied after this read-only review: `prospective-collection-spec.md` now requires a `written_at` watermark (or full re-dump), retains every revision keyed by `(timestamp, written_at)`, and resolves the as-of value with `written_at <= decision_ts`. No notebook or artefact changed after the final rerun.

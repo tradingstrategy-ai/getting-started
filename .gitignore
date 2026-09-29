@@ -30,6 +30,15 @@ tmp/
 # FinRL model policy files
 *.pt
 
+# Generated backtesting and research artefacts outside the research notebooks.
+**/_artifacts*/
+
+# Temporary review working files and research manifests.
+scratchpad/hyperliquid-ic/_review/
+scratchpad/hyperliquid-ic/**/*.jsonl
+scratchpad/hyperliquid-ic/**/*.err
+scratchpad/hyperliquid-ic/_build/manifest_*.json
+
 # Dotenv
 # May contain secrets
 .env

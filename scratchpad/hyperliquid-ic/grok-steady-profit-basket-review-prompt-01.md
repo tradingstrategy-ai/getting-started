@@ -1,0 +1,15 @@
+Review `scratchpad/hyperliquid-ic/steady-profit-basket-plan-01.md` independently. Read-only review: do not edit files, execute notebooks, install anything, or change external state. The user requests Grok 4.6 xhigh with no sandbox; permission does not change this review-only task. Do not spawn subagents. Avoid overengineering and repeated failed experiments.
+
+Objective: highest credible portfolio Sharpe with CAGR around 20%, flexible 1–n vaults, young/sparse histories allowed, no concentration preference, no follower factors, blacklists off. StratWise and Systemic L/S Grids are examples, not optimisation labels. Proposed experiment tests a positive lower-quartile rolling-return floor crossed with equal/inverse-volatility sizing. It does not aim to beat incumbent CAGR.
+
+You MUST read earlier findings before judging novelty. Read these actual files and cite what you read:
+1. `scratchpad/hyperliquid-ic/rolling-typical-profitability-plan-01.md`
+2. `scratchpad/hyperliquid-ic/build_nb30_typical_profitability.py` and `_artifacts-rolling-typical-profitability/marginal-summary.csv`, `coverage.csv`, `paired-block-contrasts.csv` under that folder. Check relevant conditional results with a small aggregation if useful; do not dump huge membership CSV.
+3. `scratchpad/hyperliquid-ic/rolling-profit-risk-track-summary-01.md`
+4. `scratchpad/hyperliquid-ic/monthly-calibration-summary-01.md`
+5. `scratchpad/hyperliquid-ic/production-candidate-vs-research-reproduction-differences.md`
+6. Read relevant markdown and saved summary outputs of `scratchpad/hyperliquid-lower-vol/09-backtest-consistency-selection.ipynb`, `scratchpad/hyperliquid-lower-vol/32-backtest-return-floor-stability-rank.ipynb`, and `scratchpad/hyperliquid-ic/20-research-stability-screen-portfolios.ipynb`. Use Python JSON extraction to avoid dumping images. Read relevant simulator allocation code in `scratchpad/hyperliquid-ic/rolling_track_simulation.py`.
+
+Known NB30 issues: top membership ignores score direction, incorrect fractional ties, missing outcome denominators, and paired return comparisons are restricted by drawdown-label availability. The plan requires repairing NB30 plus auditing timing against its original spec. Do not treat old top-group gains as validated. IC is exploratory; 7/60 was chosen after inspection. Earlier inverse-volatility sizing failed with bad membership, hard screens removed winners, and monthly scores saturated.
+
+Return: (1) concise verdict; (2) high/medium/low findings with concrete file references and minimal fixes; (3) any experiment to remove/change because it duplicates failures; (4) at most two genuinely useful additional ideas only if they improve identifiability without a search; (5) files actually read. Focus on whether this identifies incremental Q benefit, handles young vaults fairly, avoids timing/accounting confounds, and distinguishes steady-vault selection from cash/low risk. Do not impose arbitrary long histories, demand every noisy cohort pass, introduce provenance programmes or promise 20% CAGR. Flag mathematical redundancy or design contradictions candidly.

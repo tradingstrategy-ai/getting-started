@@ -129,6 +129,12 @@ Don't format code.
 
 - We check for performance, management, entry/exit fees but vaults do not usually have these. Do not assume any slippage on vaults: deposits and redemptions fill at NAV (share price), and performance fees are typically internalised in the share price series.
 
+## Backtesting build artefacts
+
+- Saved cell outputs inside research notebooks may be committed with the notebooks.
+- Never commit generated backtesting files outside notebooks, including intermediate datasets, caches, plots, logs, reports, and run manifests. Add a matching `.gitignore` rule whenever a workflow creates them, before staging or committing files.
+- Keep reusable scripts, notebooks, and written research conclusions outside generated artefact directories so they remain available for review. If an external generated file is already tracked, remove it from the Git index without deleting the local file.
+
 ## Editing files
 
 - When you need to modify files the editable Python packages live under ~/code/trade-executor
@@ -136,7 +142,7 @@ Don't format code.
 
 ## Indicator cache
 
-If the notebook crashes because of what looks like indicator cache issue: we have added or edited indicators and the data is not correctly recalculated, you can clear the indicator cache wtih `clear-backtesting-cache` skill. 
+If the notebook crashes because of what looks like indicator cache issue: we have added or edited indicators and the data is not correctly recalculated, you can clear the indicator cache wtih `clear-backtesting-cache` skill.
 
 This skill should not be used unless the notebook crashes because of indicator data problems.
 

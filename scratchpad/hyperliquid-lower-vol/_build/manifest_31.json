@@ -1,0 +1,133 @@
+{
+ "verdict": "NOTHING SHORTLISTED - no mechanism is carried",
+ "shortlisted": [],
+ "kernels_agree_with_nb29": true,
+ "reproduction": {
+  "configurations": 7,
+  "reproducing_at_1e-9": 7,
+  "worst_abs_diff": 0.0
+ },
+ "family_membership": [],
+ "family_excluded": {
+  "inverse_vol_q10": "reference",
+  "inverse_vol_q20": "reference",
+  "inverse_vol_q30": "reference",
+  "inverse_vol_q30_strict": "diagnostic",
+  "inverse_vol_q40": "reference",
+  "inverse_vol_q50": "reference",
+  "screen_log": "control"
+ },
+ "gates": {
+  "inverse_vol_q30": {
+   "signal": "inverse_vol",
+   "gate_1_positive": true,
+   "gate_2_lovo": false,
+   "gate_3_held_book": false,
+   "gate_4_luck": false,
+   "gate_5_screen": false,
+   "gate_6_plateau": false,
+   "gate_7_subperiod": false,
+   "gate_8_diversification": false,
+   "gate_9_null": false,
+   "gate_3_corrected": false,
+   "failed_gates": "gate_2, gate_3, gate_4, gate_5, gate_6, gate_7, gate_8, gate_9",
+   "verdict": "REJECT"
+  }
+ },
+ "gate_5_rederived_agrees": true,
+ "gate_5_worst_lo_diff": 0.0,
+ "gate_5_fields_compared": 17,
+ "gate_5_booleans_compared": [
+  "evaluated",
+  "enough_dates",
+  "stability_clause",
+  "return_clause",
+  "gate_5"
+ ],
+ "gate_5_families_agree": true,
+ "provenance": {
+  "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-prices.parquet": {
+   "bytes": 255136297,
+   "sha256": "8bce13191183c7d4"
+  },
+  "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-metadata.json": {
+   "bytes": 75468494,
+   "sha256": "7bcd6969c9fce5c1"
+  },
+  "/Users/moo/.tradingstrategy/binance-price.duckdb": {
+   "bytes": 1585152,
+   "sha256": "5acd43c9eb662d48"
+  },
+  "/tmp/hyperliquid-lower-vol-btc-daily-returns.parquet": {
+   "bytes": 61932,
+   "sha256": "59946b6e81b86820"
+  },
+  "git HEAD": {
+   "bytes": null,
+   "sha256": "4c6873e"
+  }
+ },
+ "gate_3_detail": {
+  "inverse_vol_q30": {
+   "held_held_vol": 0.006518252418505275,
+   "anchor_held_vol": 0.02139350935603004,
+   "held_held_concentration": 0.35639677512658774,
+   "anchor_held_concentration": 0.313257286704682,
+   "held_concentration_corrected": 0.35639677512658774,
+   "anchor_held_concentration_corrected": 0.313257286704682,
+   "held_dates_used": 50,
+   "dates_used_corrected": 50.0,
+   "indicators_same_dates": true,
+   "indicators_max_abs_diff_per_date": 0.0
+  }
+ },
+ "specification": {
+  "status": "NOTHING SHORTLISTED - no mechanism is carried",
+  "signal": null,
+  "run_label": null,
+  "exclusion_fraction_q": null,
+  "missingness": "permissive - a candidate with no signal value is KEPT",
+  "override_dictionary": {},
+  "comparator": "the anchor of 02-better-format.ipynb, run on the same new data, same kernel",
+  "monitoring_horizon": "the first 90 calendar days of decisions after 2026-09-08",
+  "primary_statistic": "cycle Sharpe of the candidate minus the anchor's, on the shared cycle clock",
+  "stopping_rule": "abandon if the candidate's CAGR is negative over the prospective window, or if its cycle Sharpe falls more than 0.50 below the anchor's on the same cycles, or if the prefilter is inert (no decision changes the selected basket) on more than 80% of prospective decisions",
+  "what_may_not_change": "the signal, q, the direction, the permissive missingness handling, the comparator and the horizon. Re-tuning any of them after seeing prospective data makes that window in-sample and voids the exercise.",
+  "known_limits": [
+   "The screen and the backtests share overlapping 30-day windows; nothing here is out-of-sample.",
+   "NB30's cross-fit is a diagnostic: the folds share vaults and one market regime, and the purge removes temporal but not cross-sectional contamination.",
+   "Gate 4 means 'no worse than the anchor', not 'luck-free'. The anchor's own luck_ratio is 0.1459 and its top five positions deliver 60.8% of gross profit.",
+   "Selection CAN move concentration - NB29 showed the prefilter lowers mean holdings below 6.00 and top-vault P&L share below the anchor's - and gate 8 tests whether it becomes worse than the anchor's on five measures."
+  ]
+ },
+ "upstream": {
+  "nb28_gate_5": {
+   "inverse_vol": false,
+   "downside_deviation_90": false,
+   "ulcer_index_180": false,
+   "drawdown_recovery_days": false,
+   "residual_event_concentration": false,
+   "fresh_event_concentration": false,
+   "positive_window_share": false,
+   "gain_to_pain_score": false,
+   "min_window_sortino": false,
+   "sortino_score": false,
+   "sortino_shrunk_score": false,
+   "btc_beta": false,
+   "fresh_observation_count": false
+  },
+  "nb29_shortlisted": [],
+  "nb30_fold_stability": "VACUOUS - 2 of 5 folds were evaluable walk-forward and none selected any signal, so there is no mechanism to cross-fit and the stitched path is the anchor's own"
+ },
+ "audit": {
+  "runs_audited": 8,
+  "integrity_failures": 0,
+  "fee_runs_audited": 8,
+  "fee_redemptions": 1897,
+  "fee_worst_rate_diff": 0.0025749359975344166,
+  "fee_worst_proceeds_diff_usd": 93.4864603194801,
+  "fee_over_1bp": 857,
+  "fee_sum_abs_proceeds_diff_usd": 2898.229466769496,
+  "fee_net_signed_proceeds_diff_usd": -2898.2294667682854
+ }
+}

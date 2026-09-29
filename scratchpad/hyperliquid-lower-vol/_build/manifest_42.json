@@ -1,0 +1,1740 @@
+{
+ "provenance": {
+  "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-prices.parquet": {
+   "bytes": 257469315,
+   "sha256": "e8a750e9969c635b"
+  },
+  "/Users/moo/.cache/tradingstrategy/vaults/downloads/vault-metadata.json": {
+   "bytes": 75784362,
+   "sha256": "5d1f5bcfe21a219b"
+  },
+  "/Users/moo/.tradingstrategy/binance-price.duckdb": {
+   "bytes": 1847296,
+   "sha256": "ca40c2d6cb050b13"
+  },
+  "/tmp/hyperliquid-lower-vol-btc-daily-returns.parquet": {
+   "bytes": 62007,
+   "sha256": "4a2dd2118de4d7d5"
+  },
+  "git HEAD": {
+   "bytes": null,
+   "sha256": "4a68527"
+  }
+ },
+ "collapse": {
+  "august": {
+   "address": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "vault": "Realist Capital",
+   "opened": "2026-06-20",
+   "pnl_usd": 16891.17699643568,
+   "exit_reason": "momentum gate: 14-day return -27.9% at or below -16%",
+   "hold_days": 62
+  },
+  "may": {
+   "address": "0x4dec0a851849056e259128464ef28ce78afa27f6",
+   "vault": "pmalt",
+   "opened": "2026-01-05",
+   "pnl_usd": 6377.45630577227,
+   "exit_reason": "momentum gate: 14-day return -20.3% at or below -16%",
+   "hold_days": 136
+  }
+ },
+ "collapse_dates": {
+  "august": "2026-08-21",
+  "may": "2026-05-21"
+ },
+ "warning_dates": {
+  "august": "2026-08-19",
+  "may": "2026-05-20"
+ },
+ "gate_19aug": {
+  "decision": "2026-08-19",
+  "gate_value_read_at_T-1": -0.14501143947477757,
+  "gate_row_timestamp": "2026-08-18 00:00:00",
+  "gate_threshold": -0.16,
+  "daily_log_return_on_19_aug": -0.14459676199383348,
+  "close_row_timestamp": "2026-08-19 00:00:00"
+ },
+ "stop_tables": {
+  "-0.1": {
+   "triggered": 9,
+   "winners": 7,
+   "winners_pnl": 31887.780394396814,
+   "losers": 2,
+   "losers_pnl": -1868.3946109735716
+  },
+  "-0.15": {
+   "triggered": 5,
+   "winners": 5,
+   "winners_pnl": 12130.166233217107,
+   "losers": 0,
+   "losers_pnl": 0.0
+  }
+ },
+ "coverage": {
+  "('empty_share', 'mean')": {
+   "dense (2026-04-01 on)": 0.05133026229199963,
+   "sparse (to 2026-03-31)": 0.8253752478051544
+  },
+  "('empty_share', 'median')": {
+   "dense (2026-04-01 on)": 0.014477766287487074,
+   "sparse (to 2026-03-31)": 0.8130841121495327
+  },
+  "('empty_share', 'max')": {
+   "dense (2026-04-01 on)": 0.9896587383660806,
+   "sparse (to 2026-03-31)": 0.9775700934579439
+  },
+  "('marks_per_bucket', 'mean')": {
+   "dense (2026-04-01 on)": 3.158879383284761,
+   "sparse (to 2026-03-31)": 0.17462475219484566
+  },
+  "('marks_per_bucket', 'median')": {
+   "dense (2026-04-01 on)": 2.7321613236814892,
+   "sparse (to 2026-03-31)": 0.18691588785046728
+  },
+  "('marks_per_bucket', 'max')": {
+   "dense (2026-04-01 on)": 8.998965873836609,
+   "sparse (to 2026-03-31)": 0.19439252336448598
+  }
+ },
+ "collapse_coverage": {
+  "august": {
+   "buckets": 19,
+   "empty_share": 0.05263157894736842,
+   "marks_per_bucket": 3.8421052631578947
+  },
+  "may": {
+   "buckets": 19,
+   "empty_share": 0.05263157894736842,
+   "marks_per_bucket": 4.947368421052632
+  }
+ },
+ "first_bucket": {
+  "august": {
+   "first_mark": 6.591619540345378,
+   "last_mark_in_bucket": 5.41273354702924,
+   "marks": 6,
+   "log_move_inside_first_bucket": -0.19704483361705155
+  },
+  "may": {
+   "first_mark": 11.266893773949475,
+   "last_mark_in_bucket": 10.797835325113658,
+   "marks": 6,
+   "log_move_inside_first_bucket": -0.04252298988786415
+  }
+ },
+ "stop_diff": [],
+ "forced_exits": {
+  "anchor": [
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-02-20 00:00:00",
+    "executed_at": "2026-02-20 00:00:00",
+    "hold_days": 18,
+    "planned_mid_price": 1.7486287878313083,
+    "executed_price": 1.7291403021468106,
+    "decision_bar_open": 1.7486287878313083,
+    "decision_bar_close": 1.7486287878313083,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 2859.118987978465
+   },
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-03-06 00:00:00",
+    "executed_at": "2026-03-06 00:00:00",
+    "hold_days": 12,
+    "planned_mid_price": 1.3958544854417672,
+    "executed_price": 1.3944586309563254,
+    "decision_bar_open": 1.3958544854417672,
+    "decision_bar_close": 1.3958544854417672,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -1389.887838323777
+   },
+   {
+    "vault": "pmalt",
+    "decision": "2026-05-21 00:00:00",
+    "executed_at": "2026-05-21 00:00:00",
+    "hold_days": 136,
+    "planned_mid_price": 11.266893773949475,
+    "executed_price": 11.255626880175525,
+    "decision_bar_open": 11.266893773949475,
+    "decision_bar_close": 8.163842502690763,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 6377.45630577227
+   },
+   {
+    "vault": "Octavious Maximus",
+    "decision": "2026-06-20 00:00:00",
+    "executed_at": "2026-06-20 00:00:00",
+    "hold_days": 16,
+    "planned_mid_price": 3.2471395693289664,
+    "executed_price": 3.2269007674094174,
+    "decision_bar_open": 3.2471395693289664,
+    "decision_bar_close": 3.230137375391158,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 394.43190286536174
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-08-21 00:00:00",
+    "executed_at": "2026-08-21 00:00:00",
+    "hold_days": 62,
+    "planned_mid_price": 6.591619540345378,
+    "executed_price": 6.585027920805032,
+    "decision_bar_open": 6.591619540345378,
+    "decision_bar_close": 4.902764792291725,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 16891.17699643568
+   }
+  ],
+  "gate12_2d": [
+   {
+    "vault": "Mahamor",
+    "decision": "2026-01-27 00:00:00",
+    "executed_at": "2026-01-27 00:00:00",
+    "hold_days": 26,
+    "planned_mid_price": 0.05841595881307021,
+    "executed_price": 0.05835754285425714,
+    "decision_bar_open": 0.05841595881307021,
+    "decision_bar_close": 0.05841595881307021,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -131.13834606453474
+   },
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-02-20 00:00:00",
+    "executed_at": "2026-02-20 00:00:00",
+    "hold_days": 18,
+    "planned_mid_price": 1.7486287878313083,
+    "executed_price": 1.7292209252180097,
+    "decision_bar_open": 1.7486287878313083,
+    "decision_bar_close": 1.7486287878313083,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 2798.1586519351767
+   },
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-02-26 00:00:00",
+    "executed_at": "2026-02-26 00:00:00",
+    "hold_days": 4,
+    "planned_mid_price": 1.5761931166731529,
+    "executed_price": 1.5746169235564798,
+    "decision_bar_open": 1.5761931166731529,
+    "decision_bar_close": 1.5761931166731529,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -806.5642188811771
+   },
+   {
+    "vault": "Gucky_1coin_1dot5x",
+    "decision": "2026-04-11 00:00:00",
+    "executed_at": "2026-04-11 00:00:00",
+    "hold_days": 76,
+    "planned_mid_price": 2.619097611527951,
+    "executed_price": 2.616478513916423,
+    "decision_bar_open": 2.619097611527951,
+    "decision_bar_close": 2.653660490543781,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 410.0271527669611
+   },
+   {
+    "vault": "pmalt",
+    "decision": "2026-05-21 00:00:00",
+    "executed_at": "2026-05-21 00:00:00",
+    "hold_days": 136,
+    "planned_mid_price": 11.266893773949475,
+    "executed_price": 11.255626880175525,
+    "decision_bar_open": 11.266893773949475,
+    "decision_bar_close": 8.163842502690763,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 5941.79567675633
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-06-02 00:00:00",
+    "executed_at": "2026-06-02 00:00:00",
+    "hold_days": 86,
+    "planned_mid_price": 4.120341792905065,
+    "executed_price": 4.1162214511121595,
+    "decision_bar_open": 4.120341792905065,
+    "decision_bar_close": 4.26214136599919,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 2506.2939465639793
+   },
+   {
+    "vault": "Octavious Maximus",
+    "decision": "2026-06-20 00:00:00",
+    "executed_at": "2026-06-20 00:00:00",
+    "hold_days": 18,
+    "planned_mid_price": 3.2471395693289664,
+    "executed_price": 3.181728465205067,
+    "decision_bar_open": 3.2471395693289664,
+    "decision_bar_close": 3.230137375391158,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 1346.6017760175246
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-06-22 00:00:00",
+    "executed_at": "2026-06-22 00:00:00",
+    "hold_days": 2,
+    "planned_mid_price": 4.133695156100658,
+    "executed_price": 4.129561460944557,
+    "decision_bar_open": 4.133695156100658,
+    "decision_bar_close": 4.54413252527526,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -283.13498558485935
+   },
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-07-14 00:00:00",
+    "executed_at": "2026-07-14 00:00:00",
+    "hold_days": 46,
+    "planned_mid_price": 1.7135241064472284,
+    "executed_price": 1.7060269576682616,
+    "decision_bar_open": 1.7135241064472284,
+    "decision_bar_close": 1.7560970096682726,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 2032.5376975854306
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-08-19 00:00:00",
+    "executed_at": "2026-08-19 00:00:00",
+    "hold_days": 56,
+    "planned_mid_price": 7.468961948177204,
+    "executed_price": 7.461492986229026,
+    "decision_bar_open": 7.468961948177204,
+    "decision_bar_close": 6.463424364514217,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 15236.979524499155
+   }
+  ],
+  "gate10_2d": [
+   {
+    "vault": "Mahamor",
+    "decision": "2026-01-27 00:00:00",
+    "executed_at": "2026-01-27 00:00:00",
+    "hold_days": 26,
+    "planned_mid_price": 0.05841595881307021,
+    "executed_price": 0.05835754285425714,
+    "decision_bar_open": 0.05841595881307021,
+    "decision_bar_close": 0.05841595881307021,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -131.13834606453474
+   },
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-02-20 00:00:00",
+    "executed_at": "2026-02-20 00:00:00",
+    "hold_days": 18,
+    "planned_mid_price": 1.7486287878313083,
+    "executed_price": 1.7292209252180097,
+    "decision_bar_open": 1.7486287878313083,
+    "decision_bar_close": 1.7486287878313083,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 2798.1586519351767
+   },
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-02-26 00:00:00",
+    "executed_at": "2026-02-26 00:00:00",
+    "hold_days": 4,
+    "planned_mid_price": 1.5761931166731529,
+    "executed_price": 1.5746169235564798,
+    "decision_bar_open": 1.5761931166731529,
+    "decision_bar_close": 1.5761931166731529,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -806.5642188811771
+   },
+   {
+    "vault": "Gucky_1coin_1dot5x",
+    "decision": "2026-04-11 00:00:00",
+    "executed_at": "2026-04-11 00:00:00",
+    "hold_days": 76,
+    "planned_mid_price": 2.619097611527951,
+    "executed_price": 2.616478513916423,
+    "decision_bar_open": 2.619097611527951,
+    "decision_bar_close": 2.653660490543781,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 410.0271527669611
+   },
+   {
+    "vault": "Octavious Maximus",
+    "decision": "2026-04-23 00:00:00",
+    "executed_at": "2026-04-23 00:00:00",
+    "hold_days": 2,
+    "planned_mid_price": 1.9795237403162513,
+    "executed_price": 1.9775442165759352,
+    "decision_bar_open": 1.9795237403162513,
+    "decision_bar_close": 1.9586659283248502,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -140.37731399248196
+   },
+   {
+    "vault": "pmalt",
+    "decision": "2026-05-21 00:00:00",
+    "executed_at": "2026-05-21 00:00:00",
+    "hold_days": 136,
+    "planned_mid_price": 11.266893773949475,
+    "executed_price": 11.255626880175525,
+    "decision_bar_open": 11.266893773949475,
+    "decision_bar_close": 8.163842502690763,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 5914.330608372606
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-05-31 00:00:00",
+    "executed_at": "2026-05-31 00:00:00",
+    "hold_days": 84,
+    "planned_mid_price": 4.399804314184483,
+    "executed_price": 4.395404509870299,
+    "decision_bar_open": 4.399804314184483,
+    "decision_bar_close": 3.8713972090180406,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 2619.1438381486223
+   },
+   {
+    "vault": "Octavious Maximus",
+    "decision": "2026-06-20 00:00:00",
+    "executed_at": "2026-06-20 00:00:00",
+    "hold_days": 18,
+    "planned_mid_price": 3.2471395693289664,
+    "executed_price": 3.2046488498039643,
+    "decision_bar_open": 3.2471395693289664,
+    "decision_bar_close": 3.230137375391158,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 1589.051324347808
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-06-22 00:00:00",
+    "executed_at": "2026-06-22 00:00:00",
+    "hold_days": 2,
+    "planned_mid_price": 4.133695156100658,
+    "executed_price": 4.129561460944557,
+    "decision_bar_open": 4.133695156100658,
+    "decision_bar_close": 4.54413252527526,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -283.5306194462255
+   },
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-07-14 00:00:00",
+    "executed_at": "2026-07-14 00:00:00",
+    "hold_days": 46,
+    "planned_mid_price": 1.7135241064472284,
+    "executed_price": 1.7030658093006612,
+    "decision_bar_open": 1.7135241064472284,
+    "decision_bar_close": 1.7560970096682726,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 2862.784873439072
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-08-19 00:00:00",
+    "executed_at": "2026-08-19 00:00:00",
+    "hold_days": 56,
+    "planned_mid_price": 7.468961948177204,
+    "executed_price": 7.461492986229026,
+    "decision_bar_open": 7.468961948177204,
+    "decision_bar_close": 6.463424364514217,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 11249.660922061506
+   }
+  ],
+  "anchor_1d": [
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-02-20 00:00:00",
+    "executed_at": "2026-02-20 00:00:00",
+    "hold_days": 18,
+    "planned_mid_price": 1.7486287878313083,
+    "executed_price": 1.729183942150781,
+    "decision_bar_open": 1.7486287878313083,
+    "decision_bar_close": 1.7486287878313083,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 3170.4310389460334
+   },
+   {
+    "vault": "Goon Edging",
+    "decision": "2026-03-05 00:00:00",
+    "executed_at": "2026-03-05 00:00:00",
+    "hold_days": 12,
+    "planned_mid_price": 1.432965186270111,
+    "executed_price": 1.4315322210838408,
+    "decision_bar_open": 1.432965186270111,
+    "decision_bar_close": 1.432965186270111,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": -1112.9850210420664
+   },
+   {
+    "vault": "pmalt",
+    "decision": "2026-05-21 00:00:00",
+    "executed_at": "2026-05-21 00:00:00",
+    "hold_days": 137,
+    "planned_mid_price": 11.266893773949475,
+    "executed_price": 11.255626880175525,
+    "decision_bar_open": 11.266893773949475,
+    "decision_bar_close": 8.163842502690763,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 7455.160272376612
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-06-01 00:00:00",
+    "executed_at": "2026-06-01 00:00:00",
+    "hold_days": 85,
+    "planned_mid_price": 3.8713972090180406,
+    "executed_price": 3.8675258118090228,
+    "decision_bar_open": 3.8713972090180406,
+    "decision_bar_close": 4.120341792905065,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 1973.0399186408758
+   },
+   {
+    "vault": "Octavious Maximus",
+    "decision": "2026-06-20 00:00:00",
+    "executed_at": "2026-06-20 00:00:00",
+    "hold_days": 17,
+    "planned_mid_price": 3.2471395693289664,
+    "executed_price": 3.2095708689037683,
+    "decision_bar_open": 3.2471395693289664,
+    "decision_bar_close": 3.230137375391158,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 907.6128344912831
+   },
+   {
+    "vault": "Realist Capital",
+    "decision": "2026-08-20 00:00:00",
+    "executed_at": "2026-08-20 00:00:00",
+    "hold_days": 61,
+    "planned_mid_price": 6.463424364514217,
+    "executed_price": 6.456960940149703,
+    "decision_bar_open": 6.463424364514217,
+    "decision_bar_close": 6.591619540345378,
+    "market_feed_delay": "0:00:00",
+    "is_async_vault": 0,
+    "has_delayed_vault_redemption": 0,
+    "pnl_usd": 13978.891652111372
+   }
+  ]
+ },
+ "lockup": {
+  "anchor": {
+   "sells": 90,
+   "sells_under_1_day": 0,
+   "sells_under_4_days": 25,
+   "pnl_of_sells_under_4_days": -3001.24381102079,
+   "forced_exits": 5,
+   "forced_under_1_day": 0,
+   "forced_under_4_days": 0,
+   "forced_all_zero_delay": 1,
+   "forced_all_non_async": 1
+  },
+  "gate12_2d": {
+   "sells": 92,
+   "sells_under_1_day": 0,
+   "sells_under_4_days": 23,
+   "pnl_of_sells_under_4_days": -682.6233243379288,
+   "forced_exits": 10,
+   "forced_under_1_day": 0,
+   "forced_under_4_days": 1,
+   "forced_all_zero_delay": 1,
+   "forced_all_non_async": 1
+  },
+  "gate10_2d": {
+   "sells": 94,
+   "sells_under_1_day": 0,
+   "sells_under_4_days": 25,
+   "pnl_of_sells_under_4_days": -1654.183942482326,
+   "forced_exits": 11,
+   "forced_under_1_day": 0,
+   "forced_under_4_days": 2,
+   "forced_all_zero_delay": 1,
+   "forced_all_non_async": 1
+  },
+  "anchor_1d": {
+   "sells": 111,
+   "sells_under_1_day": 0,
+   "sells_under_4_days": 49,
+   "pnl_of_sells_under_4_days": -11665.792020408542,
+   "forced_exits": 6,
+   "forced_under_1_day": 0,
+   "forced_under_4_days": 0,
+   "forced_all_zero_delay": 1,
+   "forced_all_non_async": 1
+  }
+ },
+ "fires": {
+  "gate (-16%, -12%]": [
+   {
+    "decision": "2026-01-03",
+    "vault": "Citadel",
+    "opened": "2026-01-01",
+    "weight_before": 0.32339352565514207,
+    "return_14d": -0.13609007138812412,
+    "fwd_5d": 0.07733823410526267,
+    "fwd_30d": 0.24602231857985882
+   },
+   {
+    "decision": "2026-01-05",
+    "vault": "Citadel",
+    "opened": "2026-01-01",
+    "weight_before": 0.32339352565514207,
+    "return_14d": -0.13609007138812412,
+    "fwd_5d": 0.07733823410526267,
+    "fwd_30d": 0.24602231857985882
+   },
+   {
+    "decision": "2026-01-27",
+    "vault": "Mahamor",
+    "opened": "2026-01-01",
+    "weight_before": 0.051566863296312014,
+    "return_14d": -0.12493369083515549,
+    "fwd_5d": 0.042635326768338457,
+    "fwd_30d": -0.29822763315668377
+   },
+   {
+    "decision": "2026-02-04",
+    "vault": "-VectorZero-",
+    "opened": "2026-02-02",
+    "weight_before": 0.11669696616391323,
+    "return_14d": -0.13150923062287678,
+    "fwd_5d": -0.018459687220623446,
+    "fwd_30d": -0.02817341929855568
+   },
+   {
+    "decision": "2026-02-08",
+    "vault": "-VectorZero-",
+    "opened": "2026-02-06",
+    "weight_before": 0.12679793698501501,
+    "return_14d": -0.137057932728482,
+    "fwd_5d": -0.015003686694926877,
+    "fwd_30d": -0.012140873385854485
+   },
+   {
+    "decision": "2026-02-26",
+    "vault": "Goon Edging",
+    "opened": "2026-02-22",
+    "weight_before": 0.041235442437210966,
+    "return_14d": -0.1274403450232937,
+    "fwd_5d": -0.08537652787817196,
+    "fwd_30d": -0.19036480653307225
+   },
+   {
+    "decision": "2026-02-28",
+    "vault": "Goon Edging",
+    "opened": "2026-02-22",
+    "weight_before": 0.015861345023905255,
+    "return_14d": -0.1274403450232937,
+    "fwd_5d": -0.12068308620643066,
+    "fwd_30d": -0.18557562179964443
+   },
+   {
+    "decision": "2026-03-02",
+    "vault": "Goon Edging",
+    "opened": "2026-02-22",
+    "weight_before": 0.01585088332186839,
+    "return_14d": -0.13920475955861755,
+    "fwd_5d": -0.036129229893136286,
+    "fwd_30d": -0.10019909392147253
+   },
+   {
+    "decision": "2026-03-04",
+    "vault": "Goon Edging",
+    "opened": "2026-02-22",
+    "weight_before": 0.06128614156501824,
+    "return_14d": -0.14767621743308001,
+    "fwd_5d": -0.010711698883662408,
+    "fwd_30d": -0.06397224195035701
+   },
+   {
+    "decision": "2026-04-11",
+    "vault": "Gucky_1coin_1dot5x",
+    "opened": "2026-01-25",
+    "weight_before": 0.22263263546973008,
+    "return_14d": -0.12644035410072918,
+    "fwd_5d": 0.013763815703701358,
+    "fwd_30d": 0.039366830511359814
+   },
+   {
+    "decision": "2026-06-02",
+    "vault": "Realist Capital",
+    "opened": "2026-03-08",
+    "weight_before": 0.018894441107628633,
+    "return_14d": -0.1205700521854679,
+    "fwd_5d": 0.19450853154283623,
+    "fwd_30d": 0.41133663054521874
+   },
+   {
+    "decision": "2026-06-22",
+    "vault": "Realist Capital",
+    "opened": "2026-06-20",
+    "weight_before": 0.027997340250027068,
+    "return_14d": -0.13857608235909014,
+    "fwd_5d": 0.35011225177334304,
+    "fwd_30d": 0.5679209612595675
+   },
+   {
+    "decision": "2026-07-14",
+    "vault": "Goon Edging",
+    "opened": "2026-05-29",
+    "weight_before": 0.1878032927296328,
+    "return_14d": -0.1392837369373382,
+    "fwd_5d": 0.040423371965168174,
+    "fwd_30d": -0.02307406346607627
+   },
+   {
+    "decision": "2026-08-19",
+    "vault": "Realist Capital",
+    "opened": "2026-06-20",
+    "weight_before": 0.06778453615315701,
+    "return_14d": -0.14501143947477757,
+    "fwd_5d": -0.3737766290563734,
+    "fwd_30d": -0.9350206270113908
+   }
+  ],
+  "gate (-16%, -10%]": [
+   {
+    "decision": "2026-01-03",
+    "vault": "Citadel",
+    "opened": "2026-01-01",
+    "weight_before": 0.32339352565514207,
+    "return_14d": -0.13609007138812412,
+    "fwd_5d": 0.07733823410526267,
+    "fwd_30d": 0.24602231857985882
+   },
+   {
+    "decision": "2026-01-05",
+    "vault": "Citadel",
+    "opened": "2026-01-01",
+    "weight_before": 0.32339352565514207,
+    "return_14d": -0.13609007138812412,
+    "fwd_5d": 0.07733823410526267,
+    "fwd_30d": 0.24602231857985882
+   },
+   {
+    "decision": "2026-01-27",
+    "vault": "Mahamor",
+    "opened": "2026-01-01",
+    "weight_before": 0.051566863296312014,
+    "return_14d": -0.12493369083515549,
+    "fwd_5d": 0.042635326768338457,
+    "fwd_30d": -0.29822763315668377
+   },
+   {
+    "decision": "2026-02-04",
+    "vault": "-VectorZero-",
+    "opened": "2026-02-02",
+    "weight_before": 0.11669696616391323,
+    "return_14d": -0.13150923062287678,
+    "fwd_5d": -0.018459687220623446,
+    "fwd_30d": -0.02817341929855568
+   },
+   {
+    "decision": "2026-02-08",
+    "vault": "-VectorZero-",
+    "opened": "2026-02-06",
+    "weight_before": 0.12679793698501501,
+    "return_14d": -0.137057932728482,
+    "fwd_5d": -0.015003686694926877,
+    "fwd_30d": -0.012140873385854485
+   },
+   {
+    "decision": "2026-02-26",
+    "vault": "Goon Edging",
+    "opened": "2026-02-22",
+    "weight_before": 0.041235442437210966,
+    "return_14d": -0.1274403450232937,
+    "fwd_5d": -0.08537652787817196,
+    "fwd_30d": -0.19036480653307225
+   },
+   {
+    "decision": "2026-02-28",
+    "vault": "Goon Edging",
+    "opened": "2026-02-22",
+    "weight_before": 0.015861345023905255,
+    "return_14d": -0.1274403450232937,
+    "fwd_5d": -0.12068308620643066,
+    "fwd_30d": -0.18557562179964443
+   },
+   {
+    "decision": "2026-03-02",
+    "vault": "Goon Edging",
+    "opened": "2026-02-22",
+    "weight_before": 0.01585088332186839,
+    "return_14d": -0.13920475955861755,
+    "fwd_5d": -0.036129229893136286,
+    "fwd_30d": -0.10019909392147253
+   },
+   {
+    "decision": "2026-03-04",
+    "vault": "Goon Edging",
+    "opened": "2026-02-22",
+    "weight_before": 0.06128614156501824,
+    "return_14d": -0.14767621743308001,
+    "fwd_5d": -0.010711698883662408,
+    "fwd_30d": -0.06397224195035701
+   },
+   {
+    "decision": "2026-04-11",
+    "vault": "Gucky_1coin_1dot5x",
+    "opened": "2026-01-25",
+    "weight_before": 0.22263263546973008,
+    "return_14d": -0.12644035410072918,
+    "fwd_5d": 0.013763815703701358,
+    "fwd_30d": 0.039366830511359814
+   },
+   {
+    "decision": "2026-04-23",
+    "vault": "Octavious Maximus",
+    "opened": "2026-04-21",
+    "weight_before": 0.025641845059607142,
+    "return_14d": -0.11940610426684428,
+    "fwd_5d": -0.044980485324787906,
+    "fwd_30d": 0.2018149786593169
+   },
+   {
+    "decision": "2026-05-31",
+    "vault": "Realist Capital",
+    "opened": "2026-03-08",
+    "weight_before": 0.07471510135147946,
+    "return_14d": -0.11469864801431306,
+    "fwd_5d": 0.14272022685679306,
+    "fwd_30d": 0.33384808734341
+   },
+   {
+    "decision": "2026-06-02",
+    "vault": "Realist Capital",
+    "opened": "2026-03-08",
+    "weight_before": 0.018894441107628633,
+    "return_14d": -0.1205700521854679,
+    "fwd_5d": 0.19450853154283623,
+    "fwd_30d": 0.41133663054521874
+   },
+   {
+    "decision": "2026-06-04",
+    "vault": "DOEZOE",
+    "opened": "2026-06-02",
+    "weight_before": 0.00907204878297757,
+    "return_14d": -0.11297725826859673,
+    "fwd_5d": 0.0,
+    "fwd_30d": -0.0022377965436948277
+   },
+   {
+    "decision": "2026-06-06",
+    "vault": "DOEZOE",
+    "opened": "2026-06-02",
+    "weight_before": 0.02978780878935661,
+    "return_14d": -0.11297725826859673,
+    "fwd_5d": 0.0,
+    "fwd_30d": -0.07774727922305923
+   },
+   {
+    "decision": "2026-06-08",
+    "vault": "DOEZOE",
+    "opened": "2026-06-02",
+    "weight_before": 0.023171349442657467,
+    "return_14d": -0.11297725826859673,
+    "fwd_5d": 0.0,
+    "fwd_30d": -0.07774727922305923
+   },
+   {
+    "decision": "2026-06-22",
+    "vault": "Realist Capital",
+    "opened": "2026-06-20",
+    "weight_before": 0.027997340250027068,
+    "return_14d": -0.13857608235909014,
+    "fwd_5d": 0.35011225177334304,
+    "fwd_30d": 0.5679209612595675
+   },
+   {
+    "decision": "2026-06-24",
+    "vault": "Octavious Maximus",
+    "opened": "2026-06-22",
+    "weight_before": 0.04373826397157584,
+    "return_14d": -0.10056914860935917,
+    "fwd_5d": 0.022445733865170306,
+    "fwd_30d": -0.06395182665930663
+   },
+   {
+    "decision": "2026-07-14",
+    "vault": "Goon Edging",
+    "opened": "2026-05-29",
+    "weight_before": 0.1878032927296328,
+    "return_14d": -0.1392837369373382,
+    "fwd_5d": 0.040423371965168174,
+    "fwd_30d": -0.02307406346607627
+   },
+   {
+    "decision": "2026-08-19",
+    "vault": "Realist Capital",
+    "opened": "2026-06-20",
+    "weight_before": 0.06778453615315701,
+    "return_14d": -0.14501143947477757,
+    "fwd_5d": -0.3737766290563734,
+    "fwd_30d": -0.9350206270113908
+   }
+  ],
+  "breaker -20%": [
+   {
+    "decision": "2026-05-21",
+    "vault": "pmalt",
+    "last_daily_log_return": -0.23907911320253436,
+    "fwd_5d": -0.32101936857914976
+   },
+   {
+    "decision": "2026-09-08",
+    "vault": "DOEZOE",
+    "last_daily_log_return": -0.2302045457565187,
+    "fwd_5d": 0.023259154408842908
+   }
+  ]
+ },
+ "first_strike_summary": [
+  {
+   "class": "first_extreme",
+   "horizon": "fwd_1d",
+   "rows": 121,
+   "mean": -0.03539841367743564,
+   "ci_lo": -0.1000085480718773,
+   "ci_hi": 0.028967526095070622,
+   "median": 0.0
+  },
+  {
+   "class": "first_extreme",
+   "horizon": "fwd_2d",
+   "rows": 121,
+   "mean": -0.03497648651010252,
+   "ci_lo": -0.1336104622617642,
+   "ci_hi": 0.053660704269248544,
+   "median": 0.0
+  },
+  {
+   "class": "first_single",
+   "horizon": "fwd_1d",
+   "rows": 173,
+   "mean": -0.008005623434198082,
+   "ci_lo": -0.03626694473029387,
+   "ci_hi": 0.018409258578571203,
+   "median": 0.0
+  },
+  {
+   "class": "first_single",
+   "horizon": "fwd_2d",
+   "rows": 173,
+   "mean": -0.006058396768265218,
+   "ci_lo": -0.04738097855255049,
+   "ci_hi": 0.03382422256103812,
+   "median": 0.0
+  }
+ ],
+ "every_day_summary": [
+  {
+   "class": "first_extreme",
+   "horizon": "fwd_1d",
+   "rows": 684,
+   "mean": -0.07467718249424009,
+   "ci_lo": -0.12669375681626452,
+   "ci_hi": -0.01473446794903459,
+   "median": 0.0
+  },
+  {
+   "class": "first_extreme",
+   "horizon": "fwd_2d",
+   "rows": 684,
+   "mean": -0.11694918769826196,
+   "ci_lo": -0.19217271300752847,
+   "ci_hi": -0.030628844384787815,
+   "median": 0.0
+  },
+  {
+   "class": "first_single",
+   "horizon": "fwd_1d",
+   "rows": 763,
+   "mean": -0.003787426236872706,
+   "ci_lo": -0.017289436873504968,
+   "ci_hi": 0.01150740133878321,
+   "median": 0.0
+  },
+  {
+   "class": "first_single",
+   "horizon": "fwd_2d",
+   "rows": 763,
+   "mean": -0.006024919414252862,
+   "ci_lo": -0.03318099739994538,
+   "ci_hi": 0.021179730335124273,
+   "median": 0.0
+  },
+  {
+   "class": "neither",
+   "horizon": "fwd_1d",
+   "rows": 64931,
+   "mean": -0.0018806664202657682,
+   "ci_lo": -0.0028872204761893113,
+   "ci_hi": -0.0008766312304487046,
+   "median": 0.0
+  },
+  {
+   "class": "neither",
+   "horizon": "fwd_2d",
+   "rows": 64931,
+   "mean": -0.004110230994321306,
+   "ci_lo": -0.006274578902519893,
+   "ci_hi": -0.0019025850861964942,
+   "median": 0.0
+  }
+ ],
+ "first_strike_collapse_rows": {
+  "august": [
+   {
+    "date": "2026-01-08 00:00:00",
+    "address": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+    "vault": "Realist Capital",
+    "class": "first_extreme",
+    "last_return": -0.2047233771713236,
+    "fwd_1d": 0.0,
+    "fwd_2d": 0.0
+   },
+   {
+    "date": "2026-05-30 00:00:00",
+    "address": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+    "vault": "Realist Capital",
+    "class": "first_single",
+    "last_return": -0.11563394606461053,
+    "fwd_1d": 0.0639549100769689,
+    "fwd_2d": -0.063989678003387
+   }
+  ],
+  "may": [
+   {
+    "date": "2026-05-21 00:00:00",
+    "address": "0x4dec0a851849056e259128464ef28ce78afa27f6",
+    "vault": "pmalt",
+    "class": "first_extreme",
+    "last_return": -0.23907911320253428,
+    "fwd_1d": -0.3221537179914601,
+    "fwd_2d": -0.3439895759427324
+   }
+  ]
+ },
+ "percentiles": {
+  "-0.1": 0.025445177619090664,
+  "-0.12": 0.020338063816324685,
+  "-0.16": 0.013829883395100787,
+  "-0.2": 0.010304619000271175
+ },
+ "fills": {
+  "august": {
+   "label": "anchor",
+   "vault": "Realist Capital",
+   "address": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "position": 66,
+   "decision": "2026-08-21 00:00:00",
+   "executed_at": "2026-08-21 00:00:00",
+   "planned_mid_price": 6.591619540345378,
+   "planned_price": 6.585027920805032,
+   "executed_price": 6.585027920805032,
+   "stored_fee": 0.001,
+   "market_feed_delay": "0:00:00",
+   "decision_bar_open": 6.591619540345378,
+   "decision_bar_close": 4.902764792291725,
+   "decision_bar_present": 1,
+   "hold_days": 62,
+   "vault_features": [
+    "ERC4626Feature.hypercore_native"
+   ],
+   "is_async_vault": 0,
+   "has_delayed_vault_redemption": 0,
+   "settlement_override": 0
+  },
+  "may": {
+   "label": "anchor",
+   "vault": "pmalt",
+   "address": "0x4dec0a851849056e259128464ef28ce78afa27f6",
+   "position": 8,
+   "decision": "2026-05-21 00:00:00",
+   "executed_at": "2026-05-21 00:00:00",
+   "planned_mid_price": 11.266893773949475,
+   "planned_price": 11.255626880175525,
+   "executed_price": 11.255626880175525,
+   "stored_fee": 0.001,
+   "market_feed_delay": "0:00:00",
+   "decision_bar_open": 11.266893773949475,
+   "decision_bar_close": 8.163842502690763,
+   "decision_bar_present": 1,
+   "hold_days": 136,
+   "vault_features": [
+    "ERC4626Feature.hypercore_native"
+   ],
+   "is_async_vault": 0,
+   "has_delayed_vault_redemption": 0,
+   "settlement_override": 0
+  }
+ },
+ "labels": {
+  "august": {
+   "collapse_bar_open": 6.591619540345378,
+   "collapse_bar_close": 4.902764792291725,
+   "valuation_price": 6.591619540345378,
+   "price_kind": "planned_mid_price at the decision",
+   "bar_date": "2026-08-21 00:00:00",
+   "bar_open": 6.591619540345378,
+   "bar_close": 4.902764792291725,
+   "label": "PARTIAL CATCH"
+  },
+  "may": {
+   "collapse_bar_open": 11.266893773949475,
+   "collapse_bar_close": 8.163842502690763,
+   "valuation_price": 11.266893773949475,
+   "price_kind": "planned_mid_price at the decision",
+   "bar_date": "2026-05-21 00:00:00",
+   "bar_open": 11.266893773949475,
+   "bar_close": 8.163842502690763,
+   "label": "PARTIAL CATCH"
+  }
+ },
+ "legs": {
+  "august": {
+   "previous_close": 6.591619540345378,
+   "open": 6.591619540345378,
+   "close": 4.902764792291725,
+   "close_to_open": 0.0,
+   "open_to_close": -0.29599978626533513,
+   "crash_leg": "open_to_close",
+   "warning_bar_open": 7.468961948177204
+  },
+  "may": {
+   "previous_close": 11.266893773949475,
+   "open": 11.266893773949475,
+   "close": 8.163842502690763,
+   "close_to_open": 0.0,
+   "open_to_close": -0.3221537179914601,
+   "crash_leg": "open_to_close",
+   "warning_bar_open": 14.309845319796159
+  }
+ },
+ "churn_example": {
+  "label": "anchor",
+  "vault": "LowRiskCryptoGainer",
+  "address": "0xd57c9295947b5a616a3933344ef03a1ad67318ea",
+  "position": 9,
+  "decision": "2026-01-11 00:00:00",
+  "executed_at": "2026-01-11 00:00:00",
+  "planned_mid_price": 1.4968239415724054,
+  "planned_price": 1.495327117630833,
+  "executed_price": 1.495327117630833,
+  "stored_fee": 0.001,
+  "market_feed_delay": "0:00:00",
+  "decision_bar_open": 1.4968239415724054,
+  "decision_bar_close": 1.4968239415724054,
+  "decision_bar_present": 1,
+  "hold_days": 2,
+  "vault_features": [
+   "ERC4626Feature.hypercore_native"
+  ],
+  "is_async_vault": 0,
+  "has_delayed_vault_redemption": 0,
+  "settlement_override": 0
+ },
+ "H0a": {
+  "august": "PARTIAL CATCH",
+  "may": "PARTIAL CATCH"
+ },
+ "H0b": {
+  "august": "open_to_close",
+  "may": "open_to_close"
+ },
+ "later_runs_diagnostic": false,
+ "august_sell": {
+  "gate12_2d": {
+   "sold": 1,
+   "not_async": 1,
+   "zero_feed_delay": 1,
+   "executed_at_decision": 1,
+   "valued_at_decision_open": 1,
+   "held_entering_decision": 1,
+   "removed_by_own_gate": 1,
+   "gate_value_T-1": -0.14501143947477757,
+   "decision": "2026-08-19 00:00:00",
+   "planned_mid_price": 7.468961948177204,
+   "decision_bar_open": 7.468961948177204,
+   "hold_days": 56,
+   "all": 1
+  },
+  "gate10_2d": {
+   "sold": 1,
+   "not_async": 1,
+   "zero_feed_delay": 1,
+   "executed_at_decision": 1,
+   "valued_at_decision_open": 1,
+   "held_entering_decision": 1,
+   "removed_by_own_gate": 1,
+   "gate_value_T-1": -0.14501143947477757,
+   "decision": "2026-08-19 00:00:00",
+   "planned_mid_price": 7.468961948177204,
+   "decision_bar_open": 7.468961948177204,
+   "hold_days": 56,
+   "all": 1
+  }
+ },
+ "august_caught": true,
+ "window_cycles": [
+  {
+   "label": "anchor",
+   "cycle_end": "2026-08-19",
+   "cycle_start": "2026-08-17",
+   "cycle_return": 0.014237439269132457,
+   "pnl_usd": 2594.356852220779
+  },
+  {
+   "label": "anchor",
+   "cycle_end": "2026-08-21",
+   "cycle_start": "2026-08-19",
+   "cycle_return": 0.009236262798314465,
+   "pnl_usd": 1707.0008898357046
+  },
+  {
+   "label": "anchor",
+   "cycle_end": "2026-08-23",
+   "cycle_start": "2026-08-21",
+   "cycle_return": 0.024200657607501563,
+   "pnl_usd": 4513.957649581018
+  },
+  {
+   "label": "anchor",
+   "cycle_end": "2026-05-19",
+   "cycle_start": "2026-05-17",
+   "cycle_return": -0.007139709033370911,
+   "pnl_usd": -1172.4285684105125
+  },
+  {
+   "label": "anchor",
+   "cycle_end": "2026-05-21",
+   "cycle_start": "2026-05-19",
+   "cycle_return": -0.008951428948189566,
+   "pnl_usd": -1459.4404852057341
+  },
+  {
+   "label": "anchor",
+   "cycle_end": "2026-05-23",
+   "cycle_start": "2026-05-21",
+   "cycle_return": -0.0003146863370472319,
+   "pnl_usd": -50.84717716803425
+  },
+  {
+   "label": "gate12_2d",
+   "cycle_end": "2026-08-19",
+   "cycle_start": "2026-08-17",
+   "cycle_return": 0.014800156430024636,
+   "pnl_usd": 2587.187642867386
+  },
+  {
+   "label": "gate12_2d",
+   "cycle_end": "2026-08-21",
+   "cycle_start": "2026-08-19",
+   "cycle_return": 0.037668634268207546,
+   "pnl_usd": 6682.23927405916
+  },
+  {
+   "label": "gate12_2d",
+   "cycle_end": "2026-08-23",
+   "cycle_start": "2026-08-21",
+   "cycle_return": 0.02523350312626782,
+   "pnl_usd": 4644.921562974894
+  },
+  {
+   "label": "gate12_2d",
+   "cycle_end": "2026-05-19",
+   "cycle_start": "2026-05-17",
+   "cycle_return": -0.007141117383956397,
+   "pnl_usd": -1165.4477054792806
+  },
+  {
+   "label": "gate12_2d",
+   "cycle_end": "2026-05-21",
+   "cycle_start": "2026-05-19",
+   "cycle_return": -0.008930282965889047,
+   "pnl_usd": -1447.0360972043127
+  },
+  {
+   "label": "gate12_2d",
+   "cycle_end": "2026-05-23",
+   "cycle_start": "2026-05-21",
+   "cycle_return": -0.00030549720421679805,
+   "pnl_usd": -49.059779396193335
+  },
+  {
+   "label": "gate10_2d",
+   "cycle_end": "2026-08-19",
+   "cycle_start": "2026-08-17",
+   "cycle_return": 0.015434464971418205,
+   "pnl_usd": 2640.9585886884597
+  },
+  {
+   "label": "gate10_2d",
+   "cycle_end": "2026-08-21",
+   "cycle_start": "2026-08-19",
+   "cycle_return": 0.03767481679615825,
+   "pnl_usd": 6545.9556831096415
+  },
+  {
+   "label": "gate10_2d",
+   "cycle_end": "2026-08-23",
+   "cycle_start": "2026-08-21",
+   "cycle_return": 0.02555575084830286,
+   "pnl_usd": 4607.5688557215035
+  },
+  {
+   "label": "gate10_2d",
+   "cycle_end": "2026-05-19",
+   "cycle_start": "2026-05-17",
+   "cycle_return": -0.007140403608065005,
+   "pnl_usd": -1164.133863680734
+  },
+  {
+   "label": "gate10_2d",
+   "cycle_end": "2026-05-21",
+   "cycle_start": "2026-05-19",
+   "cycle_return": -0.008936683326598915,
+   "pnl_usd": -1446.5863693839929
+  },
+  {
+   "label": "gate10_2d",
+   "cycle_end": "2026-05-23",
+   "cycle_start": "2026-05-21",
+   "cycle_return": -0.0003038433948282515,
+   "pnl_usd": -48.74377954157535
+  }
+ ],
+ "worst5": {
+  "anchor": {
+   "worst5_with": -0.10977041360462159,
+   "worst5_without_collapse_cycles": -0.10977041360462159
+  },
+  "gate12_2d": {
+   "worst5_with": -0.11163341980582575,
+   "worst5_without_collapse_cycles": -0.11163341980582575
+  },
+  "gate10_2d": {
+   "worst5_with": -0.11085183679098198,
+   "worst5_without_collapse_cycles": -0.11085183679098198
+  }
+ },
+ "summary": {
+  "anchor": {
+   "family": "anchor",
+   "cagr": 0.3789708123,
+   "cycle_sharpe": 2.1597920747,
+   "cycle_vol": 0.1542780799,
+   "ulcer": 0.0179641051,
+   "max_dd": -0.0445042024,
+   "mean_invested": 0.9719692059,
+   "luck_ratio": 0.145941744,
+   "top5_gross_share": 0.608270853,
+   "sparse_cagr": 0.4335340969,
+   "dense_cagr": 0.563408747,
+   "late_cagr": 0.272027399,
+   "final_equity": 186745.9142515072,
+   "mean_holdings": 6.0,
+   "mean_largest_weight": 0.3315737199,
+   "distinct_vaults": 33,
+   "top_vault_pnl_share": 0.4191653862,
+   "turnover_per_decision": 0.12,
+   "trades": 578,
+   "share_of_decisions_changed": 0.0
+  },
+  "gate12_2d": {
+   "family": "gate",
+   "cagr": 0.3550856693,
+   "cycle_sharpe": 1.9930414816,
+   "cycle_vol": 0.1587522169,
+   "ulcer": 0.0194152986,
+   "max_dd": -0.0505160436,
+   "mean_invested": 0.9715371287,
+   "luck_ratio": 0.0527375428,
+   "top5_gross_share": 0.5637139391,
+   "sparse_cagr": 0.4017618013,
+   "dense_cagr": 0.3827028498,
+   "late_cagr": 0.4528022617,
+   "final_equity": 184524.837721316,
+   "mean_holdings": 6.0,
+   "mean_largest_weight": 0.3314178571,
+   "distinct_vaults": 33,
+   "top_vault_pnl_share": 0.389176206,
+   "turnover_per_decision": 0.1226666667,
+   "trades": 576,
+   "share_of_decisions_changed": 0.1031746032
+  },
+  "gate10_2d": {
+   "family": "gate",
+   "cagr": 0.315151972,
+   "cycle_sharpe": 2.0023566776,
+   "cycle_vol": 0.1418622699,
+   "ulcer": 0.0188767666,
+   "max_dd": -0.0480519105,
+   "mean_invested": 0.9724702203,
+   "luck_ratio": 0.0986753451,
+   "top5_gross_share": 0.5129534265,
+   "sparse_cagr": 0.3951493636,
+   "dense_cagr": 0.2711047028,
+   "late_cagr": 0.4684466893,
+   "final_equity": 180782.7613363722,
+   "mean_holdings": 5.9920634921,
+   "mean_largest_weight": 0.3309764792,
+   "distinct_vaults": 33,
+   "top_vault_pnl_share": 0.2964739594,
+   "turnover_per_decision": 0.1258181818,
+   "trades": 587,
+   "share_of_decisions_changed": 0.1507936508
+  },
+  "anchor_1d": {
+   "family": "cadence",
+   "cagr": 0.2513506119,
+   "cycle_sharpe": 1.4609280061,
+   "cycle_vol": 0.1625196127,
+   "ulcer": 0.0210753557,
+   "max_dd": -0.054077474,
+   "mean_invested": 0.9723121657,
+   "luck_ratio": 0.0799474432,
+   "top5_gross_share": 0.5640020477,
+   "sparse_cagr": 0.3881019515,
+   "dense_cagr": 0.4968458403,
+   "late_cagr": -0.0137519841,
+   "final_equity": 174728.3573493858,
+   "mean_holdings": 6.0,
+   "mean_largest_weight": 0.3309200942,
+   "distinct_vaults": 34,
+   "top_vault_pnl_share": 0.3500391281,
+   "turnover_per_decision": 0.074,
+   "trades": 849,
+   "share_of_decisions_changed": 0.0
+  }
+ },
+ "gates_2d": {
+  "gate12_2d": {
+   "gate_1_positive": 1,
+   "gate_7_subperiod": 1,
+   "gate_3_held_vol": 1,
+   "held_vol_post": 0.0181765378,
+   "anchor_held_vol_post": 0.018411228,
+   "gate_3_dates": 81,
+   "gate_6_plateau": 1,
+   "plateau_neighbours": "anchor, gate10_2d",
+   "diag_4_luck_within_tolerance": 0,
+   "diag_8_distinct_within_tolerance": 1,
+   "mean_holdings": 6.0,
+   "gate_2_mask": 1,
+   "mask_retention": 0.8501939041,
+   "masked": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "failed_standing_gates": "",
+   "standing_gates_scored": "gate_1_positive, gate_7_subperiod, gate_3_held_vol, gate_6_plateau, gate_2_mask",
+   "standing_gates_not_run": "",
+   "sharpe_gap_to_anchor": -0.1667505931,
+   "verdict": "NOT CONFIRMED (inside indifference band)"
+  },
+  "gate10_2d": {
+   "gate_1_positive": 1,
+   "gate_7_subperiod": 1,
+   "gate_3_held_vol": 1,
+   "held_vol_post": 0.0176165037,
+   "anchor_held_vol_post": 0.018411228,
+   "gate_3_dates": 81,
+   "gate_6_plateau": null,
+   "plateau_neighbours": "gate12_2d (endpoint: one neighbour, gate 6 not scored)",
+   "diag_4_luck_within_tolerance": 0,
+   "diag_8_distinct_within_tolerance": 1,
+   "mean_holdings": 5.9920634921,
+   "gate_2_mask": 1,
+   "mask_retention": 0.9272146087,
+   "masked": "0x77fee2df7bad4f1db93052fa82bf78eaab771a16",
+   "failed_standing_gates": "",
+   "standing_gates_scored": "gate_1_positive, gate_7_subperiod, gate_3_held_vol, gate_2_mask",
+   "standing_gates_not_run": "gate_6_plateau",
+   "sharpe_gap_to_anchor": -0.157435397,
+   "verdict": "UNEVALUATED (gate_6_plateau not run)"
+  }
+ },
+ "lovo_2d": [
+  "gate12_2d",
+  "gate10_2d"
+ ],
+ "churn_2d": {
+  "anchor": {
+   "churn_positions": 85.0,
+   "churn_pnl_usd": -853.5312525004501,
+   "churn_median_days": 4.0,
+   "pool_removal_positions": 5.0,
+   "pool_removal_pnl_usd": 25132.296354727998,
+   "open_positions": 6.0,
+   "open_pnl_usd": 12467.149149279641,
+   "unclassified": 0.0
+  },
+  "gate12_2d": {
+   "churn_positions": 82.0,
+   "churn_pnl_usd": -5558.197503910316,
+   "churn_median_days": 4.0,
+   "pool_removal_positions": 10.0,
+   "pool_removal_pnl_usd": 29051.556875593986,
+   "open_positions": 6.0,
+   "open_pnl_usd": 11031.478349632387,
+   "unclassified": 0.0
+  },
+  "gate10_2d": {
+   "churn_positions": 83.0,
+   "churn_pnl_usd": -6157.1845746010895,
+   "churn_median_days": 4.0,
+   "pool_removal_positions": 11.0,
+   "pool_removal_pnl_usd": 26081.546872687333,
+   "open_positions": 6.0,
+   "open_pnl_usd": 10858.399038285897,
+   "unclassified": 0.0
+  }
+ },
+ "churn_recon_2d": {
+  "anchor": {
+   "churn_positions": 85,
+   "churn_pnl_usd": -853.5312525004506,
+   "churn_median_days": 4.0,
+   "positions": 96
+  },
+  "gate12_2d": {
+   "churn_positions": 83,
+   "churn_pnl_usd": -5148.170351143355,
+   "churn_median_days": 4.0,
+   "positions": 98
+  },
+  "gate10_2d": {
+   "churn_positions": 85,
+   "churn_pnl_usd": -5887.53473582661,
+   "churn_median_days": 4.0,
+   "positions": 100
+  }
+ },
+ "churn_1d_exact": {
+  "label": "anchor_1d",
+  "churn": {
+   "positions": 105,
+   "pnl_usd": -13325.755708517037,
+   "median_days": 4.0
+  },
+  "pool_removal": {
+   "positions": 6,
+   "pnl_usd": 26372.15069552411,
+   "median_days": 39.5
+  },
+  "open": {
+   "positions": 6,
+   "pnl_usd": 11681.962362378636,
+   "median_days": 19.0
+  },
+  "unclassified": {
+   "positions": 0,
+   "pnl_usd": 0.0,
+   "median_days": NaN
+  }
+ },
+ "churn_1d_recon": {
+  "label": "anchor_1d",
+  "churn_positions": 105,
+  "churn_pnl_usd": -13325.755708517037,
+  "churn_median_days": 4.0,
+  "positions": 117
+ },
+ "fees_2d": [
+  {
+   "fee_net_signed_usd": -468.1191327927472,
+   "anchor_fee_net_signed_usd": -532.1580390112719,
+   "fee_differential_usd": 64.03890621852463,
+   "final_equity": 184524.83772131606,
+   "anchor_final_equity": 186745.9142515072,
+   "equity_gap_usd": -2221.076530191145,
+   "fee_differential_share_of_gap": 0.028832372657151738,
+   "fee_redemptions": 244,
+   "fee_over_1bp": 118,
+   "fee_differential_ok": 1
+  },
+  {
+   "fee_net_signed_usd": -432.3009728694158,
+   "anchor_fee_net_signed_usd": -532.1580390112719,
+   "fee_differential_usd": 99.85706614185608,
+   "final_equity": 180782.76133637218,
+   "anchor_final_equity": 186745.9142515072,
+   "equity_gap_usd": -5963.152915135026,
+   "fee_differential_share_of_gap": 0.01674568262175698,
+   "fee_redemptions": 245,
+   "fee_over_1bp": 118,
+   "fee_differential_ok": 1
+  }
+ ],
+ "fees_1d": {
+  "fee_net_signed_usd": -621.2144528567954,
+  "anchor_fee_net_signed_usd": -532.1580390112719,
+  "fee_differential_usd": -89.0564138455236,
+  "final_equity": 174728.35734938574,
+  "anchor_final_equity": 186745.9142515072,
+  "equity_gap_usd": -12017.556902121461,
+  "fee_differential_share_of_gap": 0.007410525664313888,
+  "fee_redemptions": 328,
+  "fee_over_1bp": 165,
+  "fee_differential_ok": 1
+ },
+ "grid": {
+  "anchor": {
+   "cycle_sharpe_on_2d_grid": 2.1597920746960435,
+   "cycle_vol_on_2d_grid": 0.1542780798652122,
+   "periods_per_year": 182.5,
+   "cycles": 125
+  },
+  "anchor_1d": {
+   "cycle_sharpe_on_2d_grid": 1.5329895648322225,
+   "cycle_vol_on_2d_grid": 0.15392985895310704,
+   "periods_per_year": 182.5,
+   "cycles": 125
+  }
+ },
+ "H1": {
+  "sharpe_on_2d_grid_gap": -0.626802509863821,
+  "max_dd_gap_pp": -0.9573271587483667,
+  "churn_pnl_1d": -13325.755708517037,
+  "churn_pnl_anchor": -853.5312525004501,
+  "churn_positions_1d": 105,
+  "churn_positions_anchor": 85,
+  "pool_removal_pnl_1d": 26372.15069552411,
+  "pool_removal_pnl_anchor": 25132.296354727998,
+  "passes": 0
+ },
+ "anchor_1d_cheap_gates": {
+  "gate_1_positive": 1,
+  "gate_7_subperiod": 0,
+  "gate_3_held_vol": 1,
+  "held_vol_post": 0.018339877350161186,
+  "anchor_held_vol_post": 0.018411227984149507
+ },
+ "run_1d_gates": false,
+ "run_cluster": false,
+ "gates_1d": null,
+ "cluster": null,
+ "window_a": {
+  "anchor": {
+   "cumulative_return": 0.2685433936,
+   "cagr": 0.5869607849,
+   "cycle_sharpe": 2.8999326324,
+   "cycle_vol": 0.1639422993,
+   "ulcer": 0.0138862889,
+   "max_dd": -0.0390515153,
+   "mean_invested": 0.9744849779,
+   "luck_ratio": 0.2069787106,
+   "top5_gross_share": 0.7719442363,
+   "cycles": 94.0,
+   "cycle_sharpe_on_2d_grid": 2.8999326324
+  },
+  "anchor_1d": {
+   "cumulative_return": 0.2183898102,
+   "cagr": 0.464440983,
+   "cycle_sharpe": 2.5638003112,
+   "cycle_vol": 0.1534187864,
+   "ulcer": 0.0134199354,
+   "max_dd": -0.0515811856,
+   "mean_invested": 0.9745943411,
+   "luck_ratio": 0.3066389533,
+   "top5_gross_share": 0.7416885893,
+   "cycles": 189.0,
+   "cycle_sharpe_on_2d_grid": 2.3807023381
+  },
+  "gate12_2d": {
+   "cumulative_return": 0.2202835209,
+   "cagr": 0.471846839,
+   "cycle_sharpe": 2.4610260275,
+   "cycle_vol": 0.1624223925,
+   "ulcer": 0.0149138681,
+   "max_dd": -0.0505160436,
+   "mean_invested": 0.9737571074,
+   "luck_ratio": 0.0935539241,
+   "top5_gross_share": 0.7390767341,
+   "cycles": 94.0,
+   "cycle_sharpe_on_2d_grid": 2.4610260275
+  }
+ },
+ "window_a_labels": {
+  "anchor": "anchor__windowA",
+  "anchor_1d": "anchor_1d__windowA",
+  "gate12_2d": "gate12_2d__windowA"
+ },
+ "anchor_ledger_summary": {
+  "label": "anchor",
+  "positions": 96,
+  "distinct_vaults": 33,
+  "win_rate": 0.4375,
+  "median_days_held": 6.0,
+  "net_pnl_usd": 36745.914251507194,
+  "top_vault": "0x77fe..1a16",
+  "top_vault_pnl_share_of_positive": 0.4191653862133154,
+  "top3_vaults_pnl_share_of_positive": 0.6772239074879352,
+  "largest_loss_usd": -2073.1057823728333,
+  "largest_loss_vault": "0x77fe..1a16"
+ }
+}
