@@ -1162,3 +1162,7 @@ Replication confirmed. The layout introduces no new strategy configuration or ec
 ### Useful leads and limitations
 
 Use NB23 to inspect C00’s fixed rules and compare it with v11. The notebook uses the existing validated research execution helpers; it is not an exported production strategy module. Both accounts retain the same fee assumptions and accounting corrections. Curator checks and BTC/ETH comparisons over actual NAV observation intervals document profit concentration and isolated jumps. These overlapping, previously researched periods provide no untouched validation.
+
+## Follow-up research after PR #61
+
+[Next research leads](next-research-leads.md) records the prioritised unresolved questions and a proposed four-policy C00 sell-band × RS01-management experiment. The standalone historical gains are small; the interaction is unmeasured. The document distinguishes this bounded economic comparison from the larger unfinished work on managed downside forecasts, exact current-accounting component attribution, accepted portfolio risk and supported spare-capacity allocation. These are plans, not additional executed experiments.

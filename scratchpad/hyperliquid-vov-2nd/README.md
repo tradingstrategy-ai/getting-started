@@ -230,13 +230,15 @@ NB22 corrects seven-day average bias from −0.91 to −0.19 percentage points, 
 
 ### Smaller leads and important qualifications
 
-NB19’s **absolute score × risk resize sleeve** adds only USD 255 in fresh 2026, with slightly worse drawdown. Role attribution assigns negative profit to extras and a positive gain to core feedback; it does not establish profitable extra positions in isolation. NB21’s **1% sell band** adds about USD 111 in 2026 and USD 1,025 over full history. These are small execution leads, not significant confirmed improvements over C00.
+NB19’s **absolute score × risk resize sleeve** adds only USD 255 in fresh 2026, with slightly worse drawdown. Role attribution assigns negative profit to extras and a positive gain to core feedback; it does not establish profitable extra positions in isolation. NB21’s **1% sell band** adds about USD 116 in 2026 and USD 1,025 over full history. These are small execution leads, not significant confirmed improvements over C00.
 
 Returns are concentrated. Realist Capital supplies about 35.4% of C00’s positive 2026 vault profit, and the largest account update is +6.46%. Its NAV and Goon Edging rise roughly 14% over two observed days while BTC/ETH fall over the same intervals. Curator and market checks help interpret the move; they do not prove a continuously executable NAV. Full-history large updates also include week-long reporting intervals. Fixed-ledger deletion or zeroing the best day measures influence, not the performance of an executable alternative portfolio.
 
 All periods have been researched repeatedly and the long period overlaps 2026. Sparse observations, current inventory/guard applied retrospectively, incomplete historical permission clocks, resolved-label selection and terminal censoring limit generalisation. Unknown outcomes are not assumed zero, and confidence from forward-filled calendar rows is tracked separately from actual updates.
 
 ## Likely future leads
+
+The [follow-up prioritisation and proposed NB24 matrix](next-research-leads.md) reviews these leads against the completed work. It is a proposed research design, with no new measured results.
 
 1. **Freeze C00 and observe later data.** Retain matched v11 and the small RS01/sell-band leads without selecting another winner from the same history. The current figures establish historical trade-offs, not an untouched confirmation.
 2. **Align prediction with managed trades.** Forecast net outcomes for actual executable fresh entries, with exits, re-entry, cost basis and unresolved positions accounted for. NB22’s four-day median versus 11.4-day capital-weighted life explains why a generic 30-day hold label can miss the decision’s economics; even the better aligned seven-day label remains approximate.
