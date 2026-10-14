@@ -1,0 +1,26 @@
+# Local backtest inputs, caches and generated outputs belong outside Git.
+_artifacts*/
+__pycache__/
+*.py[cod]
+*.csv
+*.parquet
+*.arrow
+*.feather
+*.json
+*.jsonl
+*.pickle
+*.pkl
+*.duckdb*
+*.sqlite*
+*.db
+*.npz
+*.npy
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.svg
+*.pdf
+*.log
+*.html
+.ipynb_checkpoints/
