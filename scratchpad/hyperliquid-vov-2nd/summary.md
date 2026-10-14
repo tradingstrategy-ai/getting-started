@@ -1162,3 +1162,7 @@ Replication confirmed. The layout introduces no new strategy configuration or ec
 ### Useful leads and limitations
 
 Use NB23 to inspect C00’s fixed rules and compare it with v11. The notebook uses the existing validated research execution helpers; it is not an exported production strategy module. Both accounts retain the same fee assumptions and accounting corrections. Curator checks and BTC/ETH comparisons over actual NAV observation intervals document profit concentration and isolated jumps. These overlapping, previously researched periods provide no untouched validation.
+
+## Follow-up research after PR #61
+
+[Next research leads](next-research-leads.md) proposes a substantially different strategy: factor- and regime-aware return-source forecasts, historical underlying-book information where coverage qualifies, and joint allocation across vaults and cash. It replaces the incremental sell-band × RS01 proposal. C00 remains a standalone benchmark; the new construction does not inherit its six-position core or inverse-variance sizing. NB21's failed adaptive forecasts and NB08's market-adjusted diagnostics define what needs to change: economic information and conditional opportunity estimates. The A/B/C/D matrix isolates decomposition, conditioning and book signals, with historical-coverage, sparse-data, accounting and later-confirmation requirements. These are plans, not additional executed experiments or demonstrated improvements.
