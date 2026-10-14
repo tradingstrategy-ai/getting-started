@@ -238,14 +238,13 @@ All periods have been researched repeatedly and the long period overlaps 2026. S
 
 ## Likely future leads
 
-The [follow-up prioritisation and proposed NB24 matrix](next-research-leads.md) reviews these leads against the completed work. It is a proposed research design, with no new measured results.
+The [new strategy direction and proposed NB24](next-research-leads.md) replaces the incremental follow-up recommendation with a factor- and regime-aware portfolio and a gated underlying-book information arm. It contains no new measured results.
 
-1. **Freeze C00 and observe later data.** Retain matched v11 and the small RS01/sell-band leads without selecting another winner from the same history. The current figures establish historical trade-offs, not an untouched confirmation.
-2. **Align prediction with managed trades.** Forecast net outcomes for actual executable fresh entries, with exits, re-entry, cost basis and unresolved positions accounted for. NB22’s four-day median versus 11.4-day capital-weighted life explains why a generic 30-day hold label can miss the decision’s economics; even the better aligned seven-day label remains approximate.
-3. **Develop downside calibration before exposure control.** Require a filter to beat identity and timing controls and retain its value under unfinished-outcome scenarios. Unsupported young/missing observations should retain an explicit fallback to the trusted core rather than automatically force cash.
-4. **Refine risk and capacity jointly on fixed core rules.** Use nearby risk-window/shrinkage controls, requested-versus-accepted attribution and scarce-capacity examples. Covariance diversification remains a possible targeted lead; the limited tested designs do not exhaust it. Avoid treating a solver optimum for a score surrogate as maximum executable profit.
-5. **Allocate residual cash only with an evidenced marginal advantage.** Preserve core selection and targets, account for slot/TVL limits and whole-account feedback, and compare extras with cash. More deployment is worthwhile only when it improves net profit at an acceptable risk trade-off.
-6. **Improve observation evidence.** Retain archived state when its independent clock is unknown, distinguish observation time from export/write time, audit isolated jumps and confirm real fee/permission behaviour. Keep causal fills, actual-update confidence and young-vault support explicit.
+1. **Change the economic signal.** Separate market exposure from persistent residual skill and examine funding, leverage and book changes where historical coverage supports them. NB08 already analysed BTC/ETH-adjusted outcomes; the new task is an executable conditional return-source model.
+2. **Replace core ranking and inverse-variance sizing.** Allocate jointly across eligible vaults and cash using net growth scenarios and common downside. Position count and deployment follow opportunity quality and operational constraints; C00 remains a standalone benchmark.
+3. **Learn from NB21's failure.** Expected-return forecasts and adaptive allocation were already tested unsuccessfully. New information must improve absolute opportunity decisions; a more elaborate solver is insufficient.
+4. **Qualify book history before backtesting it.** Fill/funding tools do not establish complete point-in-time positions, leverage or margin records. Truncated histories require anchors and NAV reconciliation; current books cannot be historical features.
+5. **Retain sparse-data discipline and later confirmation.** Track actual-update support and pooled young-vault priors, audit permissions/fee assumptions and retain unresolved outcomes. Freeze any surviving policy for later observations.
 
 ## Publication contents and execution prerequisites
 
